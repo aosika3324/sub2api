@@ -153,6 +153,10 @@ func (s *quotaBaseAPIKeyRepoStub) GetRateLimitData(context.Context, int64) (*API
 	panic("unexpected GetRateLimitData call")
 }
 
+func (s *quotaBaseAPIKeyRepoStub) FindInternalByUserAndGroup(context.Context, int64, int64, string) (*APIKey, error) {
+	panic("unexpected FindInternalByUserAndGroup call")
+}
+
 func TestAPIKeyService_UpdateQuotaUsed_UsesAtomicStatePath(t *testing.T) {
 	repo := &quotaStateRepoStub{
 		state: &APIKeyQuotaUsageState{

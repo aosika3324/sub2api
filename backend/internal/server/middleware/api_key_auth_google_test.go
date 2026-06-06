@@ -111,6 +111,10 @@ func (f fakeAPIKeyRepo) UpdateGroupIDByUserAndGroup(ctx context.Context, userID,
 	return 0, errors.New("not implemented")
 }
 
+func (f fakeAPIKeyRepo) FindInternalByUserAndGroup(ctx context.Context, userID, groupID int64, name string) (*service.APIKey, error) {
+	return nil, nil
+}
+
 func (f fakeGoogleSubscriptionRepo) Create(ctx context.Context, sub *service.UserSubscription) error {
 	return errors.New("not implemented")
 }

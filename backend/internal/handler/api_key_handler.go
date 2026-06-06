@@ -79,8 +79,10 @@ func (h *APIKeyHandler) List(c *gin.Context) {
 		SortOrder: c.DefaultQuery("sort_order", "desc"),
 	}
 
-	// Parse filter parameters
-	var filters service.APIKeyListFilters
+	// Parse filter parameters.
+	// ExcludeInternal is always true for user-facing listings: synthetic internal
+	// keys (e.g. the image-studio key) must never be visible to end users.
+	filters := service.APIKeyListFilters{ExcludeInternal: true}
 	if search := strings.TrimSpace(c.Query("search")); search != "" {
 		if len(search) > 100 {
 			search = search[:100]

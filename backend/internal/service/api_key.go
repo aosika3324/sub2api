@@ -45,6 +45,10 @@ type APIKey struct {
 	User                *User
 	Group               *Group
 
+	// Internal marks a system-managed key that is hidden from user-facing listings.
+	// Example: the synthetic "image studio" key created per (user, group) pair.
+	Internal bool
+
 	// Quota fields
 	Quota     float64    // Quota limit in USD (0 = unlimited)
 	QuotaUsed float64    // Used quota amount
@@ -140,4 +144,8 @@ type APIKeyListFilters struct {
 	Search  string
 	Status  string
 	GroupID *int64 // nil=不筛选, 0=无分组, >0=指定分组
+
+	// ExcludeInternal, when true, omits internal (system-managed) keys from results.
+	// Set to true for all user-facing key listings so synthetic keys remain hidden.
+	ExcludeInternal bool
 }

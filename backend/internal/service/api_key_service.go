@@ -60,6 +60,9 @@ type APIKeyRepository interface {
 	DeleteWithAudit(ctx context.Context, id int64) error
 
 	ListByUserID(ctx context.Context, userID int64, params pagination.PaginationParams, filters APIKeyListFilters) ([]APIKey, *pagination.PaginationResult, error)
+	// FindInternalByUserAndGroup returns the first internal key for (userID, groupID, name),
+	// or (nil, nil) if none exists yet.
+	FindInternalByUserAndGroup(ctx context.Context, userID, groupID int64, name string) (*APIKey, error)
 	VerifyOwnership(ctx context.Context, userID int64, apiKeyIDs []int64) ([]int64, error)
 	CountByUserID(ctx context.Context, userID int64) (int64, error)
 	ExistsByKey(ctx context.Context, key string) (bool, error)

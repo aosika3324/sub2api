@@ -962,6 +962,10 @@ func (r *stubApiKeyRepo) GetRateLimitData(ctx context.Context, id int64) (*servi
 	return nil, nil
 }
 
+func (r *stubApiKeyRepo) FindInternalByUserAndGroup(ctx context.Context, userID, groupID int64, name string) (*service.APIKey, error) {
+	return nil, nil
+}
+
 type stubUserSubscriptionRepo struct {
 	getActive      func(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error)
 	updateStatus   func(ctx context.Context, subscriptionID int64, status string) error
