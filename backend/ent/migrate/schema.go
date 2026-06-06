@@ -799,7 +799,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "user_id", Type: field.TypeInt64},
-		{Name: "title", Type: field.TypeString, Default: ""},
+		{Name: "title", Type: field.TypeString, Size: 255, Default: ""},
 	}
 	// ImageConversationsTable holds the schema information for the "image_conversations" table.
 	ImageConversationsTable = &schema.Table{

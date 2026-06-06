@@ -136,7 +136,20 @@ func (_u *ImageConversationUpdate) defaults() error {
 	return nil
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *ImageConversationUpdate) check() error {
+	if v, ok := _u.mutation.Title(); ok {
+		if err := imageconversation.TitleValidator(v); err != nil {
+			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "ImageConversation.title": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *ImageConversationUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(imageconversation.Table, imageconversation.Columns, sqlgraph.NewFieldSpec(imageconversation.FieldID, field.TypeInt64))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -304,7 +317,20 @@ func (_u *ImageConversationUpdateOne) defaults() error {
 	return nil
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *ImageConversationUpdateOne) check() error {
+	if v, ok := _u.mutation.Title(); ok {
+		if err := imageconversation.TitleValidator(v); err != nil {
+			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "ImageConversation.title": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *ImageConversationUpdateOne) sqlSave(ctx context.Context) (_node *ImageConversation, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(imageconversation.Table, imageconversation.Columns, sqlgraph.NewFieldSpec(imageconversation.FieldID, field.TypeInt64))
 	id, ok := _u.mutation.ID()
 	if !ok {

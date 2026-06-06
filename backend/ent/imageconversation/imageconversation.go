@@ -64,6 +64,8 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultTitle holds the default value on creation for the "title" field.
 	DefaultTitle string
+	// TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	TitleValidator func(string) error
 )
 
 // OrderOption defines the ordering options for the ImageConversation queries.

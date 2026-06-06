@@ -969,6 +969,8 @@ func init() {
 	imageconversationDescTitle := imageconversationFields[1].Descriptor()
 	// imageconversation.DefaultTitle holds the default value on creation for the title field.
 	imageconversation.DefaultTitle = imageconversationDescTitle.Default.(string)
+	// imageconversation.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	imageconversation.TitleValidator = imageconversationDescTitle.Validators[0].(func(string) error)
 	imagegenerationMixin := schema.ImageGeneration{}.Mixin()
 	imagegenerationMixinHooks1 := imagegenerationMixin[1].Hooks()
 	imagegeneration.Hooks[0] = imagegenerationMixinHooks1[0]

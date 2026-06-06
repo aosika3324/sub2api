@@ -156,6 +156,11 @@ func (_c *ImageConversationCreate) check() error {
 	if _, ok := _c.mutation.Title(); !ok {
 		return &ValidationError{Name: "title", err: errors.New(`ent: missing required field "ImageConversation.title"`)}
 	}
+	if v, ok := _c.mutation.Title(); ok {
+		if err := imageconversation.TitleValidator(v); err != nil {
+			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "ImageConversation.title": %w`, err)}
+		}
+	}
 	return nil
 }
 

@@ -32,6 +32,7 @@ func (ImageConversation) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int64("user_id"),
 		field.String("title").
+			MaxLen(255).
 			Default(""),
 	}
 }
