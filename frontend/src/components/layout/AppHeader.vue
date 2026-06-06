@@ -44,10 +44,16 @@
         <!-- Subscription Progress (for users with active subscriptions) -->
         <SubscriptionProgressMini v-if="user" />
 
-        <!-- Balance Display -->
+        <!-- Balance Display (clickable → recharge when available) -->
         <div
           v-if="user"
           class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 dark:bg-primary-900/20 sm:flex"
+          :class="rechargeVisible ? 'cursor-pointer transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/40' : ''"
+          :role="rechargeVisible ? 'button' : undefined"
+          :tabindex="rechargeVisible ? 0 : undefined"
+          :title="rechargeVisible ? t('nav.recharge') : undefined"
+          @click="rechargeVisible && openRecharge()"
+          @keydown.enter="rechargeVisible && openRecharge()"
         >
           <svg
             class="h-4 w-4 text-primary-600 dark:text-primary-400"
@@ -66,6 +72,16 @@
             ${{ user.balance?.toFixed(2) || '0.00' }}
           </span>
         </div>
+
+        <!-- Recharge Button -->
+        <button
+          v-if="user && rechargeVisible"
+          type="button"
+          @click="openRecharge"
+          class="hidden items-center gap-1 rounded-xl bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-700 sm:flex"
+        >
+          {{ t('nav.recharge') }}
+        </button>
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -106,7 +122,13 @@
               </div>
 
               <!-- Balance (mobile only) -->
-              <div class="border-b border-gray-100 px-4 py-2 dark:border-dark-700 sm:hidden">
+              <div
+                class="border-b border-gray-100 px-4 py-2 dark:border-dark-700 sm:hidden"
+                :class="rechargeVisible ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-800' : ''"
+                :role="rechargeVisible ? 'button' : undefined"
+                :title="rechargeVisible ? t('nav.recharge') : undefined"
+                @click="rechargeVisible && (closeDropdown(), openRecharge())"
+              >
                 <div class="text-xs text-gray-500 dark:text-dark-400">
                   {{ t('common.balance') }}
                 </div>
@@ -222,6 +244,7 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useRecharge } from '@/composables/useRecharge'
 
 const router = useRouter()
 const route = useRoute()
@@ -230,6 +253,7 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 const onboardingStore = useOnboardingStore()
+const { rechargeVisible, openRecharge } = useRecharge()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)

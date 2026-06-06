@@ -12,7 +12,7 @@
 2. 顶栏独立"充值"按钮(余额旁)
 3. 用户左侧导航栏**现有的"充值/订阅"项**(增强其行为,不新增菜单项)
 
-外部地址在管理后台设置;**配置了外链就优先走外链,没配置则回退到站点内置支付页 `/payment`**;两者都不可用时入口隐藏。
+外部地址在管理后台设置;**配置了外链就优先走外链,没配置则回退到站点内置支付页 `/purchase`**(注:内置充值页路由是 `/purchase`,无 `/payment` 路由);两者都不可用时入口隐藏。
 
 > **现状说明**:`/purchase` 路由指向**内置 `PaymentView.vue`**(站内支付页,受 `payment_enabled` 控制),侧边栏现有项 `nav.buySubscription` 标签即"充值/订阅"。本功能**复用并增强该项**而非新增,避免两个含义重叠的充值入口。后端 `purchase_subscription_*` 设置在当前前端基本未被消费,仅作为"新增设置项"的**代码模板**参考。
 
@@ -23,7 +23,7 @@
 **目标**
 - 后台可配置的外部充值 URL + 启用开关。
 - 三个前端入口共用单一跳转逻辑;新标签打开外链。
-- 外链优先、内置 `/payment` 兜底的优先级规则集中在一处实现。
+- 外链优先、内置 `/purchase` 兜底的优先级规则集中在一处实现。
 
 **非目标(YAGNI)**
 - URL **不**携带用户信息模板变量(`{userId}`/`{email}`/`{balance}`)。纯静态地址。如将来需要,可在 `useRecharge` 内集中扩展,不影响其它部分。
@@ -55,7 +55,7 @@
 useRecharge() => {
   isExternal:      ComputedRef<boolean>   // external_recharge_enabled === true && url 去空格后非空
   rechargeVisible: ComputedRef<boolean>   // isExternal || payment_enabled
-  openRecharge():  void                   // isExternal ? window.open(url,'_blank','noopener') : router.push('/payment')
+  openRecharge():  void                   // isExternal ? window.open(url,'_blank','noopener') : router.push('/purchase')
 }
 ```
 
@@ -76,8 +76,8 @@ useRecharge() => {
 3. **左侧导航项(增强现有"充值/订阅"项,不新增)** — `AppSidebar.vue`:
    - `buildSelfNavItems()`(~673)现有项 `{ path: '/purchase', label: t('nav.buySubscription'), … featureFlag: flagPayment }`:
      - 将 `featureFlag` 由 `flagPayment` 改为 `() => rechargeVisible.value`(配了外链但关闭内置支付时也应显示)。
-     - 给该项打标记(如 `rechargeAware: true`),由统一点击处理走 `openRecharge`:外链已配 → 新标签打开外链;否则按原行为进入内置 `/payment`。
-   - 模板:对带标记的项,外链情形渲染为可点击元素并 `@click.prevent="openRecharge"`;非外链情形保持原 `<router-link>` 跳 `/payment` 的高亮语义。`NavItem` 类型加可选 `rechargeAware?: boolean`。"`<a>` vs `<router-link>` 条件渲染"细节在计划阶段定。
+     - 给该项打标记(如 `rechargeAware: true`),由统一点击处理走 `openRecharge`:外链已配 → 新标签打开外链;否则按原行为进入内置 `/purchase`。
+   - 模板:对带标记的项,外链情形渲染为可点击元素并 `@click.prevent="openRecharge"`;非外链情形保持原 `<router-link>` 跳 `/purchase` 的高亮语义。`NavItem` 类型加可选 `rechargeAware?: boolean`。"`<a>` vs `<router-link>` 条件渲染"细节在计划阶段定。
    - 标签沿用现有 `nav.buySubscription`("充值/订阅"),侧边栏不新增文案。
 
 ### 4.4 管理后台表单
@@ -93,7 +93,7 @@ useRecharge() => {
 
 ## 5. 边界与错误处理
 
-- URL 为空或非 `http(s)`:启用校验拦截写入;前端 `externalConfigured=false` → 回退内置 `/payment`。
+- URL 为空或非 `http(s)`:启用校验拦截写入;前端 `externalConfigured=false` → 回退内置 `/purchase`。
 - `payment_enabled=false` 且未配外链:`rechargeVisible=false`,三入口全部隐藏。
 - `simple 模式`:侧边栏充值项 `hideInSimpleMode:true`(与购买订阅一致);顶栏入口仍按 `rechargeVisible`。
 - `backend 模式`:沿用现有路由守卫,不特殊处理(外链是新标签,不经路由)。
@@ -107,9 +107,9 @@ useRecharge() => {
 - `UpdateSettings` 持久化;URL 非法(启用且非 http(s))被拒;空 URL 允许。
 
 **前端**(vitest)
-- `useRecharge` 单测:三分支 —— 外链已配(开新标签)、仅内置(push `/payment`)、都没有(`rechargeVisible=false`)。
+- `useRecharge` 单测:三分支 —— 外链已配(开新标签)、仅内置(push `/purchase`)、都没有(`rechargeVisible=false`)。
 - `AppHeader` 渲染:配/不配外链时充值按钮与余额可点性的显隐、点击触发 `openRecharge`。
-- `AppSidebar`:外链已配时"充值/订阅"项点击触发 `openRecharge`(外链分支)、未配时仍指向 `/payment`;`rechargeVisible` 控制显隐(含"内置支付关闭但外链开启"的情形)。
+- `AppSidebar`:外链已配时"充值/订阅"项点击触发 `openRecharge`(外链分支)、未配时仍指向 `/purchase`;`rechargeVisible` 控制显隐(含"内置支付关闭但外链开启"的情形)。
 
 ## 7. 改动文件清单
 

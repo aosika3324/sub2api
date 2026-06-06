@@ -377,6 +377,7 @@ export default {
     github: 'GitHub',
     mySubscriptions: '我的订阅',
     buySubscription: '充值/订阅',
+    recharge: '充值',
     docs: '文档',
     myOrders: '我的订单',
     orderManagement: '订单管理',
@@ -5905,7 +5906,12 @@ export default {
         homeContentIframeWarning:
           '⚠️ iframe 模式提示：部分网站设置了 X-Frame-Options 或 CSP 安全策略，禁止被嵌入到 iframe 中。如果页面显示空白或报错，请确认目标网站允许被嵌入，或考虑使用 HTML 模式自行构建页面内容。',
         hideCcsImportButton: '隐藏 CCS 导入按钮',
-        hideCcsImportButtonHint: '启用后将在 API Keys 页面隐藏"导入 CCS"按钮'
+        hideCcsImportButtonHint: '启用后将在 API Keys 页面隐藏"导入 CCS"按钮',
+        externalRechargeEnabled: '启用外部充值入口',
+        externalRechargeEnabledHint: '启用后,余额数字、顶栏"充值"按钮与侧边栏"充值/订阅"将跳转到下方外部地址(新标签打开);未配置地址时回退到站内充值页。',
+        externalRechargeUrl: '外部充值地址',
+        externalRechargeUrlHint: '点击充值时在新标签打开的外部链接,需以 http:// 或 https:// 开头。留空则使用站内充值。',
+        externalRechargeUrlPlaceholder: 'https://your-recharge-site.com'
       },
       purchase: {
         title: '充值/订阅页面',
