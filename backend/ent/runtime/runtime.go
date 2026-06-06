@@ -20,6 +20,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/imageconversation"
+	"github.com/Wei-Shaw/sub2api/ent/imagegeneration"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -109,36 +111,40 @@ func init() {
 	apikey.DefaultStatus = apikeyDescStatus.Default.(string)
 	// apikey.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	apikey.StatusValidator = apikeyDescStatus.Validators[0].(func(string) error)
+	// apikeyDescInternal is the schema descriptor for internal field.
+	apikeyDescInternal := apikeyFields[5].Descriptor()
+	// apikey.DefaultInternal holds the default value on creation for the internal field.
+	apikey.DefaultInternal = apikeyDescInternal.Default.(bool)
 	// apikeyDescQuota is the schema descriptor for quota field.
-	apikeyDescQuota := apikeyFields[8].Descriptor()
+	apikeyDescQuota := apikeyFields[9].Descriptor()
 	// apikey.DefaultQuota holds the default value on creation for the quota field.
 	apikey.DefaultQuota = apikeyDescQuota.Default.(float64)
 	// apikeyDescQuotaUsed is the schema descriptor for quota_used field.
-	apikeyDescQuotaUsed := apikeyFields[9].Descriptor()
+	apikeyDescQuotaUsed := apikeyFields[10].Descriptor()
 	// apikey.DefaultQuotaUsed holds the default value on creation for the quota_used field.
 	apikey.DefaultQuotaUsed = apikeyDescQuotaUsed.Default.(float64)
 	// apikeyDescRateLimit5h is the schema descriptor for rate_limit_5h field.
-	apikeyDescRateLimit5h := apikeyFields[11].Descriptor()
+	apikeyDescRateLimit5h := apikeyFields[12].Descriptor()
 	// apikey.DefaultRateLimit5h holds the default value on creation for the rate_limit_5h field.
 	apikey.DefaultRateLimit5h = apikeyDescRateLimit5h.Default.(float64)
 	// apikeyDescRateLimit1d is the schema descriptor for rate_limit_1d field.
-	apikeyDescRateLimit1d := apikeyFields[12].Descriptor()
+	apikeyDescRateLimit1d := apikeyFields[13].Descriptor()
 	// apikey.DefaultRateLimit1d holds the default value on creation for the rate_limit_1d field.
 	apikey.DefaultRateLimit1d = apikeyDescRateLimit1d.Default.(float64)
 	// apikeyDescRateLimit7d is the schema descriptor for rate_limit_7d field.
-	apikeyDescRateLimit7d := apikeyFields[13].Descriptor()
+	apikeyDescRateLimit7d := apikeyFields[14].Descriptor()
 	// apikey.DefaultRateLimit7d holds the default value on creation for the rate_limit_7d field.
 	apikey.DefaultRateLimit7d = apikeyDescRateLimit7d.Default.(float64)
 	// apikeyDescUsage5h is the schema descriptor for usage_5h field.
-	apikeyDescUsage5h := apikeyFields[14].Descriptor()
+	apikeyDescUsage5h := apikeyFields[15].Descriptor()
 	// apikey.DefaultUsage5h holds the default value on creation for the usage_5h field.
 	apikey.DefaultUsage5h = apikeyDescUsage5h.Default.(float64)
 	// apikeyDescUsage1d is the schema descriptor for usage_1d field.
-	apikeyDescUsage1d := apikeyFields[15].Descriptor()
+	apikeyDescUsage1d := apikeyFields[16].Descriptor()
 	// apikey.DefaultUsage1d holds the default value on creation for the usage_1d field.
 	apikey.DefaultUsage1d = apikeyDescUsage1d.Default.(float64)
 	// apikeyDescUsage7d is the schema descriptor for usage_7d field.
-	apikeyDescUsage7d := apikeyFields[16].Descriptor()
+	apikeyDescUsage7d := apikeyFields[17].Descriptor()
 	// apikey.DefaultUsage7d holds the default value on creation for the usage_7d field.
 	apikey.DefaultUsage7d = apikeyDescUsage7d.Default.(float64)
 	accountMixin := schema.Account{}.Mixin()
@@ -940,6 +946,84 @@ func init() {
 	identityadoptiondecisionDescDecidedAt := identityadoptiondecisionFields[4].Descriptor()
 	// identityadoptiondecision.DefaultDecidedAt holds the default value on creation for the decided_at field.
 	identityadoptiondecision.DefaultDecidedAt = identityadoptiondecisionDescDecidedAt.Default.(func() time.Time)
+	imageconversationMixin := schema.ImageConversation{}.Mixin()
+	imageconversationMixinHooks1 := imageconversationMixin[1].Hooks()
+	imageconversation.Hooks[0] = imageconversationMixinHooks1[0]
+	imageconversationMixinInters1 := imageconversationMixin[1].Interceptors()
+	imageconversation.Interceptors[0] = imageconversationMixinInters1[0]
+	imageconversationMixinFields0 := imageconversationMixin[0].Fields()
+	_ = imageconversationMixinFields0
+	imageconversationFields := schema.ImageConversation{}.Fields()
+	_ = imageconversationFields
+	// imageconversationDescCreatedAt is the schema descriptor for created_at field.
+	imageconversationDescCreatedAt := imageconversationMixinFields0[0].Descriptor()
+	// imageconversation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	imageconversation.DefaultCreatedAt = imageconversationDescCreatedAt.Default.(func() time.Time)
+	// imageconversationDescUpdatedAt is the schema descriptor for updated_at field.
+	imageconversationDescUpdatedAt := imageconversationMixinFields0[1].Descriptor()
+	// imageconversation.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	imageconversation.DefaultUpdatedAt = imageconversationDescUpdatedAt.Default.(func() time.Time)
+	// imageconversation.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	imageconversation.UpdateDefaultUpdatedAt = imageconversationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// imageconversationDescTitle is the schema descriptor for title field.
+	imageconversationDescTitle := imageconversationFields[1].Descriptor()
+	// imageconversation.DefaultTitle holds the default value on creation for the title field.
+	imageconversation.DefaultTitle = imageconversationDescTitle.Default.(string)
+	imagegenerationMixin := schema.ImageGeneration{}.Mixin()
+	imagegenerationMixinHooks1 := imagegenerationMixin[1].Hooks()
+	imagegeneration.Hooks[0] = imagegenerationMixinHooks1[0]
+	imagegenerationMixinInters1 := imagegenerationMixin[1].Interceptors()
+	imagegeneration.Interceptors[0] = imagegenerationMixinInters1[0]
+	imagegenerationMixinFields0 := imagegenerationMixin[0].Fields()
+	_ = imagegenerationMixinFields0
+	imagegenerationFields := schema.ImageGeneration{}.Fields()
+	_ = imagegenerationFields
+	// imagegenerationDescCreatedAt is the schema descriptor for created_at field.
+	imagegenerationDescCreatedAt := imagegenerationMixinFields0[0].Descriptor()
+	// imagegeneration.DefaultCreatedAt holds the default value on creation for the created_at field.
+	imagegeneration.DefaultCreatedAt = imagegenerationDescCreatedAt.Default.(func() time.Time)
+	// imagegenerationDescUpdatedAt is the schema descriptor for updated_at field.
+	imagegenerationDescUpdatedAt := imagegenerationMixinFields0[1].Descriptor()
+	// imagegeneration.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	imagegeneration.DefaultUpdatedAt = imagegenerationDescUpdatedAt.Default.(func() time.Time)
+	// imagegeneration.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	imagegeneration.UpdateDefaultUpdatedAt = imagegenerationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// imagegenerationDescModel is the schema descriptor for model field.
+	imagegenerationDescModel := imagegenerationFields[4].Descriptor()
+	// imagegeneration.DefaultModel holds the default value on creation for the model field.
+	imagegeneration.DefaultModel = imagegenerationDescModel.Default.(string)
+	// imagegeneration.ModelValidator is a validator for the "model" field. It is called by the builders before save.
+	imagegeneration.ModelValidator = imagegenerationDescModel.Validators[0].(func(string) error)
+	// imagegenerationDescSize is the schema descriptor for size field.
+	imagegenerationDescSize := imagegenerationFields[5].Descriptor()
+	// imagegeneration.DefaultSize holds the default value on creation for the size field.
+	imagegeneration.DefaultSize = imagegenerationDescSize.Default.(string)
+	// imagegeneration.SizeValidator is a validator for the "size" field. It is called by the builders before save.
+	imagegeneration.SizeValidator = imagegenerationDescSize.Validators[0].(func(string) error)
+	// imagegenerationDescQuality is the schema descriptor for quality field.
+	imagegenerationDescQuality := imagegenerationFields[6].Descriptor()
+	// imagegeneration.DefaultQuality holds the default value on creation for the quality field.
+	imagegeneration.DefaultQuality = imagegenerationDescQuality.Default.(string)
+	// imagegeneration.QualityValidator is a validator for the "quality" field. It is called by the builders before save.
+	imagegeneration.QualityValidator = imagegenerationDescQuality.Validators[0].(func(string) error)
+	// imagegenerationDescN is the schema descriptor for n field.
+	imagegenerationDescN := imagegenerationFields[7].Descriptor()
+	// imagegeneration.DefaultN holds the default value on creation for the n field.
+	imagegeneration.DefaultN = imagegenerationDescN.Default.(int)
+	// imagegenerationDescImageCount is the schema descriptor for image_count field.
+	imagegenerationDescImageCount := imagegenerationFields[8].Descriptor()
+	// imagegeneration.DefaultImageCount holds the default value on creation for the image_count field.
+	imagegeneration.DefaultImageCount = imagegenerationDescImageCount.Default.(int)
+	// imagegenerationDescStatus is the schema descriptor for status field.
+	imagegenerationDescStatus := imagegenerationFields[9].Descriptor()
+	// imagegeneration.DefaultStatus holds the default value on creation for the status field.
+	imagegeneration.DefaultStatus = imagegenerationDescStatus.Default.(string)
+	// imagegeneration.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	imagegeneration.StatusValidator = imagegenerationDescStatus.Validators[0].(func(string) error)
+	// imagegenerationDescCost is the schema descriptor for cost field.
+	imagegenerationDescCost := imagegenerationFields[10].Descriptor()
+	// imagegeneration.DefaultCost holds the default value on creation for the cost field.
+	imagegeneration.DefaultCost = imagegenerationDescCost.Default.(float64)
 	paymentauditlogFields := schema.PaymentAuditLog{}.Fields()
 	_ = paymentauditlogFields
 	// paymentauditlogDescOrderID is the schema descriptor for order_id field.
