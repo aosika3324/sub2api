@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -49,7 +50,7 @@ func (s *APIKeyService) EnsureStudioAPIKey(ctx context.Context, userID, groupID 
 
 	if err := s.apiKeyRepo.Create(ctx, apiKey); err != nil {
 		// Idempotency: if a concurrent caller already created the key, fetch it.
-		if err == ErrAPIKeyExists {
+		if errors.Is(err, ErrAPIKeyExists) {
 			existing, lookupErr := s.apiKeyRepo.FindInternalByUserAndGroup(ctx, userID, groupID, studioAPIKeyName)
 			if lookupErr != nil {
 				return nil, fmt.Errorf("ensure studio api key: lookup after conflict: %w", lookupErr)

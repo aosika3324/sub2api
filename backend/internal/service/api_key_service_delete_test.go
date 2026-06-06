@@ -55,14 +55,14 @@ func (s *apiKeyRepoStub) GetByID(ctx context.Context, id int64) (*APIKey, error)
 	panic("unexpected GetByID call")
 }
 
-func (s *apiKeyRepoStub) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
+func (s *apiKeyRepoStub) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, bool, error) {
 	if s.getByIDErr != nil {
-		return "", 0, s.getByIDErr
+		return "", 0, false, s.getByIDErr
 	}
 	if s.apiKey != nil {
-		return s.apiKey.Key, s.apiKey.UserID, nil
+		return s.apiKey.Key, s.apiKey.UserID, s.apiKey.Internal, nil
 	}
-	return "", 0, ErrAPIKeyNotFound
+	return "", 0, false, ErrAPIKeyNotFound
 }
 
 func (s *apiKeyRepoStub) GetByKey(ctx context.Context, key string) (*APIKey, error) {

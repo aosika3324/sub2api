@@ -49,8 +49,8 @@ const (
 type APIKeyRepository interface {
 	Create(ctx context.Context, key *APIKey) error
 	GetByID(ctx context.Context, id int64) (*APIKey, error)
-	// GetKeyAndOwnerID 仅获取 API Key 的 key 与所有者 ID，用于删除等轻量场景
-	GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error)
+	// GetKeyAndOwnerID 仅获取 API Key 的 key、所有者 ID 与 internal 标记，用于删除等轻量场景
+	GetKeyAndOwnerID(ctx context.Context, id int64) (key string, ownerID int64, internal bool, err error)
 	GetByKey(ctx context.Context, key string) (*APIKey, error)
 	// GetByKeyForAuth 认证专用查询，返回最小字段集
 	GetByKeyForAuth(ctx context.Context, key string) (*APIKey, error)
@@ -455,10 +455,17 @@ func (s *APIKeyService) VerifyOwnership(ctx context.Context, userID int64, apiKe
 }
 
 // GetByID 根据ID获取API Key
+//
+// 内部(系统托管)key 对用户端不可见:此方法服务于用户端单 key 取用/归属校验路径
+// (api_key_handler、usage_handler 等),因此对 internal=true 的 key 一律返回
+// not-found,避免隐藏 key 经用户端泄露。管理端级联删除等系统路径直接走 repo,不受此守卫影响。
 func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) {
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get api key: %w", err)
+	}
+	if apiKey.Internal {
+		return nil, ErrAPIKeyNotFound
 	}
 	s.compileAPIKeyIPRules(apiKey)
 	return apiKey, nil
@@ -521,6 +528,11 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get api key: %w", err)
+	}
+
+	// 内部(系统托管)key 对用户端不可见且不可改:返回 not-found,避免泄露其存在。
+	if apiKey.Internal {
+		return nil, ErrAPIKeyNotFound
 	}
 
 	// 验证所有权
@@ -643,10 +655,19 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 }
 
 // Delete 删除API Key
+//
+// 内部(系统托管)key 对用户端不可删:此方法为用户端删除路径,对 internal=true 的 key
+// 返回 not-found。管理端级联删除(删用户时清理 key)走 repo.DeleteWithAudit,不经此方法,
+// 因此 internal key 在删用户时仍会被一并清理,不会成为删不掉的孤儿。
 func (s *APIKeyService) Delete(ctx context.Context, id int64, userID int64) error {
-	key, ownerID, err := s.apiKeyRepo.GetKeyAndOwnerID(ctx, id)
+	key, ownerID, internal, err := s.apiKeyRepo.GetKeyAndOwnerID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("get api key: %w", err)
+	}
+
+	// 内部 key 对用户端不可见且不可删:返回 not-found,避免泄露其存在。
+	if internal {
+		return ErrAPIKeyNotFound
 	}
 
 	// 验证当前用户是否为该 API Key 的所有者

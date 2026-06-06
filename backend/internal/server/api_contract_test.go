@@ -2059,12 +2059,12 @@ func (r *stubApiKeyRepo) GetByID(ctx context.Context, id int64) (*service.APIKey
 	return &clone, nil
 }
 
-func (r *stubApiKeyRepo) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
+func (r *stubApiKeyRepo) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, bool, error) {
 	key, ok := r.byID[id]
 	if !ok {
-		return "", 0, service.ErrAPIKeyNotFound
+		return "", 0, false, service.ErrAPIKeyNotFound
 	}
-	return key.Key, key.UserID, nil
+	return key.Key, key.UserID, key.Internal, nil
 }
 
 func (r *stubApiKeyRepo) GetByKey(ctx context.Context, key string) (*service.APIKey, error) {

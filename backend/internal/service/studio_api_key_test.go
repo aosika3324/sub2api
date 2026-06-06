@@ -25,6 +25,11 @@ type studioAPIKeyRepoStub struct {
 	createErr error
 	// findErr, if non-nil, is returned by FindInternalByUserAndGroup.
 	findErr error
+	// firstFindMiss, when true, forces the FIRST FindInternalByUserAndGroup call
+	// to return (nil, nil) regardless of stored state, so the slow/create path is
+	// exercised even when a seeded key exists. Subsequent calls behave normally.
+	firstFindMiss bool
+	findCalls     int
 }
 
 func (s *studioAPIKeyRepoStub) Create(_ context.Context, key *APIKey) error {
@@ -38,8 +43,12 @@ func (s *studioAPIKeyRepoStub) Create(_ context.Context, key *APIKey) error {
 }
 
 func (s *studioAPIKeyRepoStub) FindInternalByUserAndGroup(_ context.Context, userID, groupID int64, name string) (*APIKey, error) {
+	s.findCalls++
 	if s.findErr != nil {
 		return nil, s.findErr
+	}
+	if s.firstFindMiss && s.findCalls == 1 {
+		return nil, nil
 	}
 	for _, k := range s.stored {
 		if k.UserID == userID && k.GroupID != nil && *k.GroupID == groupID && k.Name == name && k.Internal {
@@ -66,11 +75,22 @@ func (s *studioAPIKeyRepoStub) ListByUserID(_ context.Context, userID int64, _ p
 
 // Remaining interface methods — panic on unexpected call.
 
-func (s *studioAPIKeyRepoStub) GetByID(context.Context, int64) (*APIKey, error) {
-	panic("unexpected GetByID call")
+func (s *studioAPIKeyRepoStub) GetByID(_ context.Context, id int64) (*APIKey, error) {
+	for _, k := range s.stored {
+		if k.ID == id {
+			clone := *k
+			return &clone, nil
+		}
+	}
+	return nil, ErrAPIKeyNotFound
 }
-func (s *studioAPIKeyRepoStub) GetKeyAndOwnerID(context.Context, int64) (string, int64, error) {
-	panic("unexpected GetKeyAndOwnerID call")
+func (s *studioAPIKeyRepoStub) GetKeyAndOwnerID(_ context.Context, id int64) (string, int64, bool, error) {
+	for _, k := range s.stored {
+		if k.ID == id {
+			return k.Key, k.UserID, k.Internal, nil
+		}
+	}
+	return "", 0, false, ErrAPIKeyNotFound
 }
 func (s *studioAPIKeyRepoStub) GetByKey(context.Context, string) (*APIKey, error) {
 	panic("unexpected GetByKey call")
@@ -253,4 +273,125 @@ func TestEnsureStudioAPIKey_InternalKeyHiddenFromUserList(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(2), allResult.Total, "admin list must include internal keys")
 	require.Len(t, allKeys, 2)
+}
+
+// TestEnsureStudioAPIKey_IdempotentOnCreateConflict verifies the race-recovery
+// branch: if Create returns ErrAPIKeyExists (a concurrent creator won), the
+// method re-fetches and returns the existing key instead of erroring.
+func TestEnsureStudioAPIKey_IdempotentOnCreateConflict(t *testing.T) {
+	const userID, groupID = int64(11), int64(22)
+
+	// Pre-seed the key the "concurrent creator" already inserted.
+	gid := groupID
+	existing := &APIKey{
+		ID:       7,
+		UserID:   userID,
+		Key:      "sk-existing-studio",
+		Name:     studioAPIKeyName,
+		GroupID:  &gid,
+		Status:   StatusActive,
+		Internal: true,
+	}
+	// firstFindMiss forces the fast-path lookup to miss, so the slow/create path
+	// runs; createErr=ErrAPIKeyExists simulates a concurrent creator winning the
+	// race; the recovery lookup then returns the seeded key.
+	repo := &studioAPIKeyRepoStub{
+		stored:        []*APIKey{existing},
+		createErr:     ErrAPIKeyExists,
+		firstFindMiss: true,
+	}
+	svc := newStudioAPIKeyService(repo)
+
+	key, err := svc.EnsureStudioAPIKey(context.Background(), userID, groupID)
+	require.NoError(t, err)
+	require.NotNil(t, key)
+	require.Equal(t, existing.ID, key.ID, "must recover the concurrently-created key")
+	require.True(t, key.Internal)
+}
+
+// TestApiKeyService_GetByID_HidesInternalKey verifies that the user-facing
+// GetByID path returns not-found for internal keys.
+func TestApiKeyService_GetByID_HidesInternalKey(t *testing.T) {
+	gid := int64(22)
+	repo := &studioAPIKeyRepoStub{
+		stored: []*APIKey{{
+			ID:       5,
+			UserID:   11,
+			Key:      "sk-internal",
+			Name:     studioAPIKeyName,
+			GroupID:  &gid,
+			Status:   StatusActive,
+			Internal: true,
+		}},
+	}
+	svc := newStudioAPIKeyService(repo)
+
+	_, err := svc.GetByID(context.Background(), 5)
+	require.ErrorIs(t, err, ErrAPIKeyNotFound, "internal key must be invisible to user GetByID")
+}
+
+// TestApiKeyService_GetByID_ReturnsNormalKey is a control: non-internal keys
+// remain visible via GetByID.
+func TestApiKeyService_GetByID_ReturnsNormalKey(t *testing.T) {
+	repo := &studioAPIKeyRepoStub{
+		stored: []*APIKey{{
+			ID:       6,
+			UserID:   11,
+			Key:      "sk-normal",
+			Name:     "visible",
+			Status:   StatusActive,
+			Internal: false,
+		}},
+	}
+	svc := newStudioAPIKeyService(repo)
+
+	key, err := svc.GetByID(context.Background(), 6)
+	require.NoError(t, err)
+	require.Equal(t, int64(6), key.ID)
+	require.False(t, key.Internal)
+}
+
+// TestApiKeyService_Update_RejectsInternalKey verifies users cannot mutate an
+// internal key: Update returns not-found and never reaches the repo Update.
+func TestApiKeyService_Update_RejectsInternalKey(t *testing.T) {
+	gid := int64(22)
+	repo := &studioAPIKeyRepoStub{
+		stored: []*APIKey{{
+			ID:       5,
+			UserID:   11,
+			Key:      "sk-internal",
+			Name:     studioAPIKeyName,
+			GroupID:  &gid,
+			Status:   StatusActive,
+			Internal: true,
+		}},
+	}
+	svc := newStudioAPIKeyService(repo)
+
+	newName := "hacked"
+	_, err := svc.Update(context.Background(), 5, 11, UpdateAPIKeyRequest{Name: &newName})
+	require.ErrorIs(t, err, ErrAPIKeyNotFound, "internal key must not be updatable by user")
+	// repo.Update panics on call; reaching here proves it was never invoked.
+}
+
+// TestApiKeyService_Delete_RejectsInternalKey verifies users cannot delete an
+// internal key: Delete returns not-found and never reaches DeleteWithAudit.
+func TestApiKeyService_Delete_RejectsInternalKey(t *testing.T) {
+	gid := int64(22)
+	repo := &studioAPIKeyRepoStub{
+		stored: []*APIKey{{
+			ID:       5,
+			UserID:   11,
+			Key:      "sk-internal",
+			Name:     studioAPIKeyName,
+			GroupID:  &gid,
+			Status:   StatusActive,
+			Internal: true,
+		}},
+	}
+	svc := newStudioAPIKeyService(repo)
+
+	err := svc.Delete(context.Background(), 5, 11)
+	require.ErrorIs(t, err, ErrAPIKeyNotFound, "internal key must not be deletable by user")
+	// repo.DeleteWithAudit panics on call; reaching here proves it was never invoked.
 }
