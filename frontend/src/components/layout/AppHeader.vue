@@ -126,8 +126,10 @@
                 class="border-b border-gray-100 px-4 py-2 dark:border-dark-700 sm:hidden"
                 :class="rechargeVisible ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-800' : ''"
                 :role="rechargeVisible ? 'button' : undefined"
+                :tabindex="rechargeVisible ? 0 : undefined"
                 :title="rechargeVisible ? t('nav.recharge') : undefined"
                 @click="rechargeVisible && (closeDropdown(), openRecharge())"
+                @keydown.enter="rechargeVisible && (closeDropdown(), openRecharge())"
               >
                 <div class="text-xs text-gray-500 dark:text-dark-400">
                   {{ t('common.balance') }}

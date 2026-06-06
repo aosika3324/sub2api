@@ -35,16 +35,51 @@ func TestSettingService_GetPublicSettings_ExternalRechargeDefaultsOff(t *testing
 	require.Empty(t, settings.ExternalRechargeURL)
 }
 
-func TestHasHTTPScheme(t *testing.T) {
-	cases := map[string]bool{
-		"http://a.com":        true,
-		"https://a.com/x?y=1": true,
-		"ftp://a.com":         false,
-		"a.com":               false,
-		"javascript:alert(1)": false,
-		"":                    false,
-	}
-	for in, want := range cases {
-		require.Equalf(t, want, hasHTTPScheme(in), "hasHTTPScheme(%q)", in)
-	}
+// Uses settingUpdateRepoStub (defined in setting_service_update_test.go), which
+// records the persisted map via SetMultiple.
+func TestSettingService_UpdateSettings_ExternalRecharge(t *testing.T) {
+	t.Run("enabled with invalid url is rejected and nothing persisted", func(t *testing.T) {
+		repo := &settingUpdateRepoStub{}
+		svc := NewSettingService(repo, &config.Config{})
+		err := svc.UpdateSettings(context.Background(), &SystemSettings{
+			ExternalRechargeEnabled: true,
+			ExternalRechargeURL:     "https://", // absolute scheme but no host → must be rejected
+		})
+		require.Error(t, err)
+		require.Nil(t, repo.updates)
+	})
+
+	t.Run("enabled with valid url persists trimmed value", func(t *testing.T) {
+		repo := &settingUpdateRepoStub{}
+		svc := NewSettingService(repo, &config.Config{})
+		err := svc.UpdateSettings(context.Background(), &SystemSettings{
+			ExternalRechargeEnabled: true,
+			ExternalRechargeURL:     "  https://pay.example.com/topup  ",
+		})
+		require.NoError(t, err)
+		require.Equal(t, "true", repo.updates[SettingKeyExternalRechargeEnabled])
+		require.Equal(t, "https://pay.example.com/topup", repo.updates[SettingKeyExternalRechargeURL])
+	})
+
+	t.Run("enabled with empty url is allowed (unconfigured)", func(t *testing.T) {
+		repo := &settingUpdateRepoStub{}
+		svc := NewSettingService(repo, &config.Config{})
+		err := svc.UpdateSettings(context.Background(), &SystemSettings{
+			ExternalRechargeEnabled: true,
+			ExternalRechargeURL:     "   ",
+		})
+		require.NoError(t, err)
+		require.Equal(t, "", repo.updates[SettingKeyExternalRechargeURL])
+	})
+
+	t.Run("disabled with garbage url is allowed (guard short-circuits)", func(t *testing.T) {
+		repo := &settingUpdateRepoStub{}
+		svc := NewSettingService(repo, &config.Config{})
+		err := svc.UpdateSettings(context.Background(), &SystemSettings{
+			ExternalRechargeEnabled: false,
+			ExternalRechargeURL:     "not a url",
+		})
+		require.NoError(t, err)
+		require.Equal(t, "false", repo.updates[SettingKeyExternalRechargeEnabled])
+	})
 }

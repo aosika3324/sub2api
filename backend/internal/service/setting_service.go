@@ -1574,12 +1574,6 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	return err
 }
 
-// hasHTTPScheme reports whether s is an absolute http(s) URL. Used to validate
-// admin-supplied external URLs (e.g. the external recharge link) before persisting.
-func hasHTTPScheme(s string) bool {
-	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
-}
-
 func (s *SettingService) OIDCSecurityWriteDefaults(ctx context.Context) (bool, bool, error) {
 	rawSettings, err := s.settingRepo.GetMultiple(ctx, []string{
 		SettingKeyOIDCConnectUsePKCE,
@@ -1833,8 +1827,10 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
 	externalRechargeURL := strings.TrimSpace(settings.ExternalRechargeURL)
-	if settings.ExternalRechargeEnabled && externalRechargeURL != "" && !hasHTTPScheme(externalRechargeURL) {
-		return nil, fmt.Errorf("external recharge url must start with http:// or https://")
+	if settings.ExternalRechargeEnabled && externalRechargeURL != "" {
+		if err := config.ValidateAbsoluteHTTPURL(externalRechargeURL); err != nil {
+			return nil, fmt.Errorf("external recharge url must be an absolute http(s) URL: %w", err)
+		}
 	}
 	updates[SettingKeyExternalRechargeEnabled] = strconv.FormatBool(settings.ExternalRechargeEnabled)
 	updates[SettingKeyExternalRechargeURL] = externalRechargeURL
