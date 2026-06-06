@@ -745,12 +745,14 @@ func (s *OpenAIGatewayService) buildOpenAIImagesRequest(
 	}
 	req = req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileOpenAI))
 	req.Header.Set("Authorization", "Bearer "+token)
-	for key, values := range c.Request.Header {
-		if !openaiPassthroughAllowedHeaders[strings.ToLower(key)] {
-			continue
-		}
-		for _, value := range values {
-			req.Header.Add(key, value)
+	if c != nil && c.Request != nil {
+		for key, values := range c.Request.Header {
+			if !openaiPassthroughAllowedHeaders[strings.ToLower(key)] {
+				continue
+			}
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
 		}
 	}
 	customUA := account.GetOpenAIUserAgent()
