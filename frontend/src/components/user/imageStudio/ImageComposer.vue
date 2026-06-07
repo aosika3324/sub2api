@@ -1,16 +1,19 @@
 <template>
-  <div class="composer card overflow-hidden">
-    <!-- No usable group hint -->
+  <div class="composer">
+    <!-- No usable group hint (subtle muted inline notice) -->
     <div
       v-if="!loadingGroups && imageGroups.length === 0"
-      class="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-4 py-2.5 text-sm text-amber-700 dark:border-amber-900/30 dark:bg-amber-900/15 dark:text-amber-300"
+      class="mb-2 flex items-center gap-2 px-1 text-xs text-amber-600 dark:text-amber-400/80"
     >
-      <Icon name="exclamationTriangle" size="sm" class="flex-shrink-0" />
+      <Icon name="exclamationTriangle" size="xs" class="flex-shrink-0" />
       <span>{{ t('imageStudio.noImageGroupHint') }}</span>
     </div>
 
-    <!-- Prompt hero -->
-    <div class="relative">
+    <!-- Unified pill: textarea on top, compact controls + send below -->
+    <div
+      class="composer-shell rounded-[28px] border border-gray-200 bg-white shadow-sm transition-colors focus-within:border-gray-300 dark:border-white/10 dark:bg-white/[0.03] dark:shadow-black/20 dark:focus-within:border-white/20"
+    >
+      <!-- Prompt -->
       <textarea
         ref="promptRef"
         v-model="prompt"
@@ -22,82 +25,88 @@
         @keydown.ctrl.enter.prevent="submit"
         @keydown.meta.enter.prevent="submit"
       ></textarea>
-    </div>
 
-    <!-- Secondary control row -->
-    <div
-      class="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-gray-100 px-4 py-3 dark:border-dark-700/60"
-    >
-      <!-- Group (drives billing) -->
-      <label class="composer-field min-w-[150px] flex-1 basis-44">
-        <span class="composer-label">{{ t('imageStudio.group') }}</span>
+      <!-- Control bar -->
+      <div class="composer-controls flex flex-wrap items-center gap-2 px-3 pb-3">
+        <!-- Group (drives billing) -->
         <Select
           v-model="groupId"
+          class="pill-select"
           :options="groupOptions"
           :disabled="disabled || imageGroups.length === 0"
           :placeholder="t('imageStudio.selectGroup')"
+          :title="t('imageStudio.group')"
         />
-      </label>
 
-      <!-- Model -->
-      <label class="composer-field w-[150px]">
-        <span class="composer-label">{{ t('imageStudio.model') }}</span>
-        <Select v-model="model" :options="modelOptions" :disabled="disabled" />
-      </label>
+        <!-- Model -->
+        <Select
+          v-model="model"
+          class="pill-select"
+          :options="modelOptions"
+          :disabled="disabled"
+          :title="t('imageStudio.model')"
+        />
 
-      <!-- Size -->
-      <label class="composer-field w-[148px]">
-        <span class="composer-label">{{ t('imageStudio.size') }}</span>
-        <Select v-model="size" :options="sizeOptions" :disabled="disabled" />
-      </label>
+        <!-- Size -->
+        <Select
+          v-model="size"
+          class="pill-select"
+          :options="sizeOptions"
+          :disabled="disabled"
+          :title="t('imageStudio.size')"
+        />
 
-      <!-- Quality -->
-      <label class="composer-field w-[132px]">
-        <span class="composer-label">{{ t('imageStudio.quality') }}</span>
-        <Select v-model="quality" :options="qualityOptions" :disabled="disabled" />
-      </label>
+        <!-- Quality -->
+        <Select
+          v-model="quality"
+          class="pill-select"
+          :options="qualityOptions"
+          :disabled="disabled"
+          :title="t('imageStudio.quality')"
+        />
 
-      <!-- Count -->
-      <label class="composer-field w-[92px]">
-        <span class="composer-label">{{ t('imageStudio.count') }}</span>
-        <Select v-model="n" :options="countOptions" :disabled="disabled" />
-      </label>
-    </div>
+        <!-- Count -->
+        <Select
+          v-model="n"
+          class="pill-select pill-select-narrow"
+          :options="countOptions"
+          :disabled="disabled"
+          :title="t('imageStudio.count')"
+        />
 
-    <!-- Action bar: balance + generate -->
-    <div
-      class="flex flex-wrap items-center gap-3 border-t border-gray-100 bg-gray-50/60 px-4 py-3 dark:border-dark-700/60 dark:bg-dark-900/30"
-    >
-      <!-- Balance -->
-      <div class="flex items-center gap-1.5 text-sm">
-        <Icon name="dollar" size="sm" class="text-green-500" />
-        <span class="text-gray-400 dark:text-dark-500">{{ t('common.balance') }}</span>
-        <span class="font-semibold text-gray-900 dark:text-white">${{ balance.toFixed(2) }}</span>
-      </div>
+        <!-- Balance pill -->
+        <span
+          class="balance-pill"
+          :title="t('common.balance')"
+        >
+          <Icon name="dollar" size="xs" class="flex-shrink-0 opacity-60" />
+          <span class="opacity-60">{{ t('imageStudio.balanceShort') }}</span>
+          <span class="font-medium">${{ balance.toFixed(2) }}</span>
+        </span>
 
-      <!-- Submit hint -->
-      <span class="hidden text-xs text-gray-400 dark:text-dark-500 sm:inline">{{
-        t('imageStudio.submitHint')
-      }}</span>
-
-      <!-- Generate -->
-      <button
-        type="button"
-        class="btn btn-primary ml-auto h-11 min-w-[150px] justify-center px-5 text-[15px]"
-        :disabled="!canGenerate"
-        @click="submit"
-      >
-        <template v-if="generating">
+        <!-- Cost estimate + send -->
+        <span
+          v-if="costEstimate != null"
+          class="ml-auto text-xs text-gray-400 dark:text-white/40"
+        >
+          ≈${{ costEstimate.toFixed(2) }}
+        </span>
+        <button
+          type="button"
+          class="send-button"
+          :class="{ 'ml-auto': costEstimate == null }"
+          :disabled="!canGenerate"
+          :aria-label="t('imageStudio.sendAria')"
+          :title="t('imageStudio.sendAria')"
+          @click="submit"
+        >
           <span
-            class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+            v-if="generating"
+            class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
           ></span>
-          {{ t('imageStudio.generatingShort') }}
-        </template>
-        <template v-else>
-          <Icon name="sparkles" size="sm" class="mr-1.5" />
-          {{ generateLabel }}
-        </template>
-      </button>
+          <Icon v-else name="arrowUp" size="sm" :stroke-width="2" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -208,18 +217,9 @@ const canGenerate = computed(
     imageGroups.value.length > 0
 )
 
-// Best-effort client-side cost estimate. Only shows a price when we are
-// confident; otherwise the button just reads "Generate".
+// Best-effort client-side cost estimate. Only surfaced as a faint label next to
+// the send button when we are confident; otherwise it is hidden.
 const costEstimate = computed(() => estimateCost(model.value, size.value, quality.value, n.value))
-
-const generateLabel = computed(() => {
-  if (costEstimate.value != null) {
-    return t('imageStudio.generateWithCost', {
-      cost: `≈$${costEstimate.value.toFixed(2)}`,
-    })
-  }
-  return t('imageStudio.generate')
-})
 
 function autoGrow() {
   const el = promptRef.value
@@ -264,18 +264,66 @@ defineExpose({ resetPrompt, fillPrompt })
 
 <style scoped>
 .composer-prompt {
-  @apply w-full resize-none border-0 bg-transparent px-4 py-4 text-base leading-relaxed;
+  @apply w-full resize-none border-0 bg-transparent px-5 pb-2 pt-4 text-base leading-relaxed;
   @apply text-gray-900 dark:text-white;
-  @apply placeholder:text-gray-400 dark:placeholder:text-dark-500;
+  @apply placeholder:text-gray-400 dark:placeholder:text-white/35;
   @apply focus:outline-none focus:ring-0;
-  min-height: 88px;
+  min-height: 60px;
 }
 
-.composer-field {
-  @apply block;
+/*
+  Restyle the shared Select trigger LOCALLY into a small neutral pill, without
+  touching the global Select.vue. Scoped :deep reaches the trigger button.
+*/
+.pill-select {
+  @apply w-auto;
 }
 
-.composer-label {
-  @apply mb-1 block text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-dark-500;
+.pill-select :deep(.select-trigger) {
+  @apply gap-1 rounded-full border-gray-200 bg-gray-900/[0.03] px-3 py-1.5 text-xs;
+  @apply text-gray-600;
+  @apply hover:border-gray-300;
+  @apply focus:border-gray-300 focus:ring-2 focus:ring-gray-400/20;
+  @apply dark:border-white/10 dark:bg-white/[0.05] dark:text-white/75;
+  @apply dark:hover:border-white/20 dark:focus:border-white/20 dark:focus:ring-white/20;
+  width: auto;
+}
+
+.pill-select :deep(.select-trigger-open) {
+  @apply border-gray-300 ring-2 ring-gray-400/20;
+  @apply dark:border-white/20 dark:ring-white/20;
+}
+
+.pill-select :deep(.select-trigger-disabled) {
+  @apply bg-gray-900/[0.02] dark:bg-white/[0.02];
+}
+
+.pill-select :deep(.select-value) {
+  @apply truncate;
+  max-width: 9rem;
+}
+
+.pill-select-narrow :deep(.select-value) {
+  max-width: 2.5rem;
+}
+
+.pill-select :deep(.select-icon) {
+  @apply text-gray-400 dark:text-white/40;
+}
+
+.balance-pill {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-900/[0.03] px-3 py-1.5 text-xs text-gray-600;
+  @apply dark:border-white/10 dark:bg-white/[0.05] dark:text-white/75;
+}
+
+.send-button {
+  @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors;
+  @apply bg-gray-900 text-white hover:bg-gray-800;
+  @apply dark:bg-white dark:text-black dark:hover:bg-white/90;
+}
+
+.send-button:disabled {
+  @apply cursor-not-allowed opacity-40;
+  @apply hover:bg-gray-900 dark:hover:bg-white;
 }
 </style>

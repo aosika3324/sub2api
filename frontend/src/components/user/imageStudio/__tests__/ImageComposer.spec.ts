@@ -159,7 +159,7 @@ describe('ImageComposer', () => {
     })
   })
 
-  it('shows an approximate cost estimate on the Generate button', async () => {
+  it('shows an approximate cost estimate beside the send button', async () => {
     const groups = [makeGroup({ id: 7, name: 'Img A' })]
     const wrapper = mountComposer(groups)
     await flushPromises()
@@ -168,13 +168,13 @@ describe('ImageComposer', () => {
     // gpt-image-1 + 1024x1024 + high = $0.167/image; auto quality is not priceable.
     await selects[3].setValue('high')
     await flushPromises()
-    // generateWithCost renders the cost token via the i18n stub (key passthrough).
-    expect(wrapper.text()).toContain('imageStudio.generateWithCost')
+    // The faint cost label renders as "≈$0.17" next to the circular send button.
+    expect(wrapper.text()).toContain('≈$0.17')
 
-    // gpt-image-1 "auto" quality is not confidently priceable → plain Generate label.
+    // gpt-image-1 "auto" quality is not confidently priceable → no cost label.
     await selects[3].setValue('auto')
     await flushPromises()
-    expect(wrapper.text()).not.toContain('imageStudio.generateWithCost')
+    expect(wrapper.text()).not.toContain('≈$')
   })
 
   it('fillPrompt populates the prompt textarea (example chips)', async () => {

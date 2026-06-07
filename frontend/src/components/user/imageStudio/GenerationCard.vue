@@ -1,7 +1,9 @@
 <template>
-  <div class="card overflow-hidden p-0">
+  <div
+    class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-900/[0.02] dark:border-white/[0.07] dark:bg-white/[0.02]"
+  >
     <!-- Header: prompt + params chips -->
-    <div class="border-b border-gray-100 p-4 dark:border-dark-700/60">
+    <div class="border-b border-gray-100 p-4 dark:border-white/[0.07]">
       <div class="flex items-start justify-between gap-3">
         <p
           class="flex-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-900 dark:text-white"
@@ -11,7 +13,7 @@
         <button
           v-if="!hideDelete"
           type="button"
-          class="-mr-1 -mt-1 flex-shrink-0 rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+          class="-mr-1 -mt-1 flex-shrink-0 rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-white/40 dark:hover:bg-red-500/15 dark:hover:text-red-400"
           :title="t('common.delete')"
           @click="$emit('delete', generation)"
         >
@@ -37,7 +39,7 @@
         >
           ${{ generation.cost.toFixed(4) }}
         </span>
-        <span class="ml-auto text-xs text-gray-400 dark:text-dark-500">{{
+        <span class="ml-auto text-xs text-gray-400 dark:text-white/35">{{
           formattedTime
         }}</span>
       </div>
@@ -51,9 +53,9 @@
         class="flex flex-col items-center justify-center gap-3 py-10"
       >
         <div
-          class="h-8 w-8 animate-spin rounded-full border-[3px] border-primary-500 border-t-transparent"
+          class="h-8 w-8 animate-spin rounded-full border-[3px] border-gray-500 border-t-transparent dark:border-white dark:border-t-transparent"
         ></div>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
+        <p class="text-sm text-gray-500 dark:text-white/50">
           {{ t('imageStudio.generating') }}
         </p>
       </div>
@@ -92,7 +94,7 @@
       <!-- Succeeded but no images returned -->
       <div
         v-else
-        class="py-8 text-center text-sm text-gray-400 dark:text-dark-500"
+        class="py-8 text-center text-sm text-gray-400 dark:text-white/35"
       >
         {{ t('imageStudio.noImages') }}
       </div>
@@ -154,9 +156,9 @@ const formattedTime = computed(() => {
 
 <style scoped>
 .chip {
-  @apply inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300;
+  @apply inline-flex items-center rounded-md bg-gray-900/[0.05] px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-white/[0.06] dark:text-white/70;
 }
 .chip-cost {
-  @apply bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400;
+  @apply bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400;
 }
 </style>

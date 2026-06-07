@@ -16,14 +16,14 @@
       <div
         v-for="i in 2"
         :key="i"
-        class="card animate-pulse space-y-4 p-4"
+        class="animate-pulse space-y-4 rounded-2xl border border-gray-200 bg-gray-900/[0.02] p-4 dark:border-white/[0.07] dark:bg-white/[0.02]"
       >
-        <div class="h-4 w-2/3 rounded bg-gray-200 dark:bg-dark-700"></div>
+        <div class="h-4 w-2/3 rounded bg-gray-200 dark:bg-white/[0.07]"></div>
         <div class="flex gap-2">
-          <div class="h-5 w-16 rounded bg-gray-200 dark:bg-dark-700"></div>
-          <div class="h-5 w-12 rounded bg-gray-200 dark:bg-dark-700"></div>
+          <div class="h-5 w-16 rounded bg-gray-200 dark:bg-white/[0.07]"></div>
+          <div class="h-5 w-12 rounded bg-gray-200 dark:bg-white/[0.07]"></div>
         </div>
-        <div class="aspect-square w-1/2 rounded-xl bg-gray-200 dark:bg-dark-700"></div>
+        <div class="aspect-square w-1/2 rounded-xl bg-gray-200 dark:bg-white/[0.07]"></div>
       </div>
     </div>
 
@@ -32,46 +32,30 @@
       v-else-if="generations.length === 0 && !generating"
       class="onboarding-hero relative flex flex-1 items-center justify-center overflow-hidden px-6 py-16"
     >
-      <!-- Atmosphere (kept lightweight so mounting never causes a heavy repaint) -->
-      <div class="pointer-events-none absolute inset-0 opacity-70" aria-hidden="true">
-        <div
-          class="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-primary-400/15 blur-2xl dark:bg-primary-500/10"
-        ></div>
-        <div
-          class="absolute -bottom-20 right-0 h-64 w-64 rounded-full bg-fuchsia-400/10 blur-2xl dark:bg-fuchsia-500/10"
-        ></div>
-      </div>
-
-      <div class="relative z-10 mx-auto max-w-xl text-center">
-        <div
-          class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/30"
+      <div class="relative z-10 mx-auto max-w-2xl text-center">
+        <!-- Serif display hero with a subtle vertical sheen -->
+        <h2
+          class="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-900/55 bg-clip-text font-serif text-5xl font-normal tracking-tight text-transparent md:text-6xl dark:from-white dark:via-white dark:to-white/55"
         >
-          <Icon name="sparkles" size="xl" />
-        </div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
           {{ t('imageStudio.onboardingTitle') }}
         </h2>
-        <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+        <p
+          class="mx-auto mt-5 max-w-md text-base leading-relaxed text-gray-500 dark:text-white/40"
+        >
           {{ t('imageStudio.onboardingSubtitle') }}
         </p>
 
-        <!-- Example prompt chips -->
-        <div class="mt-7">
-          <p class="mb-3 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-dark-500">
-            {{ t('imageStudio.tryExample') }}
-          </p>
-          <div class="flex flex-wrap justify-center gap-2">
-            <button
-              v-for="(example, idx) in examplePrompts"
-              :key="idx"
-              type="button"
-              class="example-chip"
-              @click="$emit('useExample', example)"
-            >
-              <Icon name="lightbulb" size="xs" class="mr-1.5 flex-shrink-0 opacity-60" />
-              <span class="truncate">{{ example }}</span>
-            </button>
-          </div>
+        <!-- Example prompt chips (faint ghost pills) -->
+        <div class="mt-9 flex flex-wrap justify-center gap-2">
+          <button
+            v-for="(example, idx) in examplePrompts"
+            :key="idx"
+            type="button"
+            class="example-chip"
+            @click="$emit('useExample', example)"
+          >
+            <span class="truncate">{{ example }}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -92,9 +76,9 @@
         <div
           v-if="generating"
           key="__generating__"
-          class="card overflow-hidden p-0"
+          class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-900/[0.02] dark:border-white/[0.07] dark:bg-white/[0.02]"
         >
-          <div class="border-b border-gray-100 p-4 dark:border-dark-700/60">
+          <div class="border-b border-gray-100 p-4 dark:border-white/[0.07]">
             <p
               v-if="pendingPrompt"
               class="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-900 dark:text-white"
@@ -103,9 +87,9 @@
             </p>
             <div class="mt-3 flex items-center gap-2">
               <span
-                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-500 border-t-transparent dark:border-white dark:border-t-transparent"
               ></span>
-              <span class="text-xs font-medium text-primary-600 dark:text-primary-400">
+              <span class="text-xs font-medium text-gray-500 dark:text-white/60">
                 {{ t('imageStudio.generating') }}
               </span>
             </div>
@@ -123,7 +107,6 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ImageStudioGeneration } from '@/types'
-import Icon from '@/components/icons/Icon.vue'
 import GenerationCard from './GenerationCard.vue'
 
 const props = defineProps<{
@@ -158,10 +141,10 @@ const examplePrompts = computed<string[]>(() => [
 
 <style scoped>
 .example-chip {
-  @apply inline-flex max-w-full items-center rounded-full border border-gray-200 bg-white/70 px-3.5 py-2 text-sm text-gray-700 transition-all;
-  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 hover:shadow-sm;
-  @apply dark:border-dark-600 dark:bg-dark-800/70 dark:text-gray-300;
-  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+  @apply inline-flex max-w-full items-center rounded-full border border-gray-900/10 bg-gray-900/[0.02] px-3.5 py-2 text-sm text-gray-500 transition-all;
+  @apply hover:bg-gray-900/[0.05] hover:text-gray-900;
+  @apply dark:border-white/10 dark:bg-white/[0.03] dark:text-white/55;
+  @apply dark:hover:bg-white/[0.06] dark:hover:text-white;
 }
 
 /*
