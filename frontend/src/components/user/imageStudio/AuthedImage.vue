@@ -1,6 +1,7 @@
 <template>
   <div
-    class="group relative aspect-square overflow-hidden rounded-xl bg-gray-100 ring-1 ring-black/5 dark:bg-dark-700 dark:ring-white/10"
+    class="group relative overflow-hidden rounded-xl bg-gray-100 ring-1 ring-black/5 dark:bg-dark-700/60 dark:ring-white/10"
+    :style="containerStyle"
   >
     <!-- Loading -->
     <div
@@ -29,14 +30,15 @@
       :src="src"
       :alt="alt"
       loading="lazy"
-      class="h-full w-full cursor-zoom-in object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+      class="h-full w-full cursor-zoom-in transition-transform duration-200 group-hover:scale-[1.02]"
+      :class="aspectRatio ? 'object-contain' : 'object-cover'"
       @click="$emit('open', src)"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { toRef } from 'vue'
+import { toRef, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthedImage } from '@/composables/useAuthedImage'
 import Icon from '@/components/icons/Icon.vue'
@@ -44,6 +46,11 @@ import Icon from '@/components/icons/Icon.vue'
 const props = defineProps<{
   url: string
   alt?: string
+  /**
+   * Aspect ratio (width / height) for the frame so portrait/landscape images
+   * render at their true shape. When omitted the frame falls back to a square.
+   */
+  aspectRatio?: number
 }>()
 
 defineEmits<{
@@ -54,4 +61,9 @@ const { t } = useI18n()
 
 // Reactively follow `url` so the image re-fetches if the prop changes.
 const { src, loading, error } = useAuthedImage(toRef(props, 'url'))
+
+const containerStyle = computed(() => ({
+  aspectRatio:
+    props.aspectRatio && props.aspectRatio > 0 ? String(props.aspectRatio) : '1 / 1',
+}))
 </script>

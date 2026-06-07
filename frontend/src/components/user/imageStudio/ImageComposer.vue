@@ -1,66 +1,89 @@
 <template>
-  <div class="card p-4">
+  <div class="composer card overflow-hidden">
     <!-- No usable group hint -->
     <div
       v-if="!loadingGroups && imageGroups.length === 0"
-      class="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+      class="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-4 py-2.5 text-sm text-amber-700 dark:border-amber-900/30 dark:bg-amber-900/15 dark:text-amber-300"
     >
       <Icon name="exclamationTriangle" size="sm" class="flex-shrink-0" />
       <span>{{ t('imageStudio.noImageGroupHint') }}</span>
     </div>
 
-    <!-- Prompt -->
-    <textarea
-      v-model="prompt"
-      :rows="3"
-      :disabled="disabled"
-      class="input resize-none"
-      :placeholder="t('imageStudio.promptPlaceholder')"
-      @keydown.ctrl.enter.prevent="submit"
-      @keydown.meta.enter.prevent="submit"
-    ></textarea>
+    <!-- Prompt hero -->
+    <div class="relative">
+      <textarea
+        ref="promptRef"
+        v-model="prompt"
+        rows="1"
+        :disabled="disabled"
+        class="composer-prompt"
+        :placeholder="t('imageStudio.promptPlaceholder')"
+        @input="autoGrow"
+        @keydown.ctrl.enter.prevent="submit"
+        @keydown.meta.enter.prevent="submit"
+      ></textarea>
+    </div>
 
-    <!-- Controls row -->
-    <div class="mt-3 flex flex-wrap items-end gap-3">
-      <!-- Group -->
-      <div class="min-w-[160px] flex-1">
-        <label class="composer-label">{{ t('imageStudio.group') }}</label>
+    <!-- Secondary control row -->
+    <div
+      class="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-gray-100 px-4 py-3 dark:border-dark-700/60"
+    >
+      <!-- Group (drives billing) -->
+      <label class="composer-field min-w-[150px] flex-1 basis-44">
+        <span class="composer-label">{{ t('imageStudio.group') }}</span>
         <Select
           v-model="groupId"
           :options="groupOptions"
           :disabled="disabled || imageGroups.length === 0"
           :placeholder="t('imageStudio.selectGroup')"
         />
-      </div>
+      </label>
 
       <!-- Model -->
-      <div class="w-[150px]">
-        <label class="composer-label">{{ t('imageStudio.model') }}</label>
+      <label class="composer-field w-[150px]">
+        <span class="composer-label">{{ t('imageStudio.model') }}</span>
         <Select v-model="model" :options="modelOptions" :disabled="disabled" />
-      </div>
+      </label>
 
       <!-- Size -->
-      <div class="w-[140px]">
-        <label class="composer-label">{{ t('imageStudio.size') }}</label>
+      <label class="composer-field w-[148px]">
+        <span class="composer-label">{{ t('imageStudio.size') }}</span>
         <Select v-model="size" :options="sizeOptions" :disabled="disabled" />
-      </div>
+      </label>
 
       <!-- Quality -->
-      <div class="w-[130px]">
-        <label class="composer-label">{{ t('imageStudio.quality') }}</label>
+      <label class="composer-field w-[132px]">
+        <span class="composer-label">{{ t('imageStudio.quality') }}</span>
         <Select v-model="quality" :options="qualityOptions" :disabled="disabled" />
-      </div>
+      </label>
 
       <!-- Count -->
-      <div class="w-[100px]">
-        <label class="composer-label">{{ t('imageStudio.count') }}</label>
+      <label class="composer-field w-[92px]">
+        <span class="composer-label">{{ t('imageStudio.count') }}</span>
         <Select v-model="n" :options="countOptions" :disabled="disabled" />
+      </label>
+    </div>
+
+    <!-- Action bar: balance + generate -->
+    <div
+      class="flex flex-wrap items-center gap-3 border-t border-gray-100 bg-gray-50/60 px-4 py-3 dark:border-dark-700/60 dark:bg-dark-900/30"
+    >
+      <!-- Balance -->
+      <div class="flex items-center gap-1.5 text-sm">
+        <Icon name="dollar" size="sm" class="text-green-500" />
+        <span class="text-gray-400 dark:text-dark-500">{{ t('common.balance') }}</span>
+        <span class="font-semibold text-gray-900 dark:text-white">${{ balance.toFixed(2) }}</span>
       </div>
+
+      <!-- Submit hint -->
+      <span class="hidden text-xs text-gray-400 dark:text-dark-500 sm:inline">{{
+        t('imageStudio.submitHint')
+      }}</span>
 
       <!-- Generate -->
       <button
         type="button"
-        class="btn btn-primary ml-auto h-[42px] min-w-[120px] justify-center"
+        class="btn btn-primary ml-auto h-11 min-w-[150px] justify-center px-5 text-[15px]"
         :disabled="!canGenerate"
         @click="submit"
       >
@@ -72,7 +95,7 @@
         </template>
         <template v-else>
           <Icon name="sparkles" size="sm" class="mr-1.5" />
-          {{ t('imageStudio.generate') }}
+          {{ generateLabel }}
         </template>
       </button>
     </div>
@@ -80,11 +103,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Group } from '@/types'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import {
+  MODEL_OPTIONS,
+  optionsForModel,
+  defaultsForModel,
+  estimateCost,
+  type ModelId,
+} from './pricing'
 
 export interface ComposerSubmitPayload {
   group_id: number
@@ -99,6 +129,7 @@ const props = defineProps<{
   groups: Group[]
   loadingGroups?: boolean
   generating?: boolean
+  balance?: number
 }>()
 
 const emit = defineEmits<{
@@ -112,36 +143,46 @@ const imageGroups = computed(() =>
   props.groups.filter((g) => g.allow_image_generation && g.status === 'active')
 )
 
+const promptRef = ref<HTMLTextAreaElement | null>(null)
 const prompt = ref('')
 const groupId = ref<number | null>(null)
-const model = ref('gpt-image-1')
+const model = ref<ModelId>('gpt-image-1')
 const size = ref('1024x1024')
 const quality = ref('auto')
 const n = ref(1)
+
+const balance = computed(() => props.balance ?? 0)
 
 const groupOptions = computed(() =>
   imageGroups.value.map((g) => ({ value: g.id, label: g.name }))
 )
 
-const modelOptions = [
-  { value: 'gpt-image-1', label: 'gpt-image-1' },
-  { value: 'dall-e-3', label: 'dall-e-3' },
-]
+// ---- Model-aware options ----
+const modelOptions = MODEL_OPTIONS
 
-const sizeOptions = [
-  { value: '1024x1024', label: '1024 × 1024' },
-  { value: '1024x1536', label: '1024 × 1536' },
-  { value: '1536x1024', label: '1536 × 1024' },
-]
+const sizeOptions = computed(() =>
+  optionsForModel(model.value).sizes.map((s) => ({
+    value: s.value,
+    label: s.label,
+  }))
+)
 
-const qualityOptions = computed(() => [
-  { value: 'auto', label: t('imageStudio.qualityAuto') },
-  { value: 'low', label: t('imageStudio.qualityLow') },
-  { value: 'medium', label: t('imageStudio.qualityMedium') },
-  { value: 'high', label: t('imageStudio.qualityHigh') },
-])
+const qualityOptions = computed(() =>
+  optionsForModel(model.value).qualities.map((q) => ({
+    value: q.value,
+    label: q.labelKey ? t(q.labelKey) : q.value,
+  }))
+)
 
 const countOptions = [1, 2, 3, 4].map((v) => ({ value: v, label: String(v) }))
+
+// When the model changes, reset size/quality to valid defaults for that model
+// to prevent invalid combinations.
+watch(model, (next) => {
+  const d = defaultsForModel(next)
+  size.value = d.size
+  quality.value = d.quality
+})
 
 // Default the group selection to the first usable group.
 watch(
@@ -167,6 +208,26 @@ const canGenerate = computed(
     imageGroups.value.length > 0
 )
 
+// Best-effort client-side cost estimate. Only shows a price when we are
+// confident; otherwise the button just reads "Generate".
+const costEstimate = computed(() => estimateCost(model.value, size.value, quality.value, n.value))
+
+const generateLabel = computed(() => {
+  if (costEstimate.value != null) {
+    return t('imageStudio.generateWithCost', {
+      cost: `≈$${costEstimate.value.toFixed(2)}`,
+    })
+  }
+  return t('imageStudio.generate')
+})
+
+function autoGrow() {
+  const el = promptRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, 320)}px`
+}
+
 function submit() {
   if (!canGenerate.value || groupId.value === null) return
   emit('generate', {
@@ -182,13 +243,39 @@ function submit() {
 // Allow the parent to clear the prompt after a successful generate.
 function resetPrompt() {
   prompt.value = ''
+  nextTick(autoGrow)
 }
 
-defineExpose({ resetPrompt })
+// Allow the parent (onboarding chips) to fill + focus the prompt.
+function fillPrompt(value: string) {
+  prompt.value = value
+  nextTick(() => {
+    autoGrow()
+    promptRef.value?.focus()
+    const len = value.length
+    promptRef.value?.setSelectionRange(len, len)
+  })
+}
+
+onMounted(autoGrow)
+
+defineExpose({ resetPrompt, fillPrompt })
 </script>
 
 <style scoped>
+.composer-prompt {
+  @apply w-full resize-none border-0 bg-transparent px-4 py-4 text-base leading-relaxed;
+  @apply text-gray-900 dark:text-white;
+  @apply placeholder:text-gray-400 dark:placeholder:text-dark-500;
+  @apply focus:outline-none focus:ring-0;
+  min-height: 88px;
+}
+
+.composer-field {
+  @apply block;
+}
+
 .composer-label {
-  @apply mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400;
+  @apply mb-1 block text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-dark-500;
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <div class="card overflow-hidden p-0">
     <!-- Header: prompt + params chips -->
-    <div class="border-b border-gray-100 p-4 dark:border-dark-700">
+    <div class="border-b border-gray-100 p-4 dark:border-dark-700/60">
       <div class="flex items-start justify-between gap-3">
         <p
           class="flex-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-900 dark:text-white"
@@ -29,7 +29,7 @@
         <span v-if="generation.quality" class="chip">{{
           t('imageStudio.qualityChip', { quality: generation.quality })
         }}</span>
-        <span class="chip">{{ t('imageStudio.countChip', { n: generation.n }) }}</span>
+        <span class="chip">{{ t('imageStudio.countChip', { count: generation.n }) }}</span>
         <span
           v-if="isSucceeded && generation.cost != null"
           class="chip chip-cost"
@@ -84,6 +84,7 @@
           :key="`${generation.id}-${idx}`"
           :url="url"
           :alt="generation.prompt"
+          :aspect-ratio="aspectRatio"
           @open="$emit('open', $event)"
         />
       </div>
@@ -105,6 +106,7 @@ import { useI18n } from 'vue-i18n'
 import type { ImageStudioGeneration } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
 import AuthedImage from './AuthedImage.vue'
+import { aspectRatioFromSize } from './pricing'
 
 const props = defineProps<{
   generation: ImageStudioGeneration
@@ -130,6 +132,10 @@ const isSucceeded = computed(
 )
 
 const images = computed(() => props.generation.images ?? [])
+
+// Derive the true aspect ratio from the generation size so portrait/landscape
+// images render uncropped. `undefined` lets AuthedImage fall back to a square.
+const aspectRatio = computed(() => aspectRatioFromSize(props.generation.size) ?? undefined)
 
 const gridColsClass = computed(() => {
   const count = images.value.length

@@ -2,36 +2,21 @@
   <AppLayout>
     <div class="mx-auto max-w-7xl">
       <!-- Page header -->
-      <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 class="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-            <Icon name="sparkles" size="md" class="text-primary-500" />
-            {{ t('imageStudio.title') }}
-          </h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {{ t('imageStudio.subtitle') }}
-          </p>
-        </div>
-
-        <!-- Live balance -->
-        <div
-          class="flex items-center gap-2 rounded-xl bg-white px-4 py-2 shadow-sm ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
-        >
-          <Icon name="dollar" size="sm" class="text-green-500" />
-          <div class="leading-tight">
-            <p class="text-[11px] text-gray-400 dark:text-dark-500">{{ t('common.balance') }}</p>
-            <p class="text-sm font-semibold text-gray-900 dark:text-white">
-              ${{ balance.toFixed(2) }}
-            </p>
-          </div>
-        </div>
+      <div class="mb-5">
+        <h1 class="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
+          <Icon name="sparkles" size="md" class="text-primary-500" />
+          {{ t('imageStudio.title') }}
+        </h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {{ t('imageStudio.subtitle') }}
+        </p>
       </div>
 
       <!-- Workbench grid -->
       <div class="grid grid-cols-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
         <!-- Left: conversations -->
         <aside
-          class="card h-fit max-h-[calc(100vh-13rem)] p-3 lg:sticky lg:top-24"
+          class="card order-2 h-fit p-3 lg:order-1 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)]"
         >
           <ConversationList
             :conversations="store.conversations"
@@ -45,12 +30,22 @@
           />
         </aside>
 
-        <!-- Center + composer -->
-        <section class="flex min-w-0 flex-col">
+        <!-- Main column: composer (top) + results (below) -->
+        <section class="order-1 flex min-w-0 flex-col gap-5 lg:order-2">
+          <!-- Prompt console -->
+          <ImageComposer
+            ref="composerRef"
+            :groups="groups"
+            :loading-groups="loadingGroups"
+            :generating="store.generating"
+            :balance="balance"
+            @generate="handleGenerate"
+          />
+
           <!-- Inline error banner (e.g. 403 group not enabled) -->
           <div
             v-if="inlineError"
-            class="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300"
+            class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300"
           >
             <Icon name="exclamationTriangle" size="sm" class="mt-0.5 flex-shrink-0" />
             <span class="flex-1">{{ inlineError }}</span>
@@ -63,26 +58,17 @@
             </button>
           </div>
 
-          <!-- Timeline -->
-          <div class="mb-4 min-h-[200px] flex-1">
+          <!-- Results gallery (newest first) -->
+          <div class="min-h-[220px] flex-1">
             <TurnTimeline
               :generations="store.generations"
               :loading="store.loading"
-              :has-active-conversation="store.activeConversationId !== null"
+              :generating="store.generating"
+              :pending-prompt="pendingPrompt"
               @retry="handleRetry"
               @delete="confirmDeleteGeneration"
               @open="openLightbox"
-            />
-          </div>
-
-          <!-- Sticky composer -->
-          <div class="sticky bottom-4 z-10">
-            <ImageComposer
-              ref="composerRef"
-              :groups="groups"
-              :loading-groups="loadingGroups"
-              :generating="store.generating"
-              @generate="handleGenerate"
+              @use-example="handleUseExample"
             />
           </div>
         </section>
@@ -169,6 +155,7 @@ const loadingGroups = ref(false)
 const creating = ref(false)
 const inlineError = ref('')
 const lightboxSrc = ref('')
+const pendingPrompt = ref('')
 
 const composerRef = ref<InstanceType<typeof ImageComposer> | null>(null)
 const deleteConvTarget = ref<ImageStudioConversation | null>(null)
@@ -274,6 +261,7 @@ async function handleDeleteConversation() {
 
 async function runGenerate(payload: ComposerSubmitPayload) {
   inlineError.value = ''
+  pendingPrompt.value = payload.prompt
   try {
     await store.generate({
       conversation_id: store.activeConversationId ?? undefined,
@@ -282,11 +270,17 @@ async function runGenerate(payload: ComposerSubmitPayload) {
     composerRef.value?.resetPrompt()
   } catch (err) {
     surfaceGenerateError(err)
+  } finally {
+    pendingPrompt.value = ''
   }
 }
 
 function handleGenerate(payload: ComposerSubmitPayload) {
   runGenerate(payload)
+}
+
+function handleUseExample(prompt: string) {
+  composerRef.value?.fillPrompt(prompt)
 }
 
 function handleRetry(generation: ImageStudioGeneration) {

@@ -109,7 +109,7 @@ describe('ImageComposer', () => {
     // Selects are rendered in order: group, model, size, quality, count
     const selects = wrapper.findAll('select')
     expect(selects.length).toBe(5)
-    await selects[1].setValue('dall-e-3') // model
+    // gpt-image-1 (default) supports 1536x1024 + high quality
     await selects[2].setValue('1536x1024') // size
     await selects[3].setValue('high') // quality
     await selects[4].setValue('3') // n
@@ -123,11 +123,70 @@ describe('ImageComposer', () => {
     expect(emitted![0][0]).toEqual({
       group_id: 7,
       prompt: 'a cat riding a bike',
-      model: 'dall-e-3',
+      model: 'gpt-image-1',
       size: '1536x1024',
       quality: 'high',
       n: 3,
     })
+  })
+
+  it('resets size/quality to valid defaults when the model changes', async () => {
+    const groups = [makeGroup({ id: 7, name: 'Img A' })]
+    const wrapper = mountComposer(groups)
+    await flushPromises()
+
+    await wrapper.find('textarea').setValue('a fox in a meadow')
+
+    const selects = wrapper.findAll('select')
+    // Switch to dall-e-3 — size/quality should snap to its defaults.
+    await selects[1].setValue('dall-e-3')
+    await flushPromises()
+
+    // dall-e-3 size options should now be available (1792x1024, 1024x1792).
+    const sizeValues = selects[2].findAll('option').map((o) => o.attributes('value'))
+    expect(sizeValues).toContain('1792x1024')
+    expect(sizeValues).not.toContain('1024x1536') // gpt-image-1-only size
+
+    await selects[2].setValue('1792x1024')
+    await selects[3].setValue('hd')
+
+    await wrapper.find('button').trigger('click')
+    const emitted = wrapper.emitted('generate')
+    expect(emitted![0][0]).toMatchObject({
+      model: 'dall-e-3',
+      size: '1792x1024',
+      quality: 'hd',
+    })
+  })
+
+  it('shows an approximate cost estimate on the Generate button', async () => {
+    const groups = [makeGroup({ id: 7, name: 'Img A' })]
+    const wrapper = mountComposer(groups)
+    await flushPromises()
+
+    const selects = wrapper.findAll('select')
+    // gpt-image-1 + 1024x1024 + high = $0.167/image; auto quality is not priceable.
+    await selects[3].setValue('high')
+    await flushPromises()
+    // generateWithCost renders the cost token via the i18n stub (key passthrough).
+    expect(wrapper.text()).toContain('imageStudio.generateWithCost')
+
+    // gpt-image-1 "auto" quality is not confidently priceable → plain Generate label.
+    await selects[3].setValue('auto')
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('imageStudio.generateWithCost')
+  })
+
+  it('fillPrompt populates the prompt textarea (example chips)', async () => {
+    const wrapper = mountComposer([makeGroup()])
+    await flushPromises()
+
+    wrapper.vm.fillPrompt('a serene japanese garden')
+    await flushPromises()
+
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe(
+      'a serene japanese garden'
+    )
   })
 
   it('defaults the group to the first image-enabled group', async () => {
