@@ -121,7 +121,8 @@ export async function deleteGeneration(id: number): Promise<void> {
  * @param url - The asset URL (e.g. /api/v1/user/image-studio/assets/:genID/:idx)
  */
 export async function fetchAssetBlob(url: string): Promise<Blob> {
-  return apiClient.get(url, { responseType: 'blob' }).then((r) => r.data as Blob)
+  const { data } = await apiClient.get<Blob>(url, { responseType: 'blob' })
+  return data
 }
 
 export const imageStudioAPI = {
