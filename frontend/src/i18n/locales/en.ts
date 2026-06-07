@@ -1363,7 +1363,7 @@ export default {
     qualityStandard: 'Standard',
     qualityHd: 'HD',
     onboardingTitle: 'Bring your ideas to life',
-    onboardingSubtitle: 'Describe anything you can imagine and generate it in seconds. Start from one of these, or write your own above.',
+    onboardingSubtitle: 'Describe anything you can imagine and generate it in seconds. Start from one of these, or write your own below.',
     tryExample: 'Try an example',
     examplePrompt1: 'A serene Japanese garden at dawn, koi pond, soft morning mist',
     examplePrompt2: 'Retro-futuristic city skyline at sunset, neon reflections, cinematic',

@@ -1367,7 +1367,7 @@ export default {
     qualityStandard: '标准',
     qualityHd: '高清',
     onboardingTitle: '让你的创意变成画面',
-    onboardingSubtitle: '描述任何你能想象的画面，几秒内即可生成。可以从下面的示例开始，也可以在上方写下你自己的描述。',
+    onboardingSubtitle: '描述任何你能想象的画面，几秒内即可生成。可以从下面的示例开始，也可以在下方写下你自己的描述。',
     tryExample: '试试示例',
     examplePrompt1: '清晨的日式庭院，锦鲤池塘，薄雾轻笼',
     examplePrompt2: '复古未来主义城市天际线，日落时分，霓虹倒影，电影感',

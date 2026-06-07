@@ -1,7 +1,18 @@
 <template>
-  <div class="flex h-full flex-col">
-    <!-- Loading skeleton (initial fetch) -->
-    <div v-if="loading && generations.length === 0 && !generating" class="space-y-4">
+  <!--
+    Stable, always-mounted history surface.
+
+    This wrapper keeps a constant dark background and is NEVER unmounted when the
+    conversation changes — only its inner content swaps. That prevents the brief
+    white/light flash that used to happen when the whole gallery subtree was torn
+    down and the onboarding hero (with its heavy blur layers) was remounted.
+  -->
+  <div class="flex h-full min-h-0 flex-col">
+    <!-- Loading skeleton (initial fetch, nothing to show yet) -->
+    <div
+      v-if="loading && generations.length === 0 && !generating"
+      class="space-y-4 p-4"
+    >
       <div
         v-for="i in 2"
         :key="i"
@@ -16,18 +27,18 @@
       </div>
     </div>
 
-    <!-- Onboarding hero (first-use / empty) -->
+    <!-- Onboarding hero (first-use / empty conversation) -->
     <div
       v-else-if="generations.length === 0 && !generating"
-      class="onboarding-hero relative flex flex-1 items-center justify-center overflow-hidden rounded-2xl border border-gray-100 px-6 py-16 dark:border-dark-700/50"
+      class="onboarding-hero relative flex flex-1 items-center justify-center overflow-hidden px-6 py-16"
     >
-      <!-- Atmosphere -->
-      <div class="pointer-events-none absolute inset-0 opacity-80" aria-hidden="true">
+      <!-- Atmosphere (kept lightweight so mounting never causes a heavy repaint) -->
+      <div class="pointer-events-none absolute inset-0 opacity-70" aria-hidden="true">
         <div
-          class="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-primary-400/20 blur-3xl dark:bg-primary-500/15"
+          class="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-primary-400/15 blur-2xl dark:bg-primary-500/10"
         ></div>
         <div
-          class="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-fuchsia-400/10 blur-3xl dark:bg-fuchsia-500/10"
+          class="absolute -bottom-20 right-0 h-64 w-64 rounded-full bg-fuchsia-400/10 blur-2xl dark:bg-fuchsia-500/10"
         ></div>
       </div>
 
@@ -65,44 +76,46 @@
       </div>
     </div>
 
-    <!-- Results gallery -->
-    <TransitionGroup v-else tag="div" name="reveal" class="space-y-4">
-      <!-- Live generating placeholder (shimmer) at the top -->
-      <div
-        v-if="generating"
-        key="__generating__"
-        class="card overflow-hidden p-0"
-      >
-        <div class="border-b border-gray-100 p-4 dark:border-dark-700/60">
-          <p
-            v-if="pendingPrompt"
-            class="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-900 dark:text-white"
-          >
-            {{ pendingPrompt }}
-          </p>
-          <div class="mt-3 flex items-center gap-2">
-            <span
-              class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
-            ></span>
-            <span class="text-xs font-medium text-primary-600 dark:text-primary-400">
-              {{ t('imageStudio.generating') }}
-            </span>
+    <!-- Results gallery (oldest → newest, newest nearest the composer) -->
+    <div v-else class="p-4">
+      <TransitionGroup tag="div" name="reveal" class="space-y-4">
+        <GenerationCard
+          v-for="gen in orderedGenerations"
+          :key="gen.id"
+          :generation="gen"
+          @retry="$emit('retry', $event)"
+          @delete="$emit('delete', $event)"
+          @open="$emit('open', $event)"
+        />
+
+        <!-- Live generating placeholder (shimmer) at the very bottom -->
+        <div
+          v-if="generating"
+          key="__generating__"
+          class="card overflow-hidden p-0"
+        >
+          <div class="border-b border-gray-100 p-4 dark:border-dark-700/60">
+            <p
+              v-if="pendingPrompt"
+              class="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-900 dark:text-white"
+            >
+              {{ pendingPrompt }}
+            </p>
+            <div class="mt-3 flex items-center gap-2">
+              <span
+                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+              ></span>
+              <span class="text-xs font-medium text-primary-600 dark:text-primary-400">
+                {{ t('imageStudio.generating') }}
+              </span>
+            </div>
+          </div>
+          <div class="p-4">
+            <div class="shimmer aspect-square w-full rounded-xl"></div>
           </div>
         </div>
-        <div class="p-4">
-          <div class="shimmer aspect-square w-full rounded-xl"></div>
-        </div>
-      </div>
-
-      <GenerationCard
-        v-for="gen in generations"
-        :key="gen.id"
-        :generation="gen"
-        @retry="$emit('retry', $event)"
-        @delete="$emit('delete', $event)"
-        @open="$emit('open', $event)"
-      />
-    </TransitionGroup>
+      </TransitionGroup>
+    </div>
   </div>
 </template>
 
@@ -113,7 +126,7 @@ import type { ImageStudioGeneration } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
 import GenerationCard from './GenerationCard.vue'
 
-defineProps<{
+const props = defineProps<{
   generations: ImageStudioGeneration[]
   loading?: boolean
   generating?: boolean
@@ -128,6 +141,12 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+// The store keeps generations newest-first; the chat layout wants oldest at the
+// top and newest at the bottom (nearest the composer), so render a reversed view.
+const orderedGenerations = computed<ImageStudioGeneration[]>(() =>
+  [...props.generations].reverse()
+)
 
 const examplePrompts = computed<string[]>(() => [
   t('imageStudio.examplePrompt1'),
@@ -145,22 +164,20 @@ const examplePrompts = computed<string[]>(() => [
   @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
 }
 
-/* Reveal animation for newly added results. */
+/*
+  Reveal animation for newly added results.
+
+  Only the ENTER of a new item is animated. We deliberately do NOT animate the
+  leave with `position: absolute`, because collapsing an item out of flow during
+  a conversation switch (which clears the whole list at once) caused a layout
+  jump / flash. Letting removed items disappear immediately keeps the swap clean.
+*/
 .reveal-enter-active {
   transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.reveal-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  position: absolute;
-  width: 100%;
-}
 .reveal-enter-from {
   opacity: 0;
-  transform: translateY(-12px) scale(0.985);
-}
-.reveal-leave-to {
-  opacity: 0;
-  transform: scale(0.98);
+  transform: translateY(12px) scale(0.985);
 }
 .reveal-move {
   transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);

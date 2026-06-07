@@ -30,19 +30,32 @@
           />
         </aside>
 
-        <!-- Main column: composer (top) + results (below) -->
-        <section class="order-1 flex min-w-0 flex-col gap-5 lg:order-2">
-          <!-- Prompt console -->
-          <ImageComposer
-            ref="composerRef"
-            :groups="groups"
-            :loading-groups="loadingGroups"
-            :generating="store.generating"
-            :balance="balance"
-            @generate="handleGenerate"
-          />
+        <!-- Main column: chat-style — history (scrolls) on top, composer pinned bottom -->
+        <section
+          class="order-1 flex min-h-[60vh] min-w-0 flex-col gap-3 lg:order-2 lg:h-[calc(100vh-11rem)]"
+        >
+          <!--
+            History scroll area. Always-mounted with a stable dark surface so
+            switching conversations never tears the whole subtree down (which
+            previously caused a white flash). Newest turn sits at the bottom.
+          -->
+          <div
+            ref="scrollRef"
+            class="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40 dark:border-dark-700/50 dark:bg-dark-900"
+          >
+            <TurnTimeline
+              :generations="store.generations"
+              :loading="store.loading"
+              :generating="store.generating"
+              :pending-prompt="pendingPrompt"
+              @retry="handleRetry"
+              @delete="confirmDeleteGeneration"
+              @open="openLightbox"
+              @use-example="handleUseExample"
+            />
+          </div>
 
-          <!-- Inline error banner (e.g. 403 group not enabled) -->
+          <!-- Inline error banner (e.g. 403 group not enabled) — sits above the composer -->
           <div
             v-if="inlineError"
             class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300"
@@ -58,19 +71,16 @@
             </button>
           </div>
 
-          <!-- Results gallery (newest first) -->
-          <div class="min-h-[220px] flex-1">
-            <TurnTimeline
-              :generations="store.generations"
-              :loading="store.loading"
-              :generating="store.generating"
-              :pending-prompt="pendingPrompt"
-              @retry="handleRetry"
-              @delete="confirmDeleteGeneration"
-              @open="openLightbox"
-              @use-example="handleUseExample"
-            />
-          </div>
+          <!-- Prompt console pinned at the bottom -->
+          <ImageComposer
+            ref="composerRef"
+            class="flex-shrink-0"
+            :groups="groups"
+            :loading-groups="loadingGroups"
+            :generating="store.generating"
+            :balance="balance"
+            @generate="handleGenerate"
+          />
         </section>
       </div>
     </div>
@@ -126,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useImageStudioStore } from '@/stores/imageStudio'
 import { useAuthStore } from '@/stores/auth'
@@ -158,10 +168,30 @@ const lightboxSrc = ref('')
 const pendingPrompt = ref('')
 
 const composerRef = ref<InstanceType<typeof ImageComposer> | null>(null)
+const scrollRef = ref<HTMLElement | null>(null)
 const deleteConvTarget = ref<ImageStudioConversation | null>(null)
 const deleteGenTarget = ref<ImageStudioGeneration | null>(null)
 
 const balance = computed(() => authStore.user?.balance ?? 0)
+
+// ==================== Auto-scroll (chat: newest at the bottom) ====================
+
+async function scrollToBottom(smooth = true) {
+  await nextTick()
+  const el = scrollRef.value
+  if (!el) return
+  el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+}
+
+// Keep the view pinned to the latest turn whenever the history grows or a new
+// generation starts streaming. Watching length (not the array identity) covers
+// both appends from generate() and full replacements from loadGenerations().
+watch(
+  () => [store.generations.length, store.generating] as const,
+  () => {
+    scrollToBottom()
+  }
+)
 
 // ==================== Error helpers ====================
 
@@ -224,6 +254,10 @@ async function handleSelectConversation(id: number | null) {
   store.selectConversation(id)
   try {
     await store.loadGenerations(id ?? undefined)
+    // Jump (no smooth) to the latest turn after the conversation's history loads.
+    // Covers the case where the new list has the same length as the old one and
+    // the length watcher would not fire.
+    await scrollToBottom(false)
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
   }
@@ -322,6 +356,7 @@ onMounted(async () => {
   loadGroups()
   try {
     await Promise.all([store.loadConversations(), store.loadGenerations()])
+    await scrollToBottom(false)
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
   }
