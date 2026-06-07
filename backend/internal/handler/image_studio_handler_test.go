@@ -409,7 +409,12 @@ func TestImageStudioDeleteGeneration_OtherUser404(t *testing.T) {
 }
 
 func TestImageStudioDeleteGeneration_OwnerDeletesFilesAndRow(t *testing.T) {
-	repo := &studioRepoStub{generation: &dbent.ImageGeneration{ID: 5, UserID: 7, StorageKeys: []string{"a", "b"}}}
+	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
+		ID:               5,
+		UserID:           7,
+		StorageKeys:      []string{"a", "b"},
+		InputStorageKeys: []string{"input_a", "input_b"},
+	}}
 	store := &studioStoreStub{}
 	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
 
@@ -420,5 +425,6 @@ func TestImageStudioDeleteGeneration_OwnerDeletesFilesAndRow(t *testing.T) {
 	h.DeleteGeneration(c)
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, 1, repo.delGenCall)
-	require.ElementsMatch(t, []string{"a", "b"}, store.deletedKeys)
+	// Both output and user-provided reference (input) images are removed.
+	require.ElementsMatch(t, []string{"a", "b", "input_a", "input_b"}, store.deletedKeys)
 }
