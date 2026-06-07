@@ -68,6 +68,8 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
+		ExternalRechargeEnabled:          settings.ExternalRechargeEnabled,
+		ExternalRechargeURL:              settings.ExternalRechargeURL,
 		TableDefaultPageSize:             settings.TableDefaultPageSize,
 		TablePageSizeOptions:             settings.TablePageSizeOptions,
 		CustomMenuItems:                  dto.ParseUserVisibleMenuItems(settings.CustomMenuItems),

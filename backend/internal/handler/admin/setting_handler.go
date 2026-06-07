@@ -221,6 +221,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		HideCcsImportButton:                    settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                settings.PurchaseSubscriptionURL,
+		ExternalRechargeEnabled:                settings.ExternalRechargeEnabled,
+		ExternalRechargeURL:                    settings.ExternalRechargeURL,
 		TableDefaultPageSize:                   settings.TableDefaultPageSize,
 		TablePageSizeOptions:                   settings.TablePageSizeOptions,
 		CustomMenuItems:                        dto.ParseCustomMenuItems(settings.CustomMenuItems),
@@ -502,6 +504,8 @@ type UpdateSettingsRequest struct {
 	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled *bool                 `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     *string               `json:"purchase_subscription_url"`
+	ExternalRechargeEnabled     *bool                 `json:"external_recharge_enabled"`
+	ExternalRechargeURL         *string               `json:"external_recharge_url"`
 	TableDefaultPageSize        int                   `json:"table_default_page_size"`
 	TablePageSizeOptions        []int                 `json:"table_page_size_options"`
 	CustomMenuItems             *[]dto.CustomMenuItem `json:"custom_menu_items"`
@@ -1238,6 +1242,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		purchaseURL = strings.TrimSpace(*req.PurchaseSubscriptionURL)
 	}
 
+	// 外部充值地址配置(为空表示未配置;由 service 层做 http(s) 合法性校验)
+	externalRechargeEnabled := previousSettings.ExternalRechargeEnabled
+	if req.ExternalRechargeEnabled != nil {
+		externalRechargeEnabled = *req.ExternalRechargeEnabled
+	}
+	externalRechargeURL := previousSettings.ExternalRechargeURL
+	if req.ExternalRechargeURL != nil {
+		externalRechargeURL = strings.TrimSpace(*req.ExternalRechargeURL)
+	}
+
 	// - 启用时要求 URL 合法且非空
 	// - 禁用时允许为空；若提供了 URL 也做基本校验，避免误配置
 	if purchaseEnabled {
@@ -1572,6 +1586,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		HideCcsImportButton:                    req.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            purchaseEnabled,
 		PurchaseSubscriptionURL:                purchaseURL,
+		ExternalRechargeEnabled:                externalRechargeEnabled,
+		ExternalRechargeURL:                    externalRechargeURL,
 		TableDefaultPageSize:                   req.TableDefaultPageSize,
 		TablePageSizeOptions:                   req.TablePageSizeOptions,
 		CustomMenuItems:                        customMenuJSON,
@@ -2015,6 +2031,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		HideCcsImportButton:                    updatedSettings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            updatedSettings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                updatedSettings.PurchaseSubscriptionURL,
+		ExternalRechargeEnabled:                updatedSettings.ExternalRechargeEnabled,
+		ExternalRechargeURL:                    updatedSettings.ExternalRechargeURL,
 		TableDefaultPageSize:                   updatedSettings.TableDefaultPageSize,
 		TablePageSizeOptions:                   updatedSettings.TablePageSizeOptions,
 		CustomMenuItems:                        dto.ParseCustomMenuItems(updatedSettings.CustomMenuItems),
@@ -2486,6 +2504,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.PurchaseSubscriptionURL != after.PurchaseSubscriptionURL {
 		changed = append(changed, "purchase_subscription_url")
+	}
+	if before.ExternalRechargeEnabled != after.ExternalRechargeEnabled {
+		changed = append(changed, "external_recharge_enabled")
+	}
+	if before.ExternalRechargeURL != after.ExternalRechargeURL {
+		changed = append(changed, "external_recharge_url")
 	}
 	if before.TableDefaultPageSize != after.TableDefaultPageSize {
 		changed = append(changed, "table_default_page_size")
