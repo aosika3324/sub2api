@@ -16,14 +16,14 @@
       <div
         v-for="i in 2"
         :key="i"
-        class="animate-pulse space-y-4 rounded-2xl border border-gray-200 bg-gray-900/[0.02] p-4 dark:border-white/[0.07] dark:bg-white/[0.02]"
+        class="card animate-pulse space-y-4 p-4"
       >
-        <div class="h-4 w-2/3 rounded bg-gray-200 dark:bg-white/[0.07]"></div>
+        <div class="h-4 w-2/3 rounded bg-gray-200 dark:bg-dark-700"></div>
         <div class="flex gap-2">
-          <div class="h-5 w-16 rounded bg-gray-200 dark:bg-white/[0.07]"></div>
-          <div class="h-5 w-12 rounded bg-gray-200 dark:bg-white/[0.07]"></div>
+          <div class="h-5 w-16 rounded bg-gray-200 dark:bg-dark-700"></div>
+          <div class="h-5 w-12 rounded bg-gray-200 dark:bg-dark-700"></div>
         </div>
-        <div class="aspect-square w-1/2 rounded-xl bg-gray-200 dark:bg-white/[0.07]"></div>
+        <div class="aspect-square w-1/2 rounded-xl bg-gray-200 dark:bg-dark-700"></div>
       </div>
     </div>
 
@@ -33,14 +33,14 @@
       class="onboarding-hero relative flex flex-1 items-center justify-center overflow-hidden px-6 py-16"
     >
       <div class="relative z-10 mx-auto max-w-2xl text-center">
-        <!-- Serif display hero with a subtle vertical sheen -->
+        <!-- Serif display hero -->
         <h2
-          class="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-900/55 bg-clip-text font-serif text-5xl font-normal tracking-tight text-transparent md:text-6xl dark:from-white dark:via-white dark:to-white/55"
+          class="font-serif text-5xl font-normal tracking-tight text-gray-900 md:text-6xl dark:text-white"
         >
           {{ t('imageStudio.onboardingTitle') }}
         </h2>
         <p
-          class="mx-auto mt-5 max-w-md text-base leading-relaxed text-gray-500 dark:text-white/40"
+          class="mx-auto mt-5 max-w-md text-base leading-relaxed text-gray-500 dark:text-gray-400"
         >
           {{ t('imageStudio.onboardingSubtitle') }}
         </p>
@@ -76,9 +76,9 @@
         <div
           v-if="generating"
           key="__generating__"
-          class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-900/[0.02] dark:border-white/[0.07] dark:bg-white/[0.02]"
+          class="card overflow-hidden p-0"
         >
-          <div class="border-b border-gray-100 p-4 dark:border-white/[0.07]">
+          <div class="border-b border-gray-100 p-4 dark:border-dark-700/60">
             <p
               v-if="pendingPrompt"
               class="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-900 dark:text-white"
@@ -87,9 +87,9 @@
             </p>
             <div class="mt-3 flex items-center gap-2">
               <span
-                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-500 border-t-transparent dark:border-white dark:border-t-transparent"
+                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
               ></span>
-              <span class="text-xs font-medium text-gray-500 dark:text-white/60">
+              <span class="text-xs font-medium text-primary-600 dark:text-primary-400">
                 {{ t('imageStudio.generating') }}
               </span>
             </div>
@@ -141,10 +141,10 @@ const examplePrompts = computed<string[]>(() => [
 
 <style scoped>
 .example-chip {
-  @apply inline-flex max-w-full items-center rounded-full border border-gray-900/10 bg-gray-900/[0.02] px-3.5 py-2 text-sm text-gray-500 transition-all;
-  @apply hover:bg-gray-900/[0.05] hover:text-gray-900;
-  @apply dark:border-white/10 dark:bg-white/[0.03] dark:text-white/55;
-  @apply dark:hover:bg-white/[0.06] dark:hover:text-white;
+  @apply inline-flex max-w-full items-center rounded-full border border-gray-200 bg-white/70 px-3.5 py-2 text-sm text-gray-700 transition-all;
+  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 hover:shadow-sm;
+  @apply dark:border-dark-600 dark:bg-dark-800/70 dark:text-gray-300;
+  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
 }
 
 /*

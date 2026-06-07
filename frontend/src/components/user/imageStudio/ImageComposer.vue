@@ -3,7 +3,7 @@
     <!-- No usable group hint (subtle muted inline notice) -->
     <div
       v-if="!loadingGroups && imageGroups.length === 0"
-      class="mb-2 flex items-center gap-2 px-1 text-xs text-amber-600 dark:text-amber-400/80"
+      class="mb-2 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/30 dark:bg-amber-900/15 dark:text-amber-300"
     >
       <Icon name="exclamationTriangle" size="xs" class="flex-shrink-0" />
       <span>{{ t('imageStudio.noImageGroupHint') }}</span>
@@ -11,7 +11,7 @@
 
     <!-- Unified pill: textarea on top, compact controls + send below -->
     <div
-      class="composer-shell rounded-[28px] border border-gray-200 bg-white shadow-sm transition-colors focus-within:border-gray-300 dark:border-white/10 dark:bg-white/[0.03] dark:shadow-black/20 dark:focus-within:border-white/20"
+      class="composer-shell rounded-[28px] border border-gray-100 bg-white shadow-sm transition-colors focus-within:border-primary-400 dark:border-dark-700/50 dark:bg-dark-800/50 dark:focus-within:border-primary-500"
     >
       <!-- Prompt -->
       <textarea
@@ -84,15 +84,15 @@
           class="balance-pill"
           :title="t('common.balance')"
         >
-          <Icon name="dollar" size="xs" class="flex-shrink-0 opacity-60" />
-          <span class="opacity-60">{{ t('imageStudio.balanceShort') }}</span>
-          <span class="font-medium">${{ balance.toFixed(2) }}</span>
+          <Icon name="dollar" size="xs" class="flex-shrink-0 text-green-500" />
+          <span class="text-gray-400 dark:text-dark-500">{{ t('imageStudio.balanceShort') }}</span>
+          <span class="font-medium text-gray-900 dark:text-white">${{ balance.toFixed(2) }}</span>
         </span>
 
         <!-- Cost estimate + send -->
         <span
           v-if="costEstimate != null"
-          class="ml-auto text-xs text-gray-400 dark:text-white/40"
+          class="ml-auto text-xs text-gray-400 dark:text-dark-500"
         >
           ≈${{ costEstimate.toFixed(2) }}
         </span>
@@ -271,36 +271,36 @@ defineExpose({ resetPrompt, fillPrompt })
 .composer-prompt {
   @apply w-full resize-none border-0 bg-transparent px-5 pb-2 pt-4 text-base leading-relaxed;
   @apply text-gray-900 dark:text-white;
-  @apply placeholder:text-gray-400 dark:placeholder:text-white/35;
+  @apply placeholder:text-gray-400 dark:placeholder:text-dark-500;
   @apply focus:outline-none focus:ring-0;
   min-height: 60px;
 }
 
 /*
-  Restyle the shared Select trigger LOCALLY into a small neutral pill, without
-  touching the global Select.vue. Scoped :deep reaches the trigger button.
+  Restyle the shared Select trigger LOCALLY into a small compact pill (shape
+  only), without touching the global Select.vue. Colors follow the sub2api
+  palette (slate surfaces, teal focus). Scoped :deep reaches the trigger button.
 */
 .pill-select {
   @apply w-auto;
 }
 
 .pill-select :deep(.select-trigger) {
-  @apply gap-1 rounded-full border-gray-200 bg-gray-900/[0.03] px-3 py-1.5 text-xs;
-  @apply text-gray-600;
-  @apply hover:border-gray-300;
-  @apply focus:border-gray-300 focus:ring-2 focus:ring-gray-400/20;
-  @apply dark:border-white/10 dark:bg-white/[0.05] dark:text-white/75;
-  @apply dark:hover:border-white/20 dark:focus:border-white/20 dark:focus:ring-white/20;
+  @apply gap-1 rounded-full border-transparent bg-gray-100 px-3 py-1.5 text-xs;
+  @apply text-gray-700;
+  @apply hover:border-transparent hover:bg-gray-200;
+  @apply focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30;
+  @apply dark:bg-dark-700 dark:text-gray-200;
+  @apply dark:hover:bg-dark-600 dark:focus:border-primary-500;
   width: auto;
 }
 
 .pill-select :deep(.select-trigger-open) {
-  @apply border-gray-300 ring-2 ring-gray-400/20;
-  @apply dark:border-white/20 dark:ring-white/20;
+  @apply border-primary-500 ring-2 ring-primary-500/30;
 }
 
 .pill-select :deep(.select-trigger-disabled) {
-  @apply bg-gray-900/[0.02] dark:bg-white/[0.02];
+  @apply bg-gray-100 dark:bg-dark-900;
 }
 
 .pill-select :deep(.select-value) {
@@ -313,23 +313,22 @@ defineExpose({ resetPrompt, fillPrompt })
 }
 
 .pill-select :deep(.select-icon) {
-  @apply text-gray-400 dark:text-white/40;
+  @apply text-gray-400 dark:text-dark-400;
 }
 
 .balance-pill {
-  @apply inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-900/[0.03] px-3 py-1.5 text-xs text-gray-600;
-  @apply dark:border-white/10 dark:bg-white/[0.05] dark:text-white/75;
+  @apply inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-600;
+  @apply dark:bg-dark-700 dark:text-gray-300;
 }
 
 .send-button {
   @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors;
-  @apply bg-gray-900 text-white hover:bg-gray-800;
-  @apply dark:bg-white dark:text-black dark:hover:bg-white/90;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:focus-visible:ring-white/25;
+  @apply bg-primary-600 text-white hover:bg-primary-700;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40;
 }
 
 .send-button:disabled {
   @apply cursor-not-allowed opacity-40;
-  @apply hover:bg-gray-900 dark:hover:bg-white;
+  @apply hover:bg-primary-600;
 }
 </style>

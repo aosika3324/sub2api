@@ -1,94 +1,84 @@
 <template>
   <AppLayout>
     <!--
-      Immersive editorial-noir canvas. Full-bleed: negative margins cancel the
-      AppLayout <main> padding so the deep-black field and its center vignette
-      span edge-to-edge. Light mode reads as a warm off-white sheet.
+      Immersive full-height studio. Sits on the normal AppLayout background
+      (bg-gray-50 dark:bg-dark-950 + teal mesh-gradient); the serif hero carries
+      the visual identity, so the bulky page header is dropped (sr-only h1 kept).
     -->
-    <div
-      class="studio-canvas relative -m-4 min-h-[calc(100vh-2rem)] overflow-hidden bg-[#faf9f7] md:-m-6 lg:-m-8 dark:bg-[#0a0a0c]"
-    >
-      <!-- Soft center bloom / vignette (non-interactive) -->
-      <div
-        aria-hidden="true"
-        class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_38%,rgba(20,20,24,0.04),transparent)] dark:bg-[radial-gradient(ellipse_60%_50%_at_50%_38%,rgba(255,255,255,0.045),transparent)]"
-      ></div>
+    <div class="mx-auto max-w-[1600px]">
+      <!-- Accessible title only; the serif hero carries the visual identity. -->
+      <h1 class="sr-only">{{ t('imageStudio.title') }}</h1>
 
-      <div class="relative mx-auto max-w-[1600px] px-4 py-5 md:px-6 lg:px-8 lg:py-6">
-        <!-- Accessible title only; the serif hero carries the visual identity. -->
-        <h1 class="sr-only">{{ t('imageStudio.title') }}</h1>
+      <!-- Workbench grid -->
+      <div class="grid grid-cols-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <!-- Left: conversations (flat / borderless) -->
+        <aside
+          class="order-2 h-fit lg:order-1 lg:sticky lg:top-6 lg:max-h-[calc(100vh-4rem)]"
+        >
+          <ConversationList
+            :conversations="store.conversations"
+            :active-conversation-id="store.activeConversationId"
+            :loading="store.loading"
+            :creating="creating"
+            @create="handleCreateConversation"
+            @select="handleSelectConversation"
+            @rename="handleRenameConversation"
+            @delete="confirmDeleteConversation"
+          />
+        </aside>
 
-        <!-- Workbench grid -->
-        <div class="grid grid-cols-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <!-- Left: conversations (flat / borderless) -->
-          <aside
-            class="order-2 h-fit lg:order-1 lg:sticky lg:top-6 lg:max-h-[calc(100vh-4rem)]"
+        <!-- Main column: chat-style — history (scrolls) on top, composer pinned bottom -->
+        <section
+          class="order-1 flex min-h-[60vh] min-w-0 flex-col gap-3 lg:order-2 lg:h-[calc(100vh-3.5rem)]"
+        >
+          <!--
+            History scroll area. Always-mounted with a stable dark surface so
+            switching conversations never tears the whole subtree down (which
+            previously caused a white flash). Newest turn sits at the bottom.
+          -->
+          <div
+            ref="scrollRef"
+            class="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40 dark:border-dark-700/50 dark:bg-dark-900"
           >
-            <ConversationList
-              :conversations="store.conversations"
-              :active-conversation-id="store.activeConversationId"
+            <TurnTimeline
+              :generations="store.generations"
               :loading="store.loading"
-              :creating="creating"
-              @create="handleCreateConversation"
-              @select="handleSelectConversation"
-              @rename="handleRenameConversation"
-              @delete="confirmDeleteConversation"
-            />
-          </aside>
-
-          <!-- Main column: chat-style — history (scrolls) on top, composer pinned bottom -->
-          <section
-            class="order-1 flex min-h-[60vh] min-w-0 flex-col gap-3 lg:order-2 lg:h-[calc(100vh-3.5rem)]"
-          >
-            <!--
-              History scroll area. Always-mounted with a stable dark surface so
-              switching conversations never tears the whole subtree down (which
-              previously caused a white flash). Newest turn sits at the bottom.
-            -->
-            <div
-              ref="scrollRef"
-              class="min-h-0 flex-1 overflow-y-auto rounded-2xl bg-transparent"
-            >
-              <TurnTimeline
-                :generations="store.generations"
-                :loading="store.loading"
-                :generating="store.generating"
-                :pending-prompt="pendingPrompt"
-                @retry="handleRetry"
-                @delete="confirmDeleteGeneration"
-                @open="openLightbox"
-                @use-example="handleUseExample"
-              />
-            </div>
-
-            <!-- Inline error banner (e.g. 403 group not enabled) — sits above the composer -->
-            <div
-              v-if="inlineError"
-              class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300"
-            >
-              <Icon name="exclamationTriangle" size="sm" class="mt-0.5 flex-shrink-0" />
-              <span class="flex-1">{{ inlineError }}</span>
-              <button
-                type="button"
-                class="flex-shrink-0 rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30"
-                @click="inlineError = ''"
-              >
-                <Icon name="x" size="xs" />
-              </button>
-            </div>
-
-            <!-- Prompt console pinned at the bottom -->
-            <ImageComposer
-              ref="composerRef"
-              class="flex-shrink-0"
-              :groups="groups"
-              :loading-groups="loadingGroups"
               :generating="store.generating"
-              :balance="balance"
-              @generate="handleGenerate"
+              :pending-prompt="pendingPrompt"
+              @retry="handleRetry"
+              @delete="confirmDeleteGeneration"
+              @open="openLightbox"
+              @use-example="handleUseExample"
             />
-          </section>
-        </div>
+          </div>
+
+          <!-- Inline error banner (e.g. 403 group not enabled) — sits above the composer -->
+          <div
+            v-if="inlineError"
+            class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300"
+          >
+            <Icon name="exclamationTriangle" size="sm" class="mt-0.5 flex-shrink-0" />
+            <span class="flex-1">{{ inlineError }}</span>
+            <button
+              type="button"
+              class="flex-shrink-0 rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30"
+              @click="inlineError = ''"
+            >
+              <Icon name="x" size="xs" />
+            </button>
+          </div>
+
+          <!-- Prompt console pinned at the bottom -->
+          <ImageComposer
+            ref="composerRef"
+            class="flex-shrink-0"
+            :groups="groups"
+            :loading-groups="loadingGroups"
+            :generating="store.generating"
+            :balance="balance"
+            @generate="handleGenerate"
+          />
+        </section>
       </div>
     </div>
 
