@@ -36,6 +36,7 @@
           :disabled="disabled || imageGroups.length === 0"
           :placeholder="t('imageStudio.selectGroup')"
           :title="t('imageStudio.group')"
+          :aria-label="t('imageStudio.group')"
         />
 
         <!-- Model -->
@@ -45,6 +46,7 @@
           :options="modelOptions"
           :disabled="disabled"
           :title="t('imageStudio.model')"
+          :aria-label="t('imageStudio.model')"
         />
 
         <!-- Size -->
@@ -54,6 +56,7 @@
           :options="sizeOptions"
           :disabled="disabled"
           :title="t('imageStudio.size')"
+          :aria-label="t('imageStudio.size')"
         />
 
         <!-- Quality -->
@@ -63,6 +66,7 @@
           :options="qualityOptions"
           :disabled="disabled"
           :title="t('imageStudio.quality')"
+          :aria-label="t('imageStudio.quality')"
         />
 
         <!-- Count -->
@@ -72,6 +76,7 @@
           :options="countOptions"
           :disabled="disabled"
           :title="t('imageStudio.count')"
+          :aria-label="t('imageStudio.count')"
         />
 
         <!-- Balance pill -->
@@ -320,6 +325,7 @@ defineExpose({ resetPrompt, fillPrompt })
   @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors;
   @apply bg-gray-900 text-white hover:bg-gray-800;
   @apply dark:bg-white dark:text-black dark:hover:bg-white/90;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40 dark:focus-visible:ring-white/25;
 }
 
 .send-button:disabled {

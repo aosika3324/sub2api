@@ -69,7 +69,7 @@
         <p class="text-sm text-red-600 dark:text-red-400">
           {{ t('imageStudio.generationFailed') }}
         </p>
-        <button type="button" class="btn btn-secondary" @click="$emit('retry', generation)">
+        <button type="button" class="retry-button" @click="$emit('retry', generation)">
           <Icon name="refresh" size="sm" class="mr-1.5" />
           {{ t('imageStudio.retry') }}
         </button>
@@ -160,5 +160,9 @@ const formattedTime = computed(() => {
 }
 .chip-cost {
   @apply bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400;
+}
+.retry-button {
+  @apply inline-flex items-center rounded-full border border-gray-300 bg-gray-900/[0.04] px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-900/[0.08];
+  @apply dark:border-white/10 dark:bg-white/[0.06] dark:text-white/80 dark:hover:bg-white/[0.10];
 }
 </style>
