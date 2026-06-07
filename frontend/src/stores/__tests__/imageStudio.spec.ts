@@ -331,6 +331,58 @@ describe('useImageStudioStore', () => {
       expect(mockListConversationGenerations).toHaveBeenCalledWith(1)
       expect(mockListGenerations).not.toHaveBeenCalled()
     })
+
+    it('hasLoadedGenerations: 初始为 false, 首次加载后变 true (用于门控骨架屏只在首屏显示)', async () => {
+      mockListGenerations.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20, pages: 0 })
+
+      const store = useImageStudioStore()
+      expect(store.hasLoadedGenerations).toBe(false)
+
+      await store.loadGenerations()
+
+      expect(store.hasLoadedGenerations).toBe(true)
+    })
+
+    it('hasLoadedGenerations: 加载失败也置为 true (避免永久骨架屏)', async () => {
+      mockListGenerations.mockRejectedValue(new Error('boom'))
+
+      const store = useImageStudioStore()
+      await expect(store.loadGenerations()).rejects.toThrow('boom')
+
+      expect(store.hasLoadedGenerations).toBe(true)
+    })
+  })
+
+  // --- resetGenerations ---
+
+  describe('resetGenerations', () => {
+    it('清空 generations 并标记已加载 (新建空会话即时显示空态, 不触发骨架屏/网络请求)', () => {
+      const store = useImageStudioStore()
+      store.generations = [
+        {
+          id: 1,
+          conversation_id: 1,
+          group_id: 10,
+          prompt: 'old',
+          model: 'dall-e-3',
+          size: '1024x1024',
+          quality: 'standard',
+          n: 1,
+          image_count: 1,
+          status: 'completed',
+          cost: 0.04,
+          created_at: '2026-06-07T00:00:00Z',
+        },
+      ]
+
+      store.resetGenerations()
+
+      expect(store.generations).toHaveLength(0)
+      expect(store.hasLoadedGenerations).toBe(true)
+      // No network call involved
+      expect(mockListGenerations).not.toHaveBeenCalled()
+      expect(mockListConversationGenerations).not.toHaveBeenCalled()
+    })
   })
 
   // --- deleteGeneration ---

@@ -23,6 +23,12 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
   const generating = ref(false)
   const error = ref<unknown>(null)
 
+  // True once the first generation load has resolved. The canvas skeleton is
+  // gated on this so it only appears on the very first load — never on a
+  // conversation switch/create/delete, which would otherwise flash blank
+  // placeholder cards over the (already-rendered) canvas.
+  const hasLoadedGenerations = ref(false)
+
   // ==================== Conversations ====================
 
   /**
@@ -102,7 +108,18 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
       throw err
     } finally {
       loading.value = false
+      hasLoadedGenerations.value = true
     }
+  }
+
+  /**
+   * Clear the active generation list locally. Used when opening a brand-new
+   * (empty) conversation: we show the empty state immediately, without a
+   * redundant network round-trip or a skeleton flash.
+   */
+  function resetGenerations(): void {
+    generations.value = []
+    hasLoadedGenerations.value = true
   }
 
   /**
@@ -166,6 +183,7 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     loading,
     generating,
     error,
+    hasLoadedGenerations,
 
     // Actions
     loadConversations,
@@ -174,6 +192,7 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     deleteConversation,
     selectConversation,
     loadGenerations,
+    resetGenerations,
     generate,
     deleteGeneration,
   }

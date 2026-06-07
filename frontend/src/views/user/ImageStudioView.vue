@@ -42,7 +42,7 @@
           >
             <TurnTimeline
               :generations="store.generations"
-              :loading="store.loading"
+              :loading="store.loading && !store.hasLoadedGenerations"
               :generating="store.generating"
               :pending-prompt="pendingPrompt"
               @retry="handleRetry"
@@ -238,7 +238,12 @@ async function handleCreateConversation() {
   inlineError.value = ''
   try {
     const conv = await store.createConversation()
-    await handleSelectConversation(conv.id)
+    // A brand-new conversation is empty by definition. Switch to it and show
+    // the empty state immediately — skipping loadGenerations avoids a redundant
+    // request and the blank skeleton/stale-content flash on the canvas.
+    store.selectConversation(conv.id)
+    store.resetGenerations()
+    await scrollToBottom(false)
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
   } finally {
