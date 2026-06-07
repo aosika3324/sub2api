@@ -5682,6 +5682,45 @@ func (s *OpenAIGatewayService) replaceModelInResponseBody(body []byte, fromModel
 	return body
 }
 
+// resolveOpenAIUsageRateMultiplier resolves the base (token) rate multiplier the
+// usage-recording path applies: config default -> per-(user, group) override via
+// userGroupRateResolver, falling back to the group's default multiplier. It is
+// the single source of truth shared by RecordUsage and the exported
+// ComputeImageCostBreakdown helper so studio cost figures match deductions.
+func (s *OpenAIGatewayService) resolveOpenAIUsageRateMultiplier(ctx context.Context, user *User, apiKey *APIKey) float64 {
+	multiplier := 1.0
+	if s.cfg != nil {
+		multiplier = s.cfg.Default.RateMultiplier
+	}
+	if user != nil && apiKey != nil && apiKey.GroupID != nil && apiKey.Group != nil {
+		resolver := s.userGroupRateResolver
+		if resolver == nil {
+			resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
+		}
+		multiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
+	}
+	return multiplier
+}
+
+// ComputeImageCostBreakdown returns the image-generation CostBreakdown for the
+// given (user, apiKey, result) using the exact same multiplier resolution and
+// image-pricing path RecordUsage uses to deduct balance. Callers that need to
+// surface the cost figure (e.g. the in-app image studio) should use this so the
+// reported/persisted cost equals the amount actually charged. Returns nil when
+// the result is nil or carries no images.
+func (s *OpenAIGatewayService) ComputeImageCostBreakdown(ctx context.Context, user *User, apiKey *APIKey, result *OpenAIForwardResult) *CostBreakdown {
+	if s == nil || result == nil || result.ImageCount <= 0 {
+		return nil
+	}
+	multiplier := s.resolveOpenAIUsageRateMultiplier(ctx, user, apiKey)
+	imageMultiplier := resolveImageRateMultiplier(apiKey, multiplier)
+	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
+	if result.BillingModel != "" {
+		billingModel = strings.TrimSpace(result.BillingModel)
+	}
+	return s.calculateOpenAIImageCost(ctx, billingModel, apiKey, result, imageMultiplier)
+}
+
 // OpenAIRecordUsageInput input for recording usage
 type OpenAIRecordUsageInput struct {
 	Result             *OpenAIForwardResult
@@ -5733,18 +5772,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ImageOutputTokens:   result.Usage.ImageOutputTokens,
 	}
 
-	// Get rate multiplier
-	multiplier := 1.0
-	if s.cfg != nil {
-		multiplier = s.cfg.Default.RateMultiplier
-	}
-	if apiKey.GroupID != nil && apiKey.Group != nil {
-		resolver := s.userGroupRateResolver
-		if resolver == nil {
-			resolver = newUserGroupRateResolver(nil, nil, resolveUserGroupRateCacheTTL(s.cfg), nil, "service.openai_gateway")
-		}
-		multiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
-	}
+	// Get rate multiplier (shared with ComputeImageCostBreakdown to keep the
+	// studio-reported cost identical to what is deducted here).
+	multiplier := s.resolveOpenAIUsageRateMultiplier(ctx, user, apiKey)
 	imageMultiplier := resolveImageRateMultiplier(apiKey, multiplier)
 
 	var cost *CostBreakdown

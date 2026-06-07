@@ -100,17 +100,25 @@ type studioImageGenerator interface {
 	GenerateStudioImages(ctx context.Context, in ImageGenInput) (*ImageGenResult, []StudioGeneratedImage, error)
 }
 
-// imageCostCalculator prices the produced images. Satisfied by *BillingService.
-// (RecordUsage performs the authoritative cost calc + atomic deduction; this is
-// used only to surface the cost figure to the caller.)
-type imageCostCalculator interface {
-	CalculateImageCost(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64) *CostBreakdown
+// studioImageCostResolver prices the produced images using the exact same
+// multiplier resolution and image-pricing path RecordUsage uses to deduct
+// balance, so the reported/persisted cost equals the amount actually charged.
+// Satisfied by *OpenAIGatewayService.ComputeImageCostBreakdown.
+type studioImageCostResolver interface {
+	ComputeImageCostBreakdown(ctx context.Context, user *User, apiKey *APIKey, result *OpenAIForwardResult) *CostBreakdown
 }
 
 // imageUsageRecorder records usage + atomically deducts balance + writes the
 // usage_log (with image fields). Satisfied by *OpenAIGatewayService.RecordUsage.
 type imageUsageRecorder interface {
 	RecordUsage(ctx context.Context, input *OpenAIRecordUsageInput) error
+}
+
+// studioSubscriptionResolver loads the active subscription for a (user, group)
+// pair the same authoritative way the gateway auth middleware does (it gates on
+// Group.IsSubscriptionType() before calling). Satisfied by *SubscriptionService.
+type studioSubscriptionResolver interface {
+	GetActiveSubscription(ctx context.Context, userID, groupID int64) (*UserSubscription, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +138,9 @@ var (
 	// ErrImageStudioNoImages is returned when generation reported success but
 	// produced no images to store.
 	ErrImageStudioNoImages = errors.New("image studio: upstream produced no images")
+	// ErrImageStudioNoAccount is returned when generation succeeded but reported no
+	// account (RecordUsage requires a non-nil account).
+	ErrImageStudioNoAccount = errors.New("image studio: generation returned no account")
 )
 
 const (
@@ -146,15 +157,16 @@ const (
 
 // ImageStudioServiceDeps groups the (narrow) dependencies of ImageStudioService.
 type ImageStudioServiceDeps struct {
-	Users       studioUserReader
-	Groups      studioGroupProvider
-	KeyEnsurer  studioKeyEnsurer
-	Eligibility billingEligibilityChecker
-	Generator   studioImageGenerator
-	CostCalc    imageCostCalculator
-	UsageRecord imageUsageRecorder
-	Repo        ImageStudioRepository
-	Store       ImageStore
+	Users         studioUserReader
+	Groups        studioGroupProvider
+	KeyEnsurer    studioKeyEnsurer
+	Eligibility   billingEligibilityChecker
+	Generator     studioImageGenerator
+	CostResolver  studioImageCostResolver
+	UsageRecord   imageUsageRecorder
+	Subscriptions studioSubscriptionResolver
+	Repo          ImageStudioRepository
+	Store         ImageStore
 
 	// Limiter + Cfg are optional. When Limiter is non-nil the studio path
 	// acquires an image-generation concurrency slot using the same config knobs
@@ -170,17 +182,18 @@ type ImageStudioServiceDeps struct {
 // in-app billing via RecordUsage. It follows spec §9 ordering exactly:
 // preflight -> slot -> generate -> store -> bill -> persist.
 type ImageStudioService struct {
-	users       studioUserReader
-	groups      studioGroupProvider
-	keyEnsurer  studioKeyEnsurer
-	eligibility billingEligibilityChecker
-	generator   studioImageGenerator
-	costCalc    imageCostCalculator
-	usageRecord imageUsageRecorder
-	repo        ImageStudioRepository
-	store       ImageStore
-	limiter     *ImageConcurrencyLimiter
-	cfg         *config.Config
+	users         studioUserReader
+	groups        studioGroupProvider
+	keyEnsurer    studioKeyEnsurer
+	eligibility   billingEligibilityChecker
+	generator     studioImageGenerator
+	costResolver  studioImageCostResolver
+	usageRecord   imageUsageRecorder
+	subscriptions studioSubscriptionResolver
+	repo          ImageStudioRepository
+	store         ImageStore
+	limiter       *ImageConcurrencyLimiter
+	cfg           *config.Config
 }
 
 // Compile-time assertions: the existing concrete services satisfy the studio
@@ -188,28 +201,30 @@ type ImageStudioService struct {
 // is satisfied by a capturing adapter wired in Task 9 (see StudioGeneratedImage),
 // because *OpenAIGatewayService.GenerateImages returns no image bytes.
 var (
-	_ studioUserReader          = (*UserService)(nil)
-	_ studioGroupProvider       = (*APIKeyService)(nil)
-	_ studioKeyEnsurer          = (*APIKeyService)(nil)
-	_ billingEligibilityChecker = (*BillingCacheService)(nil)
-	_ imageCostCalculator       = (*BillingService)(nil)
-	_ imageUsageRecorder        = (*OpenAIGatewayService)(nil)
+	_ studioUserReader           = (*UserService)(nil)
+	_ studioGroupProvider        = (*APIKeyService)(nil)
+	_ studioKeyEnsurer           = (*APIKeyService)(nil)
+	_ billingEligibilityChecker  = (*BillingCacheService)(nil)
+	_ studioImageCostResolver    = (*OpenAIGatewayService)(nil)
+	_ imageUsageRecorder         = (*OpenAIGatewayService)(nil)
+	_ studioSubscriptionResolver = (*SubscriptionService)(nil)
 )
 
 // NewImageStudioService builds the service from its narrow dependencies.
 func NewImageStudioService(deps ImageStudioServiceDeps) *ImageStudioService {
 	return &ImageStudioService{
-		users:       deps.Users,
-		groups:      deps.Groups,
-		keyEnsurer:  deps.KeyEnsurer,
-		eligibility: deps.Eligibility,
-		generator:   deps.Generator,
-		costCalc:    deps.CostCalc,
-		usageRecord: deps.UsageRecord,
-		repo:        deps.Repo,
-		store:       deps.Store,
-		limiter:     deps.Limiter,
-		cfg:         deps.Cfg,
+		users:         deps.Users,
+		groups:        deps.Groups,
+		keyEnsurer:    deps.KeyEnsurer,
+		eligibility:   deps.Eligibility,
+		generator:     deps.Generator,
+		costResolver:  deps.CostResolver,
+		usageRecord:   deps.UsageRecord,
+		subscriptions: deps.Subscriptions,
+		repo:          deps.Repo,
+		store:         deps.Store,
+		limiter:       deps.Limiter,
+		cfg:           deps.Cfg,
 	}
 }
 
@@ -251,7 +266,17 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	gid := group.ID
 	apiKey.GroupID = &gid
 
-	subscription := s.resolveSubscription(user, group)
+	// Resolve the active subscription the SAME authoritative way the gateway auth
+	// middleware does (gate on Group.IsSubscriptionType(), then
+	// SubscriptionService.GetActiveSubscription), so subscription-mode groups bill
+	// against their subscription instead of being wrongly charged/rejected on
+	// balance. UserService.GetByID does not eager-load subscriptions, so we cannot
+	// read them off user.Subscriptions.
+	subscription, err := s.resolveActiveSubscription(ctx, userID, group)
+	if err != nil {
+		reqLog.Info("image_studio.subscription_required_not_found", zap.Error(err))
+		return nil, err
+	}
 	if err := s.eligibility.CheckBillingEligibility(ctx, user, apiKey, group, subscription, group.Platform); err != nil {
 		reqLog.Info("image_studio.billing_eligibility_failed", zap.Error(err))
 		return nil, err
@@ -315,13 +340,21 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 		s.markFailed(ctx, genID, ErrImageStudioNoImages, reqLog)
 		return nil, ErrImageStudioNoImages
 	}
+	// Guard: RecordUsage dereferences input.Account; a nil account from a
+	// (mis)behaving generator must surface as a failed generation, not a panic.
+	if genResult.Account == nil {
+		s.markFailed(ctx, genID, ErrImageStudioNoAccount, reqLog)
+		return nil, ErrImageStudioNoAccount
+	}
 
 	// --- Step 6a: store each produced image; collect keys. ---
 	keys := make([]string, 0, len(images))
 	for idx, img := range images {
 		key, putErr := s.store.Put(ctx, userID, genID, idx, img.ContentType, img.Data)
 		if putErr != nil {
-			// Storage failure: mark failed, do NOT bill, return error.
+			// Storage failure: best-effort remove the images already written for
+			// this generation to avoid orphans, mark failed, do NOT bill, return.
+			s.cleanupStoredImages(ctx, keys, reqLog)
 			s.markFailed(ctx, genID, putErr, reqLog)
 			return nil, fmt.Errorf("image studio: store image %d: %w", idx, putErr)
 		}
@@ -334,7 +367,7 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	// Spec §9: a RecordUsage failure here (after generate + store succeed) is a
 	// rare system error; balance was already gated by pre-flight, so we log
 	// [CRITICAL], still mark succeeded, and still return the images.
-	cost := s.estimateCost(genResult.Result, apiKey, group)
+	cost := s.computeCost(ctx, genResult.Result, user, apiKey)
 	usageErr := s.usageRecord.RecordUsage(ctx, &OpenAIRecordUsageInput{
 		Result:          genResult.Result,
 		APIKey:          apiKey,
@@ -453,39 +486,32 @@ func (s *ImageStudioService) markFailed(ctx context.Context, genID int64, cause 
 	}
 }
 
-// estimateCost surfaces the figure RecordUsage will deduct: model/size/count
-// priced against the group's image price config + rate multiplier.
-func (s *ImageStudioService) estimateCost(result *OpenAIForwardResult, apiKey *APIKey, group *Group) float64 {
-	if s.costCalc == nil || result == nil {
+// computeCost returns the figure RecordUsage will deduct, using the SAME
+// multiplier resolution + image-pricing path as RecordUsage (via
+// ComputeImageCostBreakdown) so the reported/persisted cost equals the charge.
+func (s *ImageStudioService) computeCost(ctx context.Context, result *OpenAIForwardResult, user *User, apiKey *APIKey) float64 {
+	if s.costResolver == nil || result == nil {
 		return 0
 	}
-	count := result.ImageCount
-	if count <= 0 {
-		count = 1
-	}
-	sizeTier := strings.TrimSpace(result.ImageSize)
-	if sizeTier == "" {
-		sizeTier = normalizeOpenAIImageSizeTier(result.ImageInputSize)
-	}
-	model := strings.TrimSpace(result.Model)
-	var groupConfig *ImagePriceConfig
-	multiplier := 1.0
-	if group != nil {
-		groupConfig = &ImagePriceConfig{
-			Price1K: group.ImagePrice1K,
-			Price2K: group.ImagePrice2K,
-			Price4K: group.ImagePrice4K,
-		}
-		if group.RateMultiplier > 0 {
-			multiplier = group.RateMultiplier
-		}
-	}
-	multiplier = resolveImageRateMultiplier(apiKey, multiplier)
-	breakdown := s.costCalc.CalculateImageCost(model, sizeTier, count, groupConfig, multiplier)
+	breakdown := s.costResolver.ComputeImageCostBreakdown(ctx, user, apiKey, result)
 	if breakdown == nil {
 		return 0
 	}
 	return breakdown.ActualCost
+}
+
+// cleanupStoredImages best-effort removes already-stored images for a generation
+// after a later Put fails, to avoid leaving orphaned files. Delete errors are
+// logged, not propagated.
+func (s *ImageStudioService) cleanupStoredImages(ctx context.Context, keys []string, reqLog *zap.Logger) {
+	for _, key := range keys {
+		if err := s.store.Delete(ctx, key); err != nil {
+			reqLog.Warn("image_studio.cleanup_orphan_image_failed",
+				zap.String("storage_key", key),
+				zap.Error(err),
+			)
+		}
+	}
 }
 
 // acquireSlot acquires an image-generation concurrency slot using the gateway
@@ -506,19 +532,23 @@ func (s *ImageStudioService) acquireSlot(ctx context.Context) (func(), bool) {
 	)
 }
 
-// resolveSubscription returns the user's active subscription for group when the
-// group is a subscription type, mirroring the gateway billing path.
-func (s *ImageStudioService) resolveSubscription(user *User, group *Group) *UserSubscription {
-	if user == nil || group == nil || !group.IsSubscriptionType() {
-		return nil
+// resolveActiveSubscription loads the active subscription for (userID, group)
+// the same authoritative way the gateway auth middleware does: only for
+// subscription-type groups, via SubscriptionService.GetActiveSubscription. A
+// subscription-type group with no active subscription is rejected (mirroring the
+// gateway's 403). Non-subscription groups return (nil, nil) → balance billing.
+func (s *ImageStudioService) resolveActiveSubscription(ctx context.Context, userID int64, group *Group) (*UserSubscription, error) {
+	if group == nil || !group.IsSubscriptionType() || s.subscriptions == nil {
+		return nil, nil
 	}
-	for i := range user.Subscriptions {
-		sub := user.Subscriptions[i]
-		if sub.GroupID == group.ID && sub.IsActive() {
-			return &sub
-		}
+	sub, err := s.subscriptions.GetActiveSubscription(ctx, userID, group.ID)
+	if err != nil {
+		// GetActiveSubscription returns ErrSubscriptionNotFound when none is
+		// active; surface it (the handler maps it to 403) so subscription users
+		// without a valid subscription are rejected rather than silently billed.
+		return nil, fmt.Errorf("image studio: resolve active subscription: %w", err)
 	}
-	return nil
+	return sub, nil
 }
 
 // readBalance re-reads the user's balance after RecordUsage deducted it,

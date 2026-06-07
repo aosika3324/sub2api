@@ -11,6 +11,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -96,13 +97,31 @@ func (s *studioImageGeneratorStub) GenerateStudioImages(_ context.Context, _ Ima
 
 type studioCostStub struct {
 	breakdown *CostBreakdown
+	calls     int
+	last      *OpenAIForwardResult
 }
 
-func (s *studioCostStub) CalculateImageCost(_ string, _ string, _ int, _ *ImagePriceConfig, _ float64) *CostBreakdown {
+func (s *studioCostStub) ComputeImageCostBreakdown(_ context.Context, _ *User, _ *APIKey, result *OpenAIForwardResult) *CostBreakdown {
+	s.calls++
+	s.last = result
 	if s.breakdown != nil {
 		return s.breakdown
 	}
 	return &CostBreakdown{ActualCost: 0}
+}
+
+type studioSubscriptionStub struct {
+	sub   *UserSubscription
+	err   error
+	calls int
+}
+
+func (s *studioSubscriptionStub) GetActiveSubscription(_ context.Context, _, _ int64) (*UserSubscription, error) {
+	s.calls++
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.sub, nil
 }
 
 type studioUsageRecorderStub struct {
@@ -225,10 +244,14 @@ func (s *studioRepoStub) lastStatus() (studioStatusUpdate, bool) {
 
 // studioStoreStub is an in-memory ImageStore.
 type studioStoreStub struct {
-	mu       sync.Mutex
-	putCalls int
-	putErr   error
-	keys     []string
+	mu          sync.Mutex
+	putCalls    int
+	putErr      error
+	keys        []string
+	deletedKeys []string
+	// failPutAfter, when > 0, makes the (failPutAfter+1)-th Put (0-based: the Put
+	// at idx == failPutAfter) fail, exercising the partial-failure cleanup path.
+	failPutAfter int
 }
 
 func (s *studioStoreStub) Put(_ context.Context, userID, genID int64, idx int, _ string, _ []byte) (string, error) {
@@ -236,6 +259,9 @@ func (s *studioStoreStub) Put(_ context.Context, userID, genID int64, idx int, _
 	defer s.mu.Unlock()
 	if s.putErr != nil {
 		return "", s.putErr
+	}
+	if s.failPutAfter > 0 && idx == s.failPutAfter {
+		return "", errors.New("disk full at idx")
 	}
 	s.putCalls++
 	key := studioTestKey(userID, genID, idx)
@@ -247,7 +273,12 @@ func (s *studioStoreStub) Open(_ context.Context, _ string) (io.ReadCloser, stri
 	return nil, "", errors.New("not implemented")
 }
 
-func (s *studioStoreStub) Delete(_ context.Context, _ string) error { return nil }
+func (s *studioStoreStub) Delete(_ context.Context, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.deletedKeys = append(s.deletedKeys, key)
+	return nil
+}
 
 func studioTestKey(userID, genID int64, idx int) string {
 	return "k/" + itoa(userID) + "/" + itoa(genID) + "/" + itoa(int64(idx))
@@ -288,6 +319,7 @@ type studioFixture struct {
 	gen    *studioImageGeneratorStub
 	cost   *studioCostStub
 	usage  *studioUsageRecorderStub
+	subs   *studioSubscriptionStub
 	repo   *studioRepoStub
 	store  *studioStoreStub
 }
@@ -312,19 +344,21 @@ func newStudioFixture(t *testing.T) *studioFixture {
 		},
 		cost:  &studioCostStub{breakdown: &CostBreakdown{ActualCost: 0.42, TotalCost: 0.42, BillingMode: string(BillingModeImage)}},
 		usage: &studioUsageRecorderStub{},
+		subs:  &studioSubscriptionStub{},
 		repo:  newStudioRepoStub(),
 		store: &studioStoreStub{},
 	}
 	f.svc = NewImageStudioService(ImageStudioServiceDeps{
-		Users:       f.users,
-		Groups:      f.groups,
-		KeyEnsurer:  f.keys,
-		Eligibility: f.elig,
-		Generator:   f.gen,
-		CostCalc:    f.cost,
-		UsageRecord: f.usage,
-		Repo:        f.repo,
-		Store:       f.store,
+		Users:         f.users,
+		Groups:        f.groups,
+		KeyEnsurer:    f.keys,
+		Eligibility:   f.elig,
+		Generator:     f.gen,
+		CostResolver:  f.cost,
+		UsageRecord:   f.usage,
+		Subscriptions: f.subs,
+		Repo:          f.repo,
+		Store:         f.store,
 	})
 	return f
 }
@@ -498,4 +532,173 @@ func TestImageStudioService_Generate_ContextDeadlinePropagates(t *testing.T) {
 	// Happy path still works within the deadline.
 	_, err := f.svc.Generate(ctx, 1, studioInput(10))
 	require.NoError(t, err)
+}
+
+// High-fix regression: a subscription-type group must resolve its active
+// subscription via the authoritative resolver (not user.Subscriptions, which
+// GetByID does not eager-load) and bill in subscription mode rather than being
+// rejected/charged on balance.
+func TestImageStudioService_Generate_SubscriptionGroup_BillsInSubscriptionMode(t *testing.T) {
+	f := newStudioFixture(t)
+	// Subscription-type group; user balance is 0 (would be rejected on balance).
+	f.groups.groups = []Group{{
+		ID: 10, Status: StatusActive, AllowImageGeneration: true,
+		SubscriptionType: SubscriptionTypeSubscription,
+	}}
+	f.users.user = &User{ID: 1, Balance: 0, AllowedGroups: []int64{10}}
+	activeSub := &UserSubscription{ID: 5, GroupID: 10, UserID: 1, Status: StatusActive}
+	f.subs.sub = activeSub
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	// Authoritative resolver was consulted exactly once.
+	require.Equal(t, 1, f.subs.calls)
+
+	// The resolved subscription was passed to BOTH eligibility and RecordUsage,
+	// matching the gateway billing contract.
+	require.Equal(t, 1, f.elig.calls)
+	require.NotNil(t, f.usage.last)
+	require.Same(t, activeSub, f.usage.last.Subscription)
+}
+
+// A subscription-type group with no active subscription must be rejected before
+// generating, surfacing the resolver's not-found error.
+func TestImageStudioService_Generate_SubscriptionGroup_NoActiveSubscription_Rejected(t *testing.T) {
+	f := newStudioFixture(t)
+	f.groups.groups = []Group{{
+		ID: 10, Status: StatusActive, AllowImageGeneration: true,
+		SubscriptionType: SubscriptionTypeSubscription,
+	}}
+	f.subs.err = ErrSubscriptionNotFound
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.Error(t, err)
+	require.Nil(t, res)
+	require.ErrorIs(t, err, ErrSubscriptionNotFound)
+	require.Equal(t, 0, f.gen.calls, "must not generate without a valid subscription")
+	require.Equal(t, 0, f.usage.calls)
+}
+
+// Cost parity: the reported/persisted cost comes from ComputeImageCostBreakdown
+// (the same path RecordUsage uses to deduct), not a parallel calculator.
+func TestImageStudioService_Generate_CostFromAuthoritativeResolver(t *testing.T) {
+	f := newStudioFixture(t)
+	f.cost.breakdown = &CostBreakdown{ActualCost: 1.23, TotalCost: 1.23, BillingMode: string(BillingModeImage)}
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, 1, f.cost.calls, "cost computed via ComputeImageCostBreakdown")
+	require.NotNil(t, f.cost.last)
+	require.InDelta(t, 1.23, res.Cost, 1e-9)
+
+	last, ok := f.repo.lastStatus()
+	require.True(t, ok)
+	require.InDelta(t, 1.23, last.cost, 1e-9, "persisted cost equals charged cost")
+}
+
+// Low-fix: a nil account from the generator must mark failed (not panic in
+// RecordUsage) and must not bill.
+func TestImageStudioService_Generate_NilAccount_MarksFailed_NoUsage(t *testing.T) {
+	f := newStudioFixture(t)
+	f.gen.result = &ImageGenResult{
+		Result:  &OpenAIForwardResult{ImageCount: 2, ImageSize: "2K", Model: "gpt-image-2"},
+		Account: nil, // generator returned no account
+	}
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.Error(t, err)
+	require.Nil(t, res)
+	require.ErrorIs(t, err, ErrImageStudioNoAccount)
+	require.Equal(t, 0, f.store.putCalls, "must not store before the account guard")
+	require.Equal(t, 0, f.usage.calls)
+	last, ok := f.repo.lastStatus()
+	require.True(t, ok)
+	require.Equal(t, "failed", last.status)
+}
+
+// Low-fix: when image k (>0) fails to store, images 0..k-1 are best-effort
+// deleted to avoid orphans; the generation is marked failed and not billed.
+func TestImageStudioService_Generate_PartialStoreFailure_CleansUpOrphans(t *testing.T) {
+	f := newStudioFixture(t)
+	// 3 images; the 3rd (idx 2) fails.
+	f.gen.result.Result.ImageCount = 3
+	f.gen.images = []StudioGeneratedImage{
+		{Data: []byte("a"), ContentType: "image/png"},
+		{Data: []byte("b"), ContentType: "image/png"},
+		{Data: []byte("c"), ContentType: "image/png"},
+	}
+	f.store.failPutAfter = 2 // Put at idx 2 fails
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.Error(t, err)
+	require.Nil(t, res)
+
+	// Two images were written then deleted on the failure.
+	require.Equal(t, 2, f.store.putCalls)
+	require.Len(t, f.store.deletedKeys, 2)
+	require.ElementsMatch(t, f.store.keys, f.store.deletedKeys)
+
+	require.Equal(t, 0, f.usage.calls)
+	last, ok := f.repo.lastStatus()
+	require.True(t, ok)
+	require.Equal(t, "failed", last.status)
+}
+
+// Concurrency slot: with a real limiter (limit 1), a held slot blocks a second
+// concurrent Generate; releasing it (Generate returns) lets the next proceed.
+func TestImageStudioService_Generate_ConcurrencySlotAcquireRelease(t *testing.T) {
+	f := newStudioFixture(t)
+	limiter := &ImageConcurrencyLimiter{}
+	cfg := &config.Config{}
+	cfg.Gateway.ImageConcurrency.Enabled = true
+	cfg.Gateway.ImageConcurrency.MaxConcurrentRequests = 1
+	cfg.Gateway.ImageConcurrency.OverflowMode = config.ImageConcurrencyOverflowModeReject
+
+	// Rebuild the service with the limiter + cfg wired in.
+	f.svc = NewImageStudioService(ImageStudioServiceDeps{
+		Users:         f.users,
+		Groups:        f.groups,
+		KeyEnsurer:    f.keys,
+		Eligibility:   f.elig,
+		Generator:     f.gen,
+		CostResolver:  f.cost,
+		UsageRecord:   f.usage,
+		Subscriptions: f.subs,
+		Repo:          f.repo,
+		Store:         f.store,
+		Limiter:       limiter,
+		Cfg:           cfg,
+	})
+
+	// Pre-occupy the single slot directly through the limiter.
+	release, ok := limiter.Acquire(context.Background(), true, 1, false, 0, 0)
+	require.True(t, ok)
+
+	// While the slot is held, Generate must fail fast with the busy error and
+	// must not generate.
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+	require.Error(t, err)
+	require.Nil(t, res)
+	require.ErrorIs(t, err, ErrImageStudioBusy)
+	require.Equal(t, 0, f.gen.calls, "must not generate when slot unavailable")
+
+	// Release the held slot; a subsequent Generate now succeeds and the slot it
+	// acquired is released via defer (a second call also succeeds).
+	release()
+
+	res, err = f.svc.Generate(context.Background(), 1, studioInput(10))
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	res, err = f.svc.Generate(context.Background(), 1, studioInput(10))
+	require.NoError(t, err)
+	require.NotNil(t, res)
 }
