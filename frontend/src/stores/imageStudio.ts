@@ -131,6 +131,8 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     generating.value = true
     error.value = null
     try {
+      // `req` already carries `referenceImage` (when set) — the API layer turns
+      // it into a multipart upload. We never persist the File on the generation.
       const resp = await imageStudioAPI.generate(req)
 
       // Build a local ImageStudioGeneration from the response
@@ -148,6 +150,7 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
         cost: resp.cost,
         created_at: new Date().toISOString(),
         images: resp.images,
+        input_images: resp.input_images,
       }
 
       generations.value = [newGen, ...generations.value]

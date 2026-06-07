@@ -103,4 +103,29 @@ describe('GenerationCard', () => {
     expect(emitted).toBeTruthy()
     expect(emitted![0][0]).toBe('blob:/assets/1/0')
   })
+
+  it('renders source images + an image-to-image chip when input_images are present', () => {
+    const wrapper = mountCard(
+      makeGeneration({
+        input_images: ['/input-assets/1/0'],
+        images: ['/assets/1/0'],
+      })
+    )
+    // i2i chip
+    expect(wrapper.text()).toContain('imageStudio.imageToImage')
+    // source row label
+    expect(wrapper.text()).toContain('imageStudio.sourceImage')
+    // The source thumbnail (via AuthedImage stub) + the output image both render.
+    const srcs = wrapper.findAll('img').map((i) => i.attributes('src'))
+    expect(srcs).toContain('blob:/input-assets/1/0')
+    expect(srcs).toContain('blob:/assets/1/0')
+  })
+
+  it('renders no source row or i2i chip when input_images are absent', () => {
+    const wrapper = mountCard(makeGeneration())
+    expect(wrapper.text()).not.toContain('imageStudio.imageToImage')
+    expect(wrapper.text()).not.toContain('imageStudio.sourceImage')
+    const srcs = wrapper.findAll('img').map((i) => i.attributes('src'))
+    expect(srcs).not.toContain('blob:/input-assets/1/0')
+  })
 })

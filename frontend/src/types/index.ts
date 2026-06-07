@@ -1933,6 +1933,8 @@ export interface ImageStudioGeneration {
   cost: number
   created_at: string
   images?: string[]
+  /** Source/reference images for image-to-image generations (absolute asset paths). */
+  input_images?: string[]
 }
 
 export interface GenerateImageStudioRequest {
@@ -1943,12 +1945,20 @@ export interface GenerateImageStudioRequest {
   size: string
   quality: string
   n: number
+  /**
+   * Client-only: when set, the request is sent as multipart/form-data for
+   * image-to-image (the file is appended as the `image` form field). Never
+   * serialised into the JSON body.
+   */
+  referenceImage?: File | null
 }
 
 export interface GenerateImageStudioResponse {
   generation_id: number
   conversation_id: number
   images: string[]
+  /** Persisted source images for image-to-image generations (absolute asset paths). */
+  input_images?: string[]
   cost: number
   balance: number
 }

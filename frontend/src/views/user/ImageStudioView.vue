@@ -136,6 +136,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useImageStudioStore } from '@/stores/imageStudio'
+import imageStudioAPI from '@/api/imageStudio'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { userGroupsAPI } from '@/api'
@@ -304,6 +305,7 @@ async function runGenerate(payload: ComposerSubmitPayload) {
       ...payload,
     })
     composerRef.value?.resetPrompt()
+    composerRef.value?.resetReference?.()
   } catch (err) {
     surfaceGenerateError(err)
   } finally {
@@ -319,7 +321,28 @@ function handleUseExample(prompt: string) {
   composerRef.value?.fillPrompt(prompt)
 }
 
-function handleRetry(generation: ImageStudioGeneration) {
+/**
+ * Fetch a persisted input asset and wrap it into a File so a retry of an
+ * image-to-image generation stays image-to-image. Returns null (→ fall back to
+ * text-to-image) if anything goes wrong.
+ */
+async function fetchInputAsFile(url: string): Promise<File | null> {
+  try {
+    const blob = await imageStudioAPI.fetchAssetBlob(url)
+    const type = blob.type || 'image/png'
+    const ext = type.split('/')[1] || 'png'
+    return new File([blob], `source.${ext}`, { type })
+  } catch {
+    return null
+  }
+}
+
+async function handleRetry(generation: ImageStudioGeneration) {
+  let referenceImage: File | null = null
+  const source = generation.input_images?.[0]
+  if (source) {
+    referenceImage = await fetchInputAsFile(source)
+  }
   runGenerate({
     group_id: generation.group_id,
     prompt: generation.prompt,
@@ -327,6 +350,7 @@ function handleRetry(generation: ImageStudioGeneration) {
     size: generation.size,
     quality: generation.quality,
     n: generation.n,
+    referenceImage,
   })
 }
 

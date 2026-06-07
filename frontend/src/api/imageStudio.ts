@@ -16,13 +16,48 @@ import type {
 
 /**
  * Generate images synchronously — awaits the result.
+ *
+ * When `req.referenceImage` is present the request is sent as
+ * `multipart/form-data` (image-to-image): the file is appended as the `image`
+ * form field and the scalar params as string fields.
+ *
+ * NOTE: the shared apiClient defaults `Content-Type` to `application/json`. With
+ * that default, axios's transformRequest JSON-stringifies any FormData payload
+ * (dropping the file). We therefore null out `Content-Type` for this one request
+ * so the browser sets the real `multipart/form-data; boundary=…` header itself.
+ *
+ * Otherwise the request is the plain JSON post (the client-only `referenceImage`
+ * key is omitted from the body).
  */
 export async function generate(
   req: GenerateImageStudioRequest
 ): Promise<GenerateImageStudioResponse> {
+  if (req.referenceImage) {
+    const fd = new FormData()
+    if (req.conversation_id != null) {
+      fd.append('conversation_id', String(req.conversation_id))
+    }
+    fd.append('group_id', String(req.group_id))
+    fd.append('prompt', req.prompt)
+    fd.append('model', req.model)
+    fd.append('size', req.size)
+    fd.append('quality', req.quality)
+    fd.append('n', String(req.n))
+    fd.append('image', req.referenceImage)
+
+    const { data } = await apiClient.post<GenerateImageStudioResponse>(
+      '/user/image-studio/generate',
+      fd,
+      { headers: { 'Content-Type': null } }
+    )
+    return data
+  }
+
+  // Strip the client-only referenceImage key from the JSON body.
+  const { referenceImage: _referenceImage, ...jsonBody } = req
   const { data } = await apiClient.post<GenerateImageStudioResponse>(
     '/user/image-studio/generate',
-    req
+    jsonBody
   )
   return data
 }

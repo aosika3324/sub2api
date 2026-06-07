@@ -151,6 +151,36 @@ describe('useImageStudioStore', () => {
       expect(store.generations[0].id).toBe(42) // new one first
     })
 
+    it('image-to-image: referenceImage 透传给 API, input_images 写入新生成', async () => {
+      const file = new File(['x'], 'src.png', { type: 'image/png' })
+      mockGenerate.mockResolvedValue({
+        ...fakeGenerateResp,
+        input_images: ['/input-assets/42/0'],
+      })
+
+      const store = useImageStudioStore()
+      await store.generate({ ...fakeGenerateReq, referenceImage: file })
+
+      // referenceImage forwarded to the API layer (it builds the multipart body).
+      expect(mockGenerate).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceImage: file })
+      )
+
+      expect(store.generations).toHaveLength(1)
+      expect(store.generations[0].input_images).toEqual(['/input-assets/42/0'])
+      // The File itself is never persisted on the generation.
+      expect(store.generations[0]).not.toHaveProperty('referenceImage')
+    })
+
+    it('text-to-image: 无 referenceImage 时 input_images 为 undefined', async () => {
+      mockGenerate.mockResolvedValue(fakeGenerateResp) // no input_images
+
+      const store = useImageStudioStore()
+      await store.generate(fakeGenerateReq)
+
+      expect(store.generations[0].input_images).toBeUndefined()
+    })
+
     it('generate 失败: error 被设置, generations 不变', async () => {
       const err = new Error('rate limited')
       mockGenerate.mockRejectedValue(err)

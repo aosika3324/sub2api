@@ -25,6 +25,9 @@
           <Icon name="sparkles" size="xs" class="mr-1 opacity-70" />
           {{ generation.model }}
         </span>
+        <span v-if="inputImages.length > 0" class="chip chip-i2i">{{
+          t('imageStudio.imageToImage')
+        }}</span>
         <span class="chip">{{ generation.size }}</span>
         <span v-if="generation.quality" class="chip">{{
           t('imageStudio.qualityChip', { quality: generation.quality })
@@ -45,6 +48,23 @@
 
     <!-- Body -->
     <div class="p-4">
+      <!-- Source / reference images (image-to-image) -->
+      <div v-if="inputImages.length > 0" class="mb-3">
+        <p class="mb-1.5 text-xs font-medium text-gray-400 dark:text-dark-500">
+          {{ t('imageStudio.sourceImage') }}
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <AuthedImage
+            v-for="(url, idx) in inputImages"
+            :key="`src-${generation.id}-${idx}`"
+            :url="url"
+            :alt="t('imageStudio.sourceImage')"
+            class="source-thumb"
+            @open="$emit('open', $event)"
+          />
+        </div>
+      </div>
+
       <!-- Pending / generating -->
       <div
         v-if="isPending"
@@ -133,6 +153,10 @@ const isSucceeded = computed(
 
 const images = computed(() => props.generation.images ?? [])
 
+// Source/reference images for image-to-image generations. When present we render
+// a small "source" row above the output grid and flag the turn with an i2i chip.
+const inputImages = computed(() => props.generation.input_images ?? [])
+
 // Derive the true aspect ratio from the generation size so portrait/landscape
 // images render uncropped. `undefined` lets AuthedImage fall back to a square.
 const aspectRatio = computed(() => aspectRatioFromSize(props.generation.size) ?? undefined)
@@ -158,5 +182,12 @@ const formattedTime = computed(() => {
 }
 .chip-cost {
   @apply bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400;
+}
+.chip-i2i {
+  @apply bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300;
+}
+/* Small fixed-height source thumbnails for image-to-image inputs. */
+.source-thumb {
+  @apply h-16 w-16 flex-shrink-0;
 }
 </style>
