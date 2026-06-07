@@ -69,7 +69,18 @@ func NewImageStudioHandler(
 	}
 }
 
-const imageStudioAssetsRoutePrefix = "/api/v1/user/image-studio/assets"
+const (
+	imageStudioRoutePrefix       = "/api/v1/user/image-studio"
+	imageStudioAssetsRoutePrefix = imageStudioRoutePrefix + "/assets"
+	// imageStudioInputAssetsRoutePrefix serves user-provided reference images.
+	// A distinct top-level segment (not assets/.../input/...) avoids gin/httprouter
+	// panics that arise from mixing a param and a static segment at one depth.
+	imageStudioInputAssetsRoutePrefix = imageStudioRoutePrefix + "/input-assets"
+
+	// maxStudioInputImageBytes caps the reference image upload size (20MB), matching
+	// the upstream per-part upload limit used by the images pipeline.
+	maxStudioInputImageBytes = 20 << 20
+)
 
 // ---------------------------------------------------------------------------
 // Request / response DTOs.
@@ -91,6 +102,7 @@ type generateImageResponse struct {
 	GenerationID   int64    `json:"generation_id"`
 	ConversationID int64    `json:"conversation_id"`
 	Images         []string `json:"images"`
+	InputImages    []string `json:"input_images,omitempty"`
 	Cost           float64  `json:"cost"`
 	Balance        float64  `json:"balance"`
 }
@@ -115,6 +127,7 @@ type generationResponse struct {
 	Status         string   `json:"status"`
 	Cost           float64  `json:"cost"`
 	Images         []string `json:"images"`
+	InputImages    []string `json:"input_images,omitempty"`
 	Width          *int     `json:"width,omitempty"`
 	Height         *int     `json:"height,omitempty"`
 	Error          string   `json:"error,omitempty"`
@@ -133,7 +146,9 @@ type createConversationRequest struct {
 // Endpoints.
 // ---------------------------------------------------------------------------
 
-// Generate handles POST /api/v1/user/image-studio/generate.
+// Generate handles POST /api/v1/user/image-studio/generate. It accepts either a
+// JSON body (text-to-image) or a multipart/form-data body carrying an "image"
+// reference file (image-to-image / edits).
 func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -141,27 +156,40 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 		return
 	}
 
-	var req GenerateImageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
+	var in service.ImageStudioGenerateInput
+	contentType := strings.ToLower(strings.TrimSpace(c.GetHeader("Content-Type")))
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		parsed, err := h.parseMultipartGenerate(c)
+		if err != nil {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		in = parsed
+	} else {
+		var req GenerateImageRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.BadRequest(c, "Invalid request: "+err.Error())
+			return
+		}
+		in = service.ImageStudioGenerateInput{
+			GroupID:        req.GroupID,
+			ConversationID: req.ConversationID,
+			Prompt:         req.Prompt,
+			Model:          req.Model,
+			Size:           req.Size,
+			Quality:        req.Quality,
+			N:              req.N,
+		}
 	}
-	if strings.TrimSpace(req.Prompt) == "" {
+
+	if strings.TrimSpace(in.Prompt) == "" {
 		response.BadRequest(c, "prompt is required")
 		return
 	}
+	in.UserAgent = c.GetHeader("User-Agent")
+	in.IPAddress = c.ClientIP()
 
-	result, err := h.studio.Generate(c.Request.Context(), subject.UserID, service.ImageStudioGenerateInput{
-		GroupID:        req.GroupID,
-		ConversationID: req.ConversationID,
-		Prompt:         req.Prompt,
-		Model:          req.Model,
-		Size:           req.Size,
-		Quality:        req.Quality,
-		N:              req.N,
-		UserAgent:      c.GetHeader("User-Agent"),
-		IPAddress:      c.ClientIP(),
-	})
+	result, err := h.studio.Generate(c.Request.Context(), subject.UserID, in)
 	if err != nil {
 		h.respondGenerateError(c, err)
 		return
@@ -171,9 +199,69 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 		GenerationID:   result.GenerationID,
 		ConversationID: result.ConversationID,
 		Images:         buildAssetURLs(result.GenerationID, len(result.Images)),
+		InputImages:    buildInputAssetURLs(result.GenerationID, len(result.InputImages)),
 		Cost:           result.Cost,
 		Balance:        result.Balance,
 	})
+}
+
+// parseMultipartGenerate parses a multipart/form-data /generate request into an
+// ImageStudioGenerateInput, including the user-provided reference image.
+func (h *ImageStudioHandler) parseMultipartGenerate(c *gin.Context) (service.ImageStudioGenerateInput, error) {
+	var in service.ImageStudioGenerateInput
+
+	groupID, err := strconv.ParseInt(strings.TrimSpace(c.PostForm("group_id")), 10, 64)
+	if err != nil || groupID <= 0 {
+		return in, errors.New("group_id is required")
+	}
+	in.GroupID = groupID
+
+	if raw := strings.TrimSpace(c.PostForm("conversation_id")); raw != "" {
+		convID, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return in, errors.New("invalid conversation_id")
+		}
+		in.ConversationID = &convID
+	}
+
+	in.Prompt = c.PostForm("prompt")
+	in.Model = c.PostForm("model")
+	in.Size = c.PostForm("size")
+	in.Quality = c.PostForm("quality")
+	if raw := strings.TrimSpace(c.PostForm("n")); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			return in, errors.New("invalid n")
+		}
+		in.N = n
+	}
+
+	fileHeader, err := c.FormFile("image")
+	if err != nil {
+		return in, errors.New("image file is required")
+	}
+	if fileHeader.Size > maxStudioInputImageBytes {
+		return in, errors.New("image file is too large")
+	}
+	file, err := fileHeader.Open()
+	if err != nil {
+		return in, errors.New("failed to read image file")
+	}
+	defer func() { _ = file.Close() }()
+	data, err := io.ReadAll(io.LimitReader(file, maxStudioInputImageBytes))
+	if err != nil {
+		return in, errors.New("failed to read image file")
+	}
+	if len(data) == 0 {
+		return in, errors.New("image file is empty")
+	}
+
+	in.InputImage = &service.StudioInputImage{
+		Data:        data,
+		ContentType: fileHeader.Header.Get("Content-Type"),
+		FileName:    fileHeader.Filename,
+	}
+	return in, nil
 }
 
 // ListConversations handles GET /conversations (paginated).
@@ -366,8 +454,12 @@ func (h *ImageStudioHandler) DeleteGeneration(c *gin.Context) {
 	}
 
 	// Best-effort delete of stored image files (do not fail the request if a file
-	// is already gone; the row delete is the source of truth).
+	// is already gone; the row delete is the source of truth). Output images first,
+	// then user-provided reference (input) images.
 	for _, key := range gen.StorageKeys {
+		_ = h.store.Delete(c.Request.Context(), key)
+	}
+	for _, key := range gen.InputStorageKeys {
 		_ = h.store.Delete(c.Request.Context(), key)
 	}
 
@@ -431,6 +523,57 @@ func (h *ImageStudioHandler) GetAsset(c *gin.Context) {
 	_, _ = io.Copy(c.Writer, reader)
 }
 
+// GetInputAsset handles GET /input-assets/:genID/:idx — streams a single stored
+// user-provided reference image after verifying ownership.
+func (h *ImageStudioHandler) GetInputAsset(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	genID, err := strconv.ParseInt(c.Param("genID"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid generation ID")
+		return
+	}
+	idx, err := strconv.Atoi(c.Param("idx"))
+	if err != nil || idx < 0 {
+		response.BadRequest(c, "Invalid image index")
+		return
+	}
+
+	gen, err := h.repo.GetGeneration(c.Request.Context(), genID)
+	if err != nil {
+		h.respondNotFoundOr(c, err, "Image not found")
+		return
+	}
+	// Ownership gate: never serve another user's reference image.
+	if gen.UserID != subject.UserID {
+		response.NotFound(c, "Image not found")
+		return
+	}
+	if idx >= len(gen.InputStorageKeys) {
+		response.NotFound(c, "Image not found")
+		return
+	}
+
+	reader, contentType, err := h.store.Open(c.Request.Context(), gen.InputStorageKeys[idx])
+	if err != nil {
+		response.NotFound(c, "Image not found")
+		return
+	}
+	defer func() { _ = reader.Close() }()
+
+	if strings.TrimSpace(contentType) == "" {
+		contentType = "image/png"
+	}
+	c.Header("Content-Type", contentType)
+	c.Header("Cache-Control", "private, max-age=86400")
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
+}
+
 // ---------------------------------------------------------------------------
 // Helpers.
 // ---------------------------------------------------------------------------
@@ -483,6 +626,16 @@ func buildAssetURLs(genID int64, count int) []string {
 	return urls
 }
 
+// buildInputAssetURLs builds ready-to-use URLs pointing at the input-assets route
+// (user-provided reference images).
+func buildInputAssetURLs(genID int64, count int) []string {
+	urls := make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		urls = append(urls, imageStudioInputAssetsRoutePrefix+"/"+strconv.FormatInt(genID, 10)+"/"+strconv.Itoa(i))
+	}
+	return urls
+}
+
 func toConversationResponse(conv *dbent.ImageConversation) conversationResponse {
 	if conv == nil {
 		return conversationResponse{}
@@ -516,6 +669,7 @@ func toGenerationResponse(gen *dbent.ImageGeneration) generationResponse {
 		Status:         gen.Status,
 		Cost:           gen.Cost,
 		Images:         buildAssetURLs(gen.ID, len(gen.StorageKeys)),
+		InputImages:    buildInputAssetURLs(gen.ID, len(gen.InputStorageKeys)),
 		Width:          gen.Width,
 		Height:         gen.Height,
 		Error:          errMsg,

@@ -20605,40 +20605,42 @@ func (m *ImageConversationMutation) ResetEdge(name string) error {
 // ImageGenerationMutation represents an operation that mutates the ImageGeneration nodes in the graph.
 type ImageGenerationMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int64
-	created_at         *time.Time
-	updated_at         *time.Time
-	deleted_at         *time.Time
-	user_id            *int64
-	adduser_id         *int64
-	conversation_id    *int64
-	addconversation_id *int64
-	group_id           *int64
-	addgroup_id        *int64
-	prompt             *string
-	model              *string
-	size               *string
-	quality            *string
-	n                  *int
-	addn               *int
-	image_count        *int
-	addimage_count     *int
-	status             *string
-	cost               *float64
-	addcost            *float64
-	storage_keys       *[]string
-	appendstorage_keys []string
-	width              *int
-	addwidth           *int
-	height             *int
-	addheight          *int
-	error              *string
-	clearedFields      map[string]struct{}
-	done               bool
-	oldValue           func(context.Context) (*ImageGeneration, error)
-	predicates         []predicate.ImageGeneration
+	op                       Op
+	typ                      string
+	id                       *int64
+	created_at               *time.Time
+	updated_at               *time.Time
+	deleted_at               *time.Time
+	user_id                  *int64
+	adduser_id               *int64
+	conversation_id          *int64
+	addconversation_id       *int64
+	group_id                 *int64
+	addgroup_id              *int64
+	prompt                   *string
+	model                    *string
+	size                     *string
+	quality                  *string
+	n                        *int
+	addn                     *int
+	image_count              *int
+	addimage_count           *int
+	status                   *string
+	cost                     *float64
+	addcost                  *float64
+	storage_keys             *[]string
+	appendstorage_keys       []string
+	input_storage_keys       *[]string
+	appendinput_storage_keys []string
+	width                    *int
+	addwidth                 *int
+	height                   *int
+	addheight                *int
+	error                    *string
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*ImageGeneration, error)
+	predicates               []predicate.ImageGeneration
 }
 
 var _ ent.Mutation = (*ImageGenerationMutation)(nil)
@@ -21441,6 +21443,71 @@ func (m *ImageGenerationMutation) ResetStorageKeys() {
 	delete(m.clearedFields, imagegeneration.FieldStorageKeys)
 }
 
+// SetInputStorageKeys sets the "input_storage_keys" field.
+func (m *ImageGenerationMutation) SetInputStorageKeys(s []string) {
+	m.input_storage_keys = &s
+	m.appendinput_storage_keys = nil
+}
+
+// InputStorageKeys returns the value of the "input_storage_keys" field in the mutation.
+func (m *ImageGenerationMutation) InputStorageKeys() (r []string, exists bool) {
+	v := m.input_storage_keys
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInputStorageKeys returns the old "input_storage_keys" field's value of the ImageGeneration entity.
+// If the ImageGeneration object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ImageGenerationMutation) OldInputStorageKeys(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInputStorageKeys is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInputStorageKeys requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInputStorageKeys: %w", err)
+	}
+	return oldValue.InputStorageKeys, nil
+}
+
+// AppendInputStorageKeys adds s to the "input_storage_keys" field.
+func (m *ImageGenerationMutation) AppendInputStorageKeys(s []string) {
+	m.appendinput_storage_keys = append(m.appendinput_storage_keys, s...)
+}
+
+// AppendedInputStorageKeys returns the list of values that were appended to the "input_storage_keys" field in this mutation.
+func (m *ImageGenerationMutation) AppendedInputStorageKeys() ([]string, bool) {
+	if len(m.appendinput_storage_keys) == 0 {
+		return nil, false
+	}
+	return m.appendinput_storage_keys, true
+}
+
+// ClearInputStorageKeys clears the value of the "input_storage_keys" field.
+func (m *ImageGenerationMutation) ClearInputStorageKeys() {
+	m.input_storage_keys = nil
+	m.appendinput_storage_keys = nil
+	m.clearedFields[imagegeneration.FieldInputStorageKeys] = struct{}{}
+}
+
+// InputStorageKeysCleared returns if the "input_storage_keys" field was cleared in this mutation.
+func (m *ImageGenerationMutation) InputStorageKeysCleared() bool {
+	_, ok := m.clearedFields[imagegeneration.FieldInputStorageKeys]
+	return ok
+}
+
+// ResetInputStorageKeys resets all changes to the "input_storage_keys" field.
+func (m *ImageGenerationMutation) ResetInputStorageKeys() {
+	m.input_storage_keys = nil
+	m.appendinput_storage_keys = nil
+	delete(m.clearedFields, imagegeneration.FieldInputStorageKeys)
+}
+
 // SetWidth sets the "width" field.
 func (m *ImageGenerationMutation) SetWidth(i int) {
 	m.width = &i
@@ -21664,7 +21731,7 @@ func (m *ImageGenerationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ImageGenerationMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m.created_at != nil {
 		fields = append(fields, imagegeneration.FieldCreatedAt)
 	}
@@ -21709,6 +21776,9 @@ func (m *ImageGenerationMutation) Fields() []string {
 	}
 	if m.storage_keys != nil {
 		fields = append(fields, imagegeneration.FieldStorageKeys)
+	}
+	if m.input_storage_keys != nil {
+		fields = append(fields, imagegeneration.FieldInputStorageKeys)
 	}
 	if m.width != nil {
 		fields = append(fields, imagegeneration.FieldWidth)
@@ -21757,6 +21827,8 @@ func (m *ImageGenerationMutation) Field(name string) (ent.Value, bool) {
 		return m.Cost()
 	case imagegeneration.FieldStorageKeys:
 		return m.StorageKeys()
+	case imagegeneration.FieldInputStorageKeys:
+		return m.InputStorageKeys()
 	case imagegeneration.FieldWidth:
 		return m.Width()
 	case imagegeneration.FieldHeight:
@@ -21802,6 +21874,8 @@ func (m *ImageGenerationMutation) OldField(ctx context.Context, name string) (en
 		return m.OldCost(ctx)
 	case imagegeneration.FieldStorageKeys:
 		return m.OldStorageKeys(ctx)
+	case imagegeneration.FieldInputStorageKeys:
+		return m.OldInputStorageKeys(ctx)
 	case imagegeneration.FieldWidth:
 		return m.OldWidth(ctx)
 	case imagegeneration.FieldHeight:
@@ -21921,6 +21995,13 @@ func (m *ImageGenerationMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStorageKeys(v)
+		return nil
+	case imagegeneration.FieldInputStorageKeys:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInputStorageKeys(v)
 		return nil
 	case imagegeneration.FieldWidth:
 		v, ok := value.(int)
@@ -22078,6 +22159,9 @@ func (m *ImageGenerationMutation) ClearedFields() []string {
 	if m.FieldCleared(imagegeneration.FieldStorageKeys) {
 		fields = append(fields, imagegeneration.FieldStorageKeys)
 	}
+	if m.FieldCleared(imagegeneration.FieldInputStorageKeys) {
+		fields = append(fields, imagegeneration.FieldInputStorageKeys)
+	}
 	if m.FieldCleared(imagegeneration.FieldWidth) {
 		fields = append(fields, imagegeneration.FieldWidth)
 	}
@@ -22106,6 +22190,9 @@ func (m *ImageGenerationMutation) ClearField(name string) error {
 		return nil
 	case imagegeneration.FieldStorageKeys:
 		m.ClearStorageKeys()
+		return nil
+	case imagegeneration.FieldInputStorageKeys:
+		m.ClearInputStorageKeys()
 		return nil
 	case imagegeneration.FieldWidth:
 		m.ClearWidth()
@@ -22168,6 +22255,9 @@ func (m *ImageGenerationMutation) ResetField(name string) error {
 		return nil
 	case imagegeneration.FieldStorageKeys:
 		m.ResetStorageKeys()
+		return nil
+	case imagegeneration.FieldInputStorageKeys:
+		m.ResetInputStorageKeys()
 		return nil
 	case imagegeneration.FieldWidth:
 		m.ResetWidth()

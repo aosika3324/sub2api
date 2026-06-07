@@ -85,10 +85,12 @@ type studioImageGeneratorStub struct {
 	images []StudioGeneratedImage
 	err    error
 	calls  int
+	last   ImageGenInput
 }
 
-func (s *studioImageGeneratorStub) GenerateStudioImages(_ context.Context, _ ImageGenInput) (*ImageGenResult, []StudioGeneratedImage, error) {
+func (s *studioImageGeneratorStub) GenerateStudioImages(_ context.Context, in ImageGenInput) (*ImageGenResult, []StudioGeneratedImage, error) {
 	s.calls++
+	s.last = in
 	if s.err != nil {
 		return nil, nil, s.err
 	}
@@ -148,6 +150,10 @@ type studioRepoStub struct {
 	createGenErr  error
 	createConvErr error
 	updateErr     error
+	// Input-key persistence tracking (edits path).
+	setInputCalls int
+	lastInputKeys []string
+	setInputErr   error
 }
 
 type studioStatusUpdate struct {
@@ -220,6 +226,20 @@ func (s *studioRepoStub) UpdateGenerationStatus(_ context.Context, id int64, sta
 	return nil
 }
 
+func (s *studioRepoStub) SetInputStorageKeys(_ context.Context, id int64, keys []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.setInputErr != nil {
+		return s.setInputErr
+	}
+	s.setInputCalls++
+	s.lastInputKeys = keys
+	if g, ok := s.generations[id]; ok {
+		g.InputStorageKeys = keys
+	}
+	return nil
+}
+
 func (s *studioRepoStub) GetGeneration(_ context.Context, id int64) (*dbent.ImageGeneration, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -270,6 +290,10 @@ type studioStoreStub struct {
 	// failPutAfter, when > 0, makes the (failPutAfter+1)-th Put (0-based: the Put
 	// at idx == failPutAfter) fail, exercising the partial-failure cleanup path.
 	failPutAfter int
+	// Input (reference) image tracking for the edits path.
+	putInputCalls int
+	putInputErr   error
+	inputKeys     []string
 }
 
 func (s *studioStoreStub) Put(_ context.Context, userID, genID int64, idx int, _ string, _ []byte) (string, error) {
@@ -284,6 +308,18 @@ func (s *studioStoreStub) Put(_ context.Context, userID, genID int64, idx int, _
 	s.putCalls++
 	key := studioTestKey(userID, genID, idx)
 	s.keys = append(s.keys, key)
+	return key, nil
+}
+
+func (s *studioStoreStub) PutInput(_ context.Context, userID, genID int64, idx int, _ string, _ []byte) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.putInputErr != nil {
+		return "", s.putInputErr
+	}
+	s.putInputCalls++
+	key := "input/" + studioTestKey(userID, genID, idx)
+	s.inputKeys = append(s.inputKeys, key)
 	return key, nil
 }
 
@@ -720,4 +756,99 @@ func TestImageStudioService_Generate_ConcurrencySlotAcquireRelease(t *testing.T)
 	res, err = f.svc.Generate(context.Background(), 1, studioInput(10))
 	require.NoError(t, err)
 	require.NotNil(t, res)
+}
+
+// ---------------------------------------------------------------------------
+// Image-to-image (edits) path.
+// ---------------------------------------------------------------------------
+
+func studioEditsInput(groupID int64) ImageStudioGenerateInput {
+	in := studioInput(groupID)
+	in.InputImage = &StudioInputImage{
+		Data:        []byte("\x89PNG\r\n\x1a\nreference-bytes"),
+		ContentType: "image/png",
+		FileName:    "ref.png",
+	}
+	return in
+}
+
+// Critical round-trip: buildEditsRequest must produce a Body+ContentType pair
+// that the existing multipart parser (used by ForwardImages downstream) parses
+// back into the same model/prompt/size/n, exactly one "image" upload, and an
+// edits request.
+func TestBuildEditsRequest_RoundTripsThroughMultipartParser(t *testing.T) {
+	f := newStudioFixture(t)
+	in := studioEditsInput(10)
+
+	req, err := f.svc.buildEditsRequest(in, 2)
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.Equal(t, openAIImagesEditsEndpoint, req.Endpoint)
+	require.True(t, req.Multipart)
+	require.NotEmpty(t, req.Body)
+
+	parsed := &OpenAIImagesRequest{Endpoint: openAIImagesEditsEndpoint}
+	require.NoError(t, parseOpenAIImagesMultipartRequest(req.Body, req.ContentType, parsed))
+
+	require.Equal(t, "gpt-image-2", parsed.Model)
+	require.Equal(t, "a cat on the moon", parsed.Prompt)
+	require.Equal(t, "1024x1024", parsed.Size)
+	require.Equal(t, 2, parsed.N)
+	require.True(t, parsed.IsEdits())
+	require.Len(t, parsed.Uploads, 1)
+	require.Equal(t, "image", parsed.Uploads[0].FieldName)
+	require.Equal(t, in.InputImage.Data, parsed.Uploads[0].Data)
+}
+
+// An input image routes Generate through the edits endpoint, stores the input
+// once, persists the input keys, returns them in the result, and bills once.
+func TestGenerate_WithInputImage_RoutesToEdits_PersistsInput(t *testing.T) {
+	f := newStudioFixture(t)
+
+	res, err := f.svc.Generate(context.Background(), 1, studioEditsInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	// Routed through edits.
+	require.Equal(t, 1, f.gen.calls)
+	require.NotNil(t, f.gen.last.Parsed)
+	require.Equal(t, openAIImagesEditsEndpoint, f.gen.last.Parsed.Endpoint)
+	require.True(t, f.gen.last.Parsed.Multipart)
+
+	// Input stored once and persisted.
+	require.Equal(t, 1, f.store.putInputCalls)
+	require.Equal(t, 1, f.repo.setInputCalls)
+	require.Len(t, f.repo.lastInputKeys, 1)
+
+	// Result surfaces the input keys.
+	require.Len(t, res.InputImages, 1)
+	require.Equal(t, f.repo.lastInputKeys, res.InputImages)
+
+	// Billed exactly once (happy path).
+	require.Equal(t, 1, f.usage.calls)
+}
+
+// The reference image must be persisted even when generation later fails, and
+// no billing must occur.
+func TestGenerate_InputStoredEvenWhenGenerationFails(t *testing.T) {
+	f := newStudioFixture(t)
+	f.gen.err = errors.New("upstream boom")
+
+	res, err := f.svc.Generate(context.Background(), 1, studioEditsInput(10))
+
+	require.Error(t, err)
+	require.Nil(t, res)
+
+	// Input image was stored + persisted before the (failed) generation.
+	require.Equal(t, 1, f.store.putInputCalls)
+	require.Equal(t, 1, f.repo.setInputCalls)
+	require.Len(t, f.repo.lastInputKeys, 1)
+
+	// Generation marked failed, no output stored, no billing.
+	last, ok := f.repo.lastStatus()
+	require.True(t, ok)
+	require.Equal(t, "failed", last.status)
+	require.Equal(t, 0, f.store.putCalls)
+	require.Equal(t, 0, f.usage.calls, "must NOT bill when generation fails")
 }

@@ -1,10 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime/multipart"
+	"net/http"
+	"net/textproto"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,9 +39,21 @@ type ImageStudioGenerateInput struct {
 	Quality string
 	N       int
 
+	// InputImage, when non-nil, switches the generation to the image-to-image
+	// (OpenAI /v1/images/edits) path with the provided reference image.
+	InputImage *StudioInputImage
+
 	// Optional request metadata, recorded on the usage log when available.
 	UserAgent string
 	IPAddress string
+}
+
+// StudioInputImage is a user-provided reference image for an image-to-image
+// (edits) generation.
+type StudioInputImage struct {
+	Data        []byte
+	ContentType string
+	FileName    string
 }
 
 // ImageStudioGenerateResult is the successful outcome returned to the handler.
@@ -44,6 +61,7 @@ type ImageStudioGenerateResult struct {
 	GenerationID   int64
 	ConversationID int64
 	Images         []string // storage keys (URLs are built by the handler / T9)
+	InputImages    []string // input/reference storage keys (edits path only)
 	Cost           float64
 	Balance        float64
 }
@@ -315,8 +333,41 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	}
 	genID := gen.ID
 
+	// --- Step 4b: persist the user-provided reference image (edits path). ---
+	// Stored BEFORE generation so the input survives even if generation fails,
+	// matching the spec contract. A storage failure here aborts before billing.
+	var inputKeys []string
+	if in.InputImage != nil {
+		key, putErr := s.store.PutInput(ctx, userID, genID, 0, in.InputImage.ContentType, in.InputImage.Data)
+		if putErr != nil {
+			s.markFailed(ctx, genID, putErr, reqLog)
+			return nil, fmt.Errorf("image studio: store input image: %w", putErr)
+		}
+		inputKeys = []string{key}
+		// Persisting the input key is non-fatal: the file already exists and the
+		// generation can proceed even if this write fails.
+		if err := s.repo.SetInputStorageKeys(ctx, genID, inputKeys); err != nil {
+			reqLog.Error("image_studio.set_input_storage_keys_failed",
+				zap.Int64("generation_id", genID),
+				zap.Error(err),
+			)
+		}
+	}
+
 	// --- Step 5: build the parsed images request + run the shared pipeline. ---
-	parsed := s.buildParsedRequest(in, n)
+	// An input image routes through /v1/images/edits (multipart); otherwise the
+	// JSON /v1/images/generations path is used.
+	var parsed *OpenAIImagesRequest
+	if in.InputImage != nil {
+		editsParsed, buildErr := s.buildEditsRequest(in, n)
+		if buildErr != nil {
+			s.markFailed(ctx, genID, buildErr, reqLog)
+			return nil, buildErr
+		}
+		parsed = editsParsed
+	} else {
+		parsed = s.buildParsedRequest(in, n)
+	}
 	genResult, images, genErr := s.generator.GenerateStudioImages(ctx, ImageGenInput{
 		OpsContext:         nil, // JWT studio path: no gin context (see StudioGeneratedImage doc / T9 adapter).
 		APIKey:             apiKey,
@@ -406,6 +457,7 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 		GenerationID:   genID,
 		ConversationID: conversationID,
 		Images:         keys,
+		InputImages:    inputKeys,
 		Cost:           cost,
 		Balance:        balance,
 	}, nil
@@ -468,6 +520,111 @@ func (s *ImageStudioService) buildParsedRequest(in ImageStudioGenerateInput, n i
 	req.RequiredCapability = classifyOpenAIImagesCapability(req)
 	req.Body = buildOpenAIImagesJSONBody(req)
 	return req
+}
+
+// buildEditsRequest assembles a multipart *OpenAIImagesRequest for the
+// image-to-image (OpenAI /v1/images/edits) path from the studio params plus the
+// user-provided reference image. The SAME multipart.Writer produces both Body
+// and ContentType so the boundary in ContentType matches the bytes in Body —
+// ForwardImages re-parses Body against ContentType downstream.
+func (s *ImageStudioService) buildEditsRequest(in ImageStudioGenerateInput, n int) (*OpenAIImagesRequest, error) {
+	if in.InputImage == nil {
+		return nil, fmt.Errorf("image studio: edits request requires an input image")
+	}
+	model := strings.TrimSpace(in.Model)
+	size := strings.TrimSpace(in.Size)
+	quality := strings.TrimSpace(in.Quality)
+	prompt := strings.TrimSpace(in.Prompt)
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	fileName := sanitizeEditsFileName(in.InputImage.FileName)
+	contentType := strings.TrimSpace(in.InputImage.ContentType)
+	if contentType == "" {
+		contentType = http.DetectContentType(in.InputImage.Data)
+	}
+
+	partHeader := textproto.MIMEHeader{}
+	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename=%q`, fileName))
+	partHeader.Set("Content-Type", contentType)
+	part, err := w.CreatePart(partHeader)
+	if err != nil {
+		return nil, fmt.Errorf("image studio: create multipart image part: %w", err)
+	}
+	if _, err := part.Write(in.InputImage.Data); err != nil {
+		return nil, fmt.Errorf("image studio: write multipart image part: %w", err)
+	}
+
+	if model != "" {
+		if err := w.WriteField("model", model); err != nil {
+			return nil, fmt.Errorf("image studio: write multipart model: %w", err)
+		}
+	}
+	if err := w.WriteField("prompt", prompt); err != nil {
+		return nil, fmt.Errorf("image studio: write multipart prompt: %w", err)
+	}
+	if size != "" {
+		if err := w.WriteField("size", size); err != nil {
+			return nil, fmt.Errorf("image studio: write multipart size: %w", err)
+		}
+	}
+	if quality != "" {
+		if err := w.WriteField("quality", quality); err != nil {
+			return nil, fmt.Errorf("image studio: write multipart quality: %w", err)
+		}
+	}
+	if err := w.WriteField("n", strconv.Itoa(n)); err != nil {
+		return nil, fmt.Errorf("image studio: write multipart n: %w", err)
+	}
+	if err := w.WriteField("response_format", "b64_json"); err != nil {
+		return nil, fmt.Errorf("image studio: write multipart response_format: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return nil, fmt.Errorf("image studio: finalize multipart body: %w", err)
+	}
+
+	req := &OpenAIImagesRequest{
+		Endpoint:       openAIImagesEditsEndpoint,
+		ContentType:    w.FormDataContentType(),
+		Multipart:      true,
+		Model:          model,
+		ExplicitModel:  model != "",
+		Prompt:         prompt,
+		N:              n,
+		Size:           size,
+		ExplicitSize:   size != "",
+		Quality:        quality,
+		ResponseFormat: "b64_json",
+		Body:           buf.Bytes(),
+	}
+	applyOpenAIImagesDefaults(req)
+	req.SizeTier = normalizeOpenAIImageSizeTier(req.Size)
+	req.HasNativeOptions = quality != ""
+	req.RequiredCapability = classifyOpenAIImagesCapability(req)
+	return req, nil
+}
+
+// sanitizeEditsFileName returns a safe, non-empty filename for the multipart
+// image part. It strips any path components and falls back to "reference.png".
+func sanitizeEditsFileName(name string) string {
+	name = strings.TrimSpace(name)
+	// Strip path separators (defense against header injection / traversal).
+	if idx := strings.LastIndexAny(name, `/\`); idx >= 0 {
+		name = name[idx+1:]
+	}
+	name = strings.TrimSpace(name)
+	// Drop any characters that could break the Content-Disposition header.
+	name = strings.Map(func(r rune) rune {
+		if r == '"' || r == '\r' || r == '\n' {
+			return -1
+		}
+		return r
+	}, name)
+	if name == "" {
+		return "reference.png"
+	}
+	return name
 }
 
 // markFailed records a failed generation; storage/usage are intentionally not

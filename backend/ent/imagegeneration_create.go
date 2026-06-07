@@ -192,6 +192,12 @@ func (_c *ImageGenerationCreate) SetStorageKeys(v []string) *ImageGenerationCrea
 	return _c
 }
 
+// SetInputStorageKeys sets the "input_storage_keys" field.
+func (_c *ImageGenerationCreate) SetInputStorageKeys(v []string) *ImageGenerationCreate {
+	_c.mutation.SetInputStorageKeys(v)
+	return _c
+}
+
 // SetWidth sets the "width" field.
 func (_c *ImageGenerationCreate) SetWidth(v int) *ImageGenerationCreate {
 	_c.mutation.SetWidth(v)
@@ -463,6 +469,10 @@ func (_c *ImageGenerationCreate) createSpec() (*ImageGeneration, *sqlgraph.Creat
 	if value, ok := _c.mutation.StorageKeys(); ok {
 		_spec.SetField(imagegeneration.FieldStorageKeys, field.TypeJSON, value)
 		_node.StorageKeys = value
+	}
+	if value, ok := _c.mutation.InputStorageKeys(); ok {
+		_spec.SetField(imagegeneration.FieldInputStorageKeys, field.TypeJSON, value)
+		_node.InputStorageKeys = value
 	}
 	if value, ok := _c.mutation.Width(); ok {
 		_spec.SetField(imagegeneration.FieldWidth, field.TypeInt, value)
@@ -741,6 +751,24 @@ func (u *ImageGenerationUpsert) UpdateStorageKeys() *ImageGenerationUpsert {
 // ClearStorageKeys clears the value of the "storage_keys" field.
 func (u *ImageGenerationUpsert) ClearStorageKeys() *ImageGenerationUpsert {
 	u.SetNull(imagegeneration.FieldStorageKeys)
+	return u
+}
+
+// SetInputStorageKeys sets the "input_storage_keys" field.
+func (u *ImageGenerationUpsert) SetInputStorageKeys(v []string) *ImageGenerationUpsert {
+	u.Set(imagegeneration.FieldInputStorageKeys, v)
+	return u
+}
+
+// UpdateInputStorageKeys sets the "input_storage_keys" field to the value that was provided on create.
+func (u *ImageGenerationUpsert) UpdateInputStorageKeys() *ImageGenerationUpsert {
+	u.SetExcluded(imagegeneration.FieldInputStorageKeys)
+	return u
+}
+
+// ClearInputStorageKeys clears the value of the "input_storage_keys" field.
+func (u *ImageGenerationUpsert) ClearInputStorageKeys() *ImageGenerationUpsert {
+	u.SetNull(imagegeneration.FieldInputStorageKeys)
 	return u
 }
 
@@ -1104,6 +1132,27 @@ func (u *ImageGenerationUpsertOne) UpdateStorageKeys() *ImageGenerationUpsertOne
 func (u *ImageGenerationUpsertOne) ClearStorageKeys() *ImageGenerationUpsertOne {
 	return u.Update(func(s *ImageGenerationUpsert) {
 		s.ClearStorageKeys()
+	})
+}
+
+// SetInputStorageKeys sets the "input_storage_keys" field.
+func (u *ImageGenerationUpsertOne) SetInputStorageKeys(v []string) *ImageGenerationUpsertOne {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.SetInputStorageKeys(v)
+	})
+}
+
+// UpdateInputStorageKeys sets the "input_storage_keys" field to the value that was provided on create.
+func (u *ImageGenerationUpsertOne) UpdateInputStorageKeys() *ImageGenerationUpsertOne {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.UpdateInputStorageKeys()
+	})
+}
+
+// ClearInputStorageKeys clears the value of the "input_storage_keys" field.
+func (u *ImageGenerationUpsertOne) ClearInputStorageKeys() *ImageGenerationUpsertOne {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.ClearInputStorageKeys()
 	})
 }
 
@@ -1644,6 +1693,27 @@ func (u *ImageGenerationUpsertBulk) UpdateStorageKeys() *ImageGenerationUpsertBu
 func (u *ImageGenerationUpsertBulk) ClearStorageKeys() *ImageGenerationUpsertBulk {
 	return u.Update(func(s *ImageGenerationUpsert) {
 		s.ClearStorageKeys()
+	})
+}
+
+// SetInputStorageKeys sets the "input_storage_keys" field.
+func (u *ImageGenerationUpsertBulk) SetInputStorageKeys(v []string) *ImageGenerationUpsertBulk {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.SetInputStorageKeys(v)
+	})
+}
+
+// UpdateInputStorageKeys sets the "input_storage_keys" field to the value that was provided on create.
+func (u *ImageGenerationUpsertBulk) UpdateInputStorageKeys() *ImageGenerationUpsertBulk {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.UpdateInputStorageKeys()
+	})
+}
+
+// ClearInputStorageKeys clears the value of the "input_storage_keys" field.
+func (u *ImageGenerationUpsertBulk) ClearInputStorageKeys() *ImageGenerationUpsertBulk {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.ClearInputStorageKeys()
 	})
 }
 

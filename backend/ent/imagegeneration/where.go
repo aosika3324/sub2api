@@ -844,6 +844,16 @@ func StorageKeysNotNil() predicate.ImageGeneration {
 	return predicate.ImageGeneration(sql.FieldNotNull(FieldStorageKeys))
 }
 
+// InputStorageKeysIsNil applies the IsNil predicate on the "input_storage_keys" field.
+func InputStorageKeysIsNil() predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldIsNull(FieldInputStorageKeys))
+}
+
+// InputStorageKeysNotNil applies the NotNil predicate on the "input_storage_keys" field.
+func InputStorageKeysNotNil() predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldNotNull(FieldInputStorageKeys))
+}
+
 // WidthEQ applies the EQ predicate on the "width" field.
 func WidthEQ(v int) predicate.ImageGeneration {
 	return predicate.ImageGeneration(sql.FieldEQ(FieldWidth, v))

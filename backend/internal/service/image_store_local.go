@@ -77,12 +77,25 @@ func (s *localImageStore) safeAbs(key string) (string, error) {
 	return abs, nil
 }
 
-// Put stores image data and returns the relative storage key.
+// Put stores produced image data and returns the relative storage key.
 // Key format: user_{userID}/{genID}/{idx}.{ext}
 func (s *localImageStore) Put(_ context.Context, userID, genID int64, idx int, contentType string, data []byte) (string, error) {
-	ext := extForContentType(contentType)
-	key := fmt.Sprintf("user_%d/%d/%d.%s", userID, genID, idx, ext)
+	key := fmt.Sprintf("user_%d/%d/%d.%s", userID, genID, idx, extForContentType(contentType))
+	return s.writeKey(key, data)
+}
 
+// PutInput stores a user-provided (input/reference) image and returns the
+// relative storage key. Key format: user_{userID}/{genID}/input/{idx}.{ext}.
+// The "input/" segment keeps reference images from colliding with output keys
+// while staying within rootDir (safeAbs containment still applies).
+func (s *localImageStore) PutInput(_ context.Context, userID, genID int64, idx int, contentType string, data []byte) (string, error) {
+	key := fmt.Sprintf("user_%d/%d/input/%d.%s", userID, genID, idx, extForContentType(contentType))
+	return s.writeKey(key, data)
+}
+
+// writeKey resolves key under rootDir (with traversal protection), creates the
+// parent directory, and writes data. Shared by Put and PutInput.
+func (s *localImageStore) writeKey(key string, data []byte) (string, error) {
 	abs, err := s.safeAbs(key)
 	if err != nil {
 		return "", err

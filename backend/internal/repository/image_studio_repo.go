@@ -158,6 +158,19 @@ func (r *imageStudioRepository) UpdateGenerationStatus(ctx context.Context, id i
 	return err
 }
 
+// SetInputStorageKeys persists the user-provided reference image storage keys
+// for an edits generation. It is a no-op when keys is empty.
+func (r *imageStudioRepository) SetInputStorageKeys(ctx context.Context, id int64, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	client := clientFromContext(ctx, r.client)
+	_, err := client.ImageGeneration.UpdateOneID(id).
+		SetInputStorageKeys(keys).
+		Save(ctx)
+	return err
+}
+
 // GetGeneration fetches a single (non-soft-deleted) generation by ID.
 func (r *imageStudioRepository) GetGeneration(ctx context.Context, id int64) (*dbent.ImageGeneration, error) {
 	return r.activeGenerationQuery().

@@ -269,6 +269,24 @@ func (_u *ImageGenerationUpdate) ClearStorageKeys() *ImageGenerationUpdate {
 	return _u
 }
 
+// SetInputStorageKeys sets the "input_storage_keys" field.
+func (_u *ImageGenerationUpdate) SetInputStorageKeys(v []string) *ImageGenerationUpdate {
+	_u.mutation.SetInputStorageKeys(v)
+	return _u
+}
+
+// AppendInputStorageKeys appends value to the "input_storage_keys" field.
+func (_u *ImageGenerationUpdate) AppendInputStorageKeys(v []string) *ImageGenerationUpdate {
+	_u.mutation.AppendInputStorageKeys(v)
+	return _u
+}
+
+// ClearInputStorageKeys clears the value of the "input_storage_keys" field.
+func (_u *ImageGenerationUpdate) ClearInputStorageKeys() *ImageGenerationUpdate {
+	_u.mutation.ClearInputStorageKeys()
+	return _u
+}
+
 // SetWidth sets the "width" field.
 func (_u *ImageGenerationUpdate) SetWidth(v int) *ImageGenerationUpdate {
 	_u.mutation.ResetWidth()
@@ -497,6 +515,17 @@ func (_u *ImageGenerationUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if _u.mutation.StorageKeysCleared() {
 		_spec.ClearField(imagegeneration.FieldStorageKeys, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.InputStorageKeys(); ok {
+		_spec.SetField(imagegeneration.FieldInputStorageKeys, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedInputStorageKeys(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, imagegeneration.FieldInputStorageKeys, value)
+		})
+	}
+	if _u.mutation.InputStorageKeysCleared() {
+		_spec.ClearField(imagegeneration.FieldInputStorageKeys, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Width(); ok {
 		_spec.SetField(imagegeneration.FieldWidth, field.TypeInt, value)
@@ -782,6 +811,24 @@ func (_u *ImageGenerationUpdateOne) ClearStorageKeys() *ImageGenerationUpdateOne
 	return _u
 }
 
+// SetInputStorageKeys sets the "input_storage_keys" field.
+func (_u *ImageGenerationUpdateOne) SetInputStorageKeys(v []string) *ImageGenerationUpdateOne {
+	_u.mutation.SetInputStorageKeys(v)
+	return _u
+}
+
+// AppendInputStorageKeys appends value to the "input_storage_keys" field.
+func (_u *ImageGenerationUpdateOne) AppendInputStorageKeys(v []string) *ImageGenerationUpdateOne {
+	_u.mutation.AppendInputStorageKeys(v)
+	return _u
+}
+
+// ClearInputStorageKeys clears the value of the "input_storage_keys" field.
+func (_u *ImageGenerationUpdateOne) ClearInputStorageKeys() *ImageGenerationUpdateOne {
+	_u.mutation.ClearInputStorageKeys()
+	return _u
+}
+
 // SetWidth sets the "width" field.
 func (_u *ImageGenerationUpdateOne) SetWidth(v int) *ImageGenerationUpdateOne {
 	_u.mutation.ResetWidth()
@@ -1040,6 +1087,17 @@ func (_u *ImageGenerationUpdateOne) sqlSave(ctx context.Context) (_node *ImageGe
 	}
 	if _u.mutation.StorageKeysCleared() {
 		_spec.ClearField(imagegeneration.FieldStorageKeys, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.InputStorageKeys(); ok {
+		_spec.SetField(imagegeneration.FieldInputStorageKeys, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedInputStorageKeys(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, imagegeneration.FieldInputStorageKeys, value)
+		})
+	}
+	if _u.mutation.InputStorageKeysCleared() {
+		_spec.ClearField(imagegeneration.FieldInputStorageKeys, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Width(); ok {
 		_spec.SetField(imagegeneration.FieldWidth, field.TypeInt, value)

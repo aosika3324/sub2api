@@ -44,6 +44,8 @@ const (
 	FieldCost = "cost"
 	// FieldStorageKeys holds the string denoting the storage_keys field in the database.
 	FieldStorageKeys = "storage_keys"
+	// FieldInputStorageKeys holds the string denoting the input_storage_keys field in the database.
+	FieldInputStorageKeys = "input_storage_keys"
 	// FieldWidth holds the string denoting the width field in the database.
 	FieldWidth = "width"
 	// FieldHeight holds the string denoting the height field in the database.
@@ -72,6 +74,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldCost,
 	FieldStorageKeys,
+	FieldInputStorageKeys,
 	FieldWidth,
 	FieldHeight,
 	FieldError,

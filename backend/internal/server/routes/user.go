@@ -66,6 +66,7 @@ func RegisterUserRoutes(
 				imageStudio.GET("/generations", h.ImageStudio.ListGenerations)
 				imageStudio.DELETE("/generations/:id", h.ImageStudio.DeleteGeneration)
 				imageStudio.GET("/assets/:genID/:idx", h.ImageStudio.GetAsset)
+				imageStudio.GET("/input-assets/:genID/:idx", h.ImageStudio.GetInputAsset)
 			}
 		}
 

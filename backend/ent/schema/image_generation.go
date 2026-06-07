@@ -58,6 +58,9 @@ func (ImageGeneration) Fields() []ent.Field {
 		field.JSON("storage_keys", []string{}).
 			Optional().
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.JSON("input_storage_keys", []string{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
 		field.Int("width").
 			Optional().
 			Nillable(),

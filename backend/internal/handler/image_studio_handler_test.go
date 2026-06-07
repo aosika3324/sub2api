@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -202,6 +203,67 @@ func TestImageStudioGenerate_ErrorMapping(t *testing.T) {
 	}
 }
 
+func TestImageStudioGenerate_MultipartRoutesInputImage(t *testing.T) {
+	gen := &studioGeneratorStub{
+		result: &service.ImageStudioGenerateResult{
+			GenerationID:   42,
+			ConversationID: 9,
+			Images:         []string{"user_7/42/0.png"},
+			InputImages:    []string{"user_7/42/input/0.png"},
+			Cost:           0.05,
+			Balance:        4.95,
+		},
+	}
+	h := &ImageStudioHandler{studio: gen, repo: &studioRepoStub{}, store: &studioStoreStub{}}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	require.NoError(t, mw.WriteField("group_id", "3"))
+	require.NoError(t, mw.WriteField("conversation_id", "9"))
+	require.NoError(t, mw.WriteField("prompt", "a fox"))
+	require.NoError(t, mw.WriteField("model", "gpt-image-2"))
+	require.NoError(t, mw.WriteField("size", "1024x1024"))
+	require.NoError(t, mw.WriteField("quality", "high"))
+	require.NoError(t, mw.WriteField("n", "1"))
+	part, err := mw.CreateFormFile("image", "ref.png")
+	require.NoError(t, err)
+	_, err = part.Write([]byte("\x89PNG\r\n\x1a\nref-bytes"))
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPost, "/generate", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	c.Request = req
+	setStudioAuth(c, 7)
+
+	h.Generate(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, 1, gen.calls)
+	require.Equal(t, int64(7), gen.gotUserID)
+	require.Equal(t, int64(3), gen.gotInput.GroupID)
+	require.NotNil(t, gen.gotInput.ConversationID)
+	require.Equal(t, int64(9), *gen.gotInput.ConversationID)
+	require.Equal(t, "a fox", gen.gotInput.Prompt)
+	require.Equal(t, "gpt-image-2", gen.gotInput.Model)
+	require.Equal(t, "1024x1024", gen.gotInput.Size)
+	require.Equal(t, "high", gen.gotInput.Quality)
+	require.Equal(t, 1, gen.gotInput.N)
+	require.NotNil(t, gen.gotInput.InputImage)
+	require.Equal(t, []byte("\x89PNG\r\n\x1a\nref-bytes"), gen.gotInput.InputImage.Data)
+	require.Equal(t, "ref.png", gen.gotInput.InputImage.FileName)
+
+	var env struct {
+		Data generateImageResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &env))
+	require.Equal(t, []string{"/api/v1/user/image-studio/assets/42/0"}, env.Data.Images)
+	require.Equal(t, []string{"/api/v1/user/image-studio/input-assets/42/0"}, env.Data.InputImages)
+}
+
 // ---------------------------------------------------------------------------
 // Assets ownership.
 // ---------------------------------------------------------------------------
@@ -261,6 +323,68 @@ func TestImageStudioGetAsset_IndexOutOfRange404(t *testing.T) {
 	setStudioAuth(c, 7)
 
 	h.GetAsset(c)
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Empty(t, store.openedKey)
+}
+
+// ---------------------------------------------------------------------------
+// Input asset (reference image) ownership.
+// ---------------------------------------------------------------------------
+
+func TestImageStudioGetInputAsset_OwnerStreams(t *testing.T) {
+	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
+		ID:               5,
+		UserID:           7,
+		InputStorageKeys: []string{"user_7/5/input/0.png"},
+	}}
+	store := &studioStoreStub{data: []byte("the-ref-bytes"), contentType: "image/png"}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodGet, "/input-assets/5/0", "")
+	c.Params = gin.Params{{Key: "genID", Value: "5"}, {Key: "idx", Value: "0"}}
+	setStudioAuth(c, 7)
+
+	h.GetInputAsset(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "user_7/5/input/0.png", store.openedKey)
+	require.Equal(t, "image/png", w.Header().Get("Content-Type"))
+	require.Equal(t, []byte("the-ref-bytes"), w.Body.Bytes())
+}
+
+func TestImageStudioGetInputAsset_OtherUser404(t *testing.T) {
+	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
+		ID:               5,
+		UserID:           99, // owned by someone else
+		InputStorageKeys: []string{"user_99/5/input/0.png"},
+	}}
+	store := &studioStoreStub{data: []byte("ref"), contentType: "image/png"}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodGet, "/input-assets/5/0", "")
+	c.Params = gin.Params{{Key: "genID", Value: "5"}, {Key: "idx", Value: "0"}}
+	setStudioAuth(c, 7) // requesting user 7, not the owner
+
+	h.GetInputAsset(c)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Empty(t, store.openedKey)
+}
+
+func TestImageStudioGetInputAsset_IndexOutOfRange404(t *testing.T) {
+	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
+		ID:               5,
+		UserID:           7,
+		InputStorageKeys: []string{"user_7/5/input/0.png"},
+	}}
+	store := &studioStoreStub{}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodGet, "/input-assets/5/9", "")
+	c.Params = gin.Params{{Key: "genID", Value: "5"}, {Key: "idx", Value: "9"}}
+	setStudioAuth(c, 7)
+
+	h.GetInputAsset(c)
 	require.Equal(t, http.StatusNotFound, w.Code)
 	require.Empty(t, store.openedKey)
 }

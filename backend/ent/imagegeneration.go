@@ -48,6 +48,8 @@ type ImageGeneration struct {
 	Cost float64 `json:"cost,omitempty"`
 	// StorageKeys holds the value of the "storage_keys" field.
 	StorageKeys []string `json:"storage_keys,omitempty"`
+	// InputStorageKeys holds the value of the "input_storage_keys" field.
+	InputStorageKeys []string `json:"input_storage_keys,omitempty"`
 	// Width holds the value of the "width" field.
 	Width *int `json:"width,omitempty"`
 	// Height holds the value of the "height" field.
@@ -62,7 +64,7 @@ func (*ImageGeneration) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case imagegeneration.FieldStorageKeys:
+		case imagegeneration.FieldStorageKeys, imagegeneration.FieldInputStorageKeys:
 			values[i] = new([]byte)
 		case imagegeneration.FieldCost:
 			values[i] = new(sql.NullFloat64)
@@ -186,6 +188,14 @@ func (_m *ImageGeneration) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field storage_keys: %w", err)
 				}
 			}
+		case imagegeneration.FieldInputStorageKeys:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field input_storage_keys", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.InputStorageKeys); err != nil {
+					return fmt.Errorf("unmarshal field input_storage_keys: %w", err)
+				}
+			}
 		case imagegeneration.FieldWidth:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field width", values[i])
@@ -289,6 +299,9 @@ func (_m *ImageGeneration) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("storage_keys=")
 	builder.WriteString(fmt.Sprintf("%v", _m.StorageKeys))
+	builder.WriteString(", ")
+	builder.WriteString("input_storage_keys=")
+	builder.WriteString(fmt.Sprintf("%v", _m.InputStorageKeys))
 	builder.WriteString(", ")
 	if v := _m.Width; v != nil {
 		builder.WriteString("width=")
