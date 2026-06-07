@@ -1910,6 +1910,49 @@ export interface UpdateScheduledTestPlanRequest {
   auto_recover?: boolean
 }
 
+// ==================== Image Studio Types ====================
+
+export interface ImageStudioConversation {
+  id: number
+  title: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ImageStudioGeneration {
+  id: number
+  conversation_id: number
+  group_id: number
+  prompt: string
+  model: string
+  size: string
+  quality: string
+  n: number
+  image_count: number
+  status: string
+  cost: number
+  created_at: string
+  images?: string[]
+}
+
+export interface GenerateImageStudioRequest {
+  conversation_id?: number
+  group_id: number
+  prompt: string
+  model: string
+  size: string
+  quality: string
+  n: number
+}
+
+export interface GenerateImageStudioResponse {
+  generation_id: number
+  conversation_id: number
+  images: string[]
+  cost: number
+  balance: number
+}
+
 // Payment types
 export type { SubscriptionPlan, PaymentOrder, CheckoutInfoResponse } from './payment'
 
