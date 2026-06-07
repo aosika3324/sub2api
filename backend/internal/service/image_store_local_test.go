@@ -83,17 +83,29 @@ func TestImageStoreLocal_PathTraversal(t *testing.T) {
 		"/etc/passwd",
 		"/tmp/anything",
 		"",
+		".",    // cleans to rootDir itself — must be rejected
+		"a/..", // also cleans to rootDir itself — must be rejected
 	}
 
 	for _, key := range traversalKeys {
 		t.Run("key="+key, func(t *testing.T) {
 			rc, _, err := store.Open(ctx, key)
-			require.Error(t, err, "expected error for key %q", key)
+			require.Error(t, err, "expected Open error for key %q", key)
 			if rc != nil {
 				rc.Close()
 			}
+
+			// Delete must also reject these keys; otherwise Delete(".") on an
+			// empty store could remove the root directory itself.
+			err = store.Delete(ctx, key)
+			require.Error(t, err, "expected Delete error for key %q", key)
 		})
 	}
+
+	// The root directory must still exist after all rejected operations.
+	info, statErr := os.Stat(root)
+	require.NoError(t, statErr)
+	require.True(t, info.IsDir(), "root directory must survive rejected keys")
 }
 
 func TestImageStoreLocal_PathTraversal_AbsoluteKey(t *testing.T) {
@@ -183,6 +195,6 @@ func TestImageStoreLocal_ErrorOnNonExistentOpen(t *testing.T) {
 
 	_, _, err := store.Open(ctx, "user_99/999/0.png")
 	require.Error(t, err)
-	require.True(t, errors.Is(err, os.ErrNotExist) || err != nil,
-		"expected not-found style error, got: %v", err)
+	require.True(t, errors.Is(err, os.ErrNotExist),
+		"expected not-found error, got: %v", err)
 }

@@ -18,7 +18,12 @@ type localImageStore struct {
 
 // NewLocalImageStore constructs a localImageStore rooted at rootDir.
 // rootDir should be an absolute path; the directory is created lazily on first Put.
+// A relative rootDir is normalised to absolute so the safeAbs containment check
+// is stable regardless of later cwd changes.
 func NewLocalImageStore(rootDir string) *localImageStore {
+	if abs, err := filepath.Abs(rootDir); err == nil {
+		rootDir = abs
+	}
 	return &localImageStore{rootDir: rootDir}
 }
 
@@ -60,11 +65,13 @@ func (s *localImageStore) safeAbs(key string) (string, error) {
 	}
 
 	abs := filepath.Clean(filepath.Join(s.rootDir, key))
-	// Ensure the resolved path is inside rootDir.
-	// We compare against rootDir with a trailing separator to avoid a prefix
-	// collision where rootDir="/tmp/root" would incorrectly accept "/tmp/root2/...".
+	// Ensure the resolved path is strictly *inside* rootDir.
+	// The trailing separator avoids a prefix collision where rootDir="/tmp/root"
+	// would incorrectly accept "/tmp/root2/...". The check is unconditional: a key
+	// that cleans to rootDir itself (e.g. "." or "a/..") is rejected, otherwise
+	// Delete(".") on an empty store could remove the root directory.
 	root := filepath.Clean(s.rootDir)
-	if abs != root && !strings.HasPrefix(abs, root+string(filepath.Separator)) {
+	if !strings.HasPrefix(abs, root+string(filepath.Separator)) {
 		return "", fmt.Errorf("image store: key %q escapes root directory", key)
 	}
 	return abs, nil
