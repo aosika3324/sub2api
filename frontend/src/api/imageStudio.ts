@@ -48,6 +48,10 @@ export async function generate(
     const { data } = await apiClient.post<GenerateImageStudioResponse>(
       '/user/image-studio/generate',
       fd,
+      // `Content-Type: null` is intentional, not dead code: it DELETES the shared
+      // apiClient `application/json` default for this one request, so the browser
+      // generates the real `multipart/form-data; boundary=…` header. Omitting it
+      // would let axios JSON-stringify the FormData and silently drop the file.
       { headers: { 'Content-Type': null } }
     )
     return data

@@ -181,7 +181,7 @@
             <!-- Aspect ratio presets -->
             <div class="settings-row">
               <label class="settings-label">{{ t('imageStudio.aspectRatio') }}</label>
-              <div class="aspect-grid">
+              <div class="aspect-grid" role="group" :aria-label="t('imageStudio.aspectRatio')">
                 <button
                   v-for="preset in aspectPresets"
                   :key="preset.size"
@@ -189,6 +189,7 @@
                   class="aspect-btn"
                   :class="{ 'aspect-btn-active': isPresetActive(preset) }"
                   :disabled="disabled"
+                  :aria-pressed="isPresetActive(preset)"
                   @click="applyPreset(preset)"
                 >
                   {{ presetLabel(preset) }}
