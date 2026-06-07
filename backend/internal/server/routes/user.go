@@ -53,6 +53,20 @@ func RegisterUserRoutes(
 				totp.POST("/enable", h.Totp.Enable)
 				totp.POST("/disable", h.Totp.Disable)
 			}
+
+			// 站内作图工作室（JWT，所有端点强制当前登录用户）
+			imageStudio := user.Group("/image-studio")
+			{
+				imageStudio.POST("/generate", h.ImageStudio.Generate)
+				imageStudio.GET("/conversations", h.ImageStudio.ListConversations)
+				imageStudio.POST("/conversations", h.ImageStudio.CreateConversation)
+				imageStudio.PATCH("/conversations/:id", h.ImageStudio.UpdateConversation)
+				imageStudio.DELETE("/conversations/:id", h.ImageStudio.DeleteConversation)
+				imageStudio.GET("/conversations/:id/generations", h.ImageStudio.ListConversationGenerations)
+				imageStudio.GET("/generations", h.ImageStudio.ListGenerations)
+				imageStudio.DELETE("/generations/:id", h.ImageStudio.DeleteGeneration)
+				imageStudio.GET("/assets/:genID/:idx", h.ImageStudio.GetAsset)
+			}
 		}
 
 		// API Key管理

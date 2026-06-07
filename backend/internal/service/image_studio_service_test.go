@@ -233,6 +233,22 @@ func (s *studioRepoStub) ListGenerations(_ context.Context, _ int64, _ *int64, _
 	return nil, 0, nil
 }
 
+func (s *studioRepoStub) GetConversation(_ context.Context, _ int64) (*dbent.ImageConversation, error) {
+	return nil, errors.New("not found")
+}
+
+func (s *studioRepoStub) UpdateConversationTitle(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
+func (s *studioRepoStub) DeleteConversation(_ context.Context, _ int64) error {
+	return nil
+}
+
+func (s *studioRepoStub) DeleteGeneration(_ context.Context, _ int64) error {
+	return nil
+}
+
 func (s *studioRepoStub) lastStatus() (studioStatusUpdate, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

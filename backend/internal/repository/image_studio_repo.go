@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/imageconversation"
@@ -59,6 +60,43 @@ func (r *imageStudioRepository) ListConversations(ctx context.Context, userID in
 	}
 
 	return items, total, nil
+}
+
+// GetConversation fetches a single (non-soft-deleted) conversation by ID.
+func (r *imageStudioRepository) GetConversation(ctx context.Context, id int64) (*dbent.ImageConversation, error) {
+	return r.activeConversationQuery().
+		Where(imageconversation.IDEQ(id)).
+		Only(ctx)
+}
+
+// UpdateConversationTitle renames a (non-soft-deleted) conversation.
+func (r *imageStudioRepository) UpdateConversationTitle(ctx context.Context, id int64, title string) error {
+	client := clientFromContext(ctx, r.client)
+	_, err := client.ImageConversation.Update().
+		Where(imageconversation.IDEQ(id), imageconversation.DeletedAtIsNil()).
+		SetTitle(title).
+		Save(ctx)
+	return err
+}
+
+// DeleteConversation soft-deletes a conversation by stamping deleted_at.
+func (r *imageStudioRepository) DeleteConversation(ctx context.Context, id int64) error {
+	client := clientFromContext(ctx, r.client)
+	_, err := client.ImageConversation.Update().
+		Where(imageconversation.IDEQ(id), imageconversation.DeletedAtIsNil()).
+		SetDeletedAt(time.Now()).
+		Save(ctx)
+	return err
+}
+
+// DeleteGeneration soft-deletes a generation by stamping deleted_at.
+func (r *imageStudioRepository) DeleteGeneration(ctx context.Context, id int64) error {
+	client := clientFromContext(ctx, r.client)
+	_, err := client.ImageGeneration.Update().
+		Where(imagegeneration.IDEQ(id), imagegeneration.DeletedAtIsNil()).
+		SetDeletedAt(time.Now()).
+		Save(ctx)
+	return err
 }
 
 // CreateGeneration persists a new image generation record built by the caller.

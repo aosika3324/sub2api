@@ -17,9 +17,11 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/server"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/setup"
 	"github.com/redis/go-redis/v9"
 	"log"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -250,9 +252,16 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	handlerPaymentHandler := handler.NewPaymentHandler(paymentService, paymentConfigService, channelService)
 	paymentWebhookHandler := handler.NewPaymentWebhookHandler(paymentService, registry)
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
+	studioImageGenerator := service.ProvideStudioImageGenerator(openAIGatewayService)
+	imageStudioRepository := repository.NewImageStudioRepository(client)
+	imageStoreRootDir := provideImageStoreRootDir()
+	imageStore := service.ProvideImageStore(imageStoreRootDir)
+	imageConcurrencyLimiter := service.ProvideImageConcurrencyLimiter()
+	imageStudioService := service.ProvideImageStudioService(userService, apiKeyService, billingCacheService, studioImageGenerator, openAIGatewayService, subscriptionService, imageStudioRepository, imageStore, imageConcurrencyLimiter, configConfig)
+	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService, imageStudioRepository, imageStore)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
-	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, idempotencyCoordinator, idempotencyCleanupService)
+	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, imageStudioHandler, idempotencyCoordinator, idempotencyCleanupService)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService)
 	apiKeyAuthMiddleware := middleware.NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, configConfig)
@@ -287,6 +296,14 @@ type Application struct {
 
 func providePrivacyClientFactory() service.PrivacyClientFactory {
 	return repository.CreatePrivacyReqClient
+}
+
+// provideImageStoreRootDir resolves the on-disk root for the image studio's local
+// ImageStore: <data dir>/images. setup.GetDataDir lives outside internal/service
+// (which cannot import internal/setup without an import cycle), so the dir is
+// resolved here and injected as the named service.ImageStoreRootDir type.
+func provideImageStoreRootDir() service.ImageStoreRootDir {
+	return service.ImageStoreRootDir(filepath.Join(setup.GetDataDir(), "images"))
 }
 
 func provideServiceBuildInfo(buildInfo handler.BuildInfo) service.BuildInfo {
