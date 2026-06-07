@@ -35,7 +35,7 @@ function makeGeneration(overrides: Partial<ImageStudioGeneration> = {}): ImageSt
     conversation_id: 1,
     group_id: 5,
     prompt: 'a serene lake at dawn',
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     size: '1024x1024',
     quality: 'high',
     n: 2,
@@ -92,7 +92,7 @@ describe('GenerationCard', () => {
   it('renders prompt and param chips', () => {
     const wrapper = mountCard(makeGeneration())
     expect(wrapper.text()).toContain('a serene lake at dawn')
-    expect(wrapper.text()).toContain('gpt-image-1')
+    expect(wrapper.text()).toContain('gpt-image-2')
     expect(wrapper.text()).toContain('1024x1024')
   })
 

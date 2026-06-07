@@ -109,7 +109,7 @@ describe('ImageComposer', () => {
     // Selects are rendered in order: group, model, size, quality, count
     const selects = wrapper.findAll('select')
     expect(selects.length).toBe(5)
-    // gpt-image-1 (default) supports 1536x1024 + high quality
+    // gpt-image-2 (default) supports 1536x1024 + high quality
     await selects[2].setValue('1536x1024') // size
     await selects[3].setValue('high') // quality
     await selects[4].setValue('3') // n
@@ -123,14 +123,14 @@ describe('ImageComposer', () => {
     expect(emitted![0][0]).toEqual({
       group_id: 7,
       prompt: 'a cat riding a bike',
-      model: 'gpt-image-1',
+      model: 'gpt-image-2',
       size: '1536x1024',
       quality: 'high',
       n: 3,
     })
   })
 
-  it('resets size/quality to valid defaults when the model changes', async () => {
+  it('resets size & quality to the model defaults when the model changes', async () => {
     const groups = [makeGroup({ id: 7, name: 'Img A' })]
     const wrapper = mountComposer(groups)
     await flushPromises()
@@ -138,40 +138,36 @@ describe('ImageComposer', () => {
     await wrapper.find('textarea').setValue('a fox in a meadow')
 
     const selects = wrapper.findAll('select')
-    // Switch to dall-e-3 — size/quality should snap to its defaults.
-    await selects[1].setValue('dall-e-3')
+    // Move size/quality away from the defaults.
+    await selects[2].setValue('1536x1024')
+    await selects[3].setValue('high')
     await flushPromises()
 
-    // dall-e-3 size options should now be available (1792x1024, 1024x1792).
-    const sizeValues = selects[2].findAll('option').map((o) => o.attributes('value'))
-    expect(sizeValues).toContain('1792x1024')
-    expect(sizeValues).not.toContain('1024x1536') // gpt-image-1-only size
-
-    await selects[2].setValue('1792x1024')
-    await selects[3].setValue('hd')
+    // Switching the model (both share one matrix) should snap size/quality back
+    // to that model's defaults via the watcher.
+    await selects[1].setValue('gpt-image-1.5')
+    await flushPromises()
 
     await wrapper.find('button').trigger('click')
     const emitted = wrapper.emitted('generate')
     expect(emitted![0][0]).toMatchObject({
-      model: 'dall-e-3',
-      size: '1792x1024',
-      quality: 'hd',
+      model: 'gpt-image-1.5',
+      size: '1024x1024',
+      quality: 'auto',
     })
   })
 
-  it('shows an approximate cost estimate beside the send button', async () => {
+  it('does not show a client-side cost estimate (server is source of truth)', async () => {
     const groups = [makeGroup({ id: 7, name: 'Img A' })]
     const wrapper = mountComposer(groups)
     await flushPromises()
 
     const selects = wrapper.findAll('select')
-    // gpt-image-1 + 1024x1024 + high = $0.167/image; auto quality is not priceable.
+    // No price tables → no ≈$ label for any combo.
     await selects[3].setValue('high')
     await flushPromises()
-    // The faint cost label renders as "≈$0.17" next to the circular send button.
-    expect(wrapper.text()).toContain('≈$0.17')
+    expect(wrapper.text()).not.toContain('≈$')
 
-    // gpt-image-1 "auto" quality is not confidently priceable → no cost label.
     await selects[3].setValue('auto')
     await flushPromises()
     expect(wrapper.text()).not.toContain('≈$')

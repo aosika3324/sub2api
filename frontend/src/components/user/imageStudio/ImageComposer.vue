@@ -160,7 +160,7 @@ const imageGroups = computed(() =>
 const promptRef = ref<HTMLTextAreaElement | null>(null)
 const prompt = ref('')
 const groupId = ref<number | null>(null)
-const model = ref<ModelId>('gpt-image-1')
+const model = ref<ModelId>('gpt-image-2')
 const size = ref('1024x1024')
 const quality = ref('auto')
 const n = ref(1)

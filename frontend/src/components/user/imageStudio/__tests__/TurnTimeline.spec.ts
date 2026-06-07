@@ -39,7 +39,7 @@ function makeGeneration(overrides: Partial<ImageStudioGeneration> = {}): ImageSt
     conversation_id: 1,
     group_id: 5,
     prompt: 'a serene lake at dawn',
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     size: '1024x1024',
     quality: 'high',
     n: 1,
