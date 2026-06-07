@@ -489,6 +489,65 @@ func ProvideAPIKeyService(
 	return svc
 }
 
+// ImageStoreRootDir is the on-disk root for the image studio's local ImageStore.
+// It is a named type so Wire can inject the resolved directory (<data dir>/images,
+// computed in cmd/server because internal/service must not import internal/setup)
+// without colliding with other plain string providers.
+type ImageStoreRootDir string
+
+// ProvideImageStore builds the local disk-backed ImageStore for the image studio
+// and returns it as the ImageStore interface.
+func ProvideImageStore(rootDir ImageStoreRootDir) ImageStore {
+	return NewLocalImageStore(string(rootDir))
+}
+
+// ProvideImageConcurrencyLimiter provides the (zero-value) image-generation
+// concurrency limiter shared by the studio path. The studio service reads the
+// enable/limit knobs from cfg.Gateway.ImageConcurrency on each Acquire.
+func ProvideImageConcurrencyLimiter() *ImageConcurrencyLimiter {
+	return &ImageConcurrencyLimiter{}
+}
+
+// ProvideStudioImageGenerator builds the body-capturing adapter over the shared
+// *OpenAIGatewayService.GenerateImages orchestrator and returns it as the
+// (package-private) studioImageGenerator port the ImageStudioService depends on.
+// It lives here (not handler/repository wire) because the port is unexported.
+func ProvideStudioImageGenerator(gw *OpenAIGatewayService) studioImageGenerator {
+	return NewStudioImageGeneratorAdapter(gw)
+}
+
+// ProvideImageStudioService wires ImageStudioService from its full set of
+// concrete dependencies. It must live in package service because
+// ImageStudioServiceDeps references unexported port types (e.g. the image
+// generator) that Wire cannot bind across package boundaries.
+func ProvideImageStudioService(
+	userService *UserService,
+	apiKeyService *APIKeyService,
+	billingCacheService *BillingCacheService,
+	generator studioImageGenerator,
+	gatewayService *OpenAIGatewayService,
+	subscriptionService *SubscriptionService,
+	repo ImageStudioRepository,
+	store ImageStore,
+	limiter *ImageConcurrencyLimiter,
+	cfg *config.Config,
+) *ImageStudioService {
+	return NewImageStudioService(ImageStudioServiceDeps{
+		Users:         userService,
+		Groups:        apiKeyService,
+		KeyEnsurer:    apiKeyService,
+		Eligibility:   billingCacheService,
+		Generator:     generator,
+		CostResolver:  gatewayService,
+		UsageRecord:   gatewayService,
+		Subscriptions: subscriptionService,
+		Repo:          repo,
+		Store:         store,
+		Limiter:       limiter,
+		Cfg:           cfg,
+	})
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -496,6 +555,11 @@ var ProviderSet = wire.NewSet(
 	NewUserService,
 	ProvideAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,
+	// Image studio (in-app JWT image generation)
+	ProvideImageStore,
+	ProvideImageConcurrencyLimiter,
+	ProvideStudioImageGenerator,
+	ProvideImageStudioService,
 	NewGroupService,
 	NewAccountService,
 	NewProxyService,

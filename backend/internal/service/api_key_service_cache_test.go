@@ -30,7 +30,7 @@ func (s *authRepoStub) GetByID(ctx context.Context, id int64) (*APIKey, error) {
 	panic("unexpected GetByID call")
 }
 
-func (s *authRepoStub) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
+func (s *authRepoStub) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, bool, error) {
 	panic("unexpected GetKeyAndOwnerID call")
 }
 
@@ -121,6 +121,10 @@ func (s *authRepoStub) ResetRateLimitWindows(ctx context.Context, id int64) erro
 }
 func (s *authRepoStub) GetRateLimitData(ctx context.Context, id int64) (*APIKeyRateLimitData, error) {
 	panic("unexpected GetRateLimitData call")
+}
+
+func (s *authRepoStub) FindInternalByUserAndGroup(ctx context.Context, userID, groupID int64, name string) (*APIKey, error) {
+	panic("unexpected FindInternalByUserAndGroup call")
 }
 
 type authCacheStub struct {

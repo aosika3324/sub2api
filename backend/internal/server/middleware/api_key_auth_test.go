@@ -870,8 +870,8 @@ func (r *stubApiKeyRepo) GetByID(ctx context.Context, id int64) (*service.APIKey
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubApiKeyRepo) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
-	return "", 0, errors.New("not implemented")
+func (r *stubApiKeyRepo) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, bool, error) {
+	return "", 0, false, errors.New("not implemented")
 }
 
 func (r *stubApiKeyRepo) GetByKey(ctx context.Context, key string) (*service.APIKey, error) {
@@ -959,6 +959,10 @@ func (r *stubApiKeyRepo) ResetRateLimitWindows(ctx context.Context, id int64) er
 	return nil
 }
 func (r *stubApiKeyRepo) GetRateLimitData(ctx context.Context, id int64) (*service.APIKeyRateLimitData, error) {
+	return nil, nil
+}
+
+func (r *stubApiKeyRepo) FindInternalByUserAndGroup(ctx context.Context, userID, groupID int64, name string) (*service.APIKey, error) {
 	return nil, nil
 }
 

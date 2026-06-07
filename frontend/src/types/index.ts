@@ -1912,6 +1912,59 @@ export interface UpdateScheduledTestPlanRequest {
   auto_recover?: boolean
 }
 
+// ==================== Image Studio Types ====================
+
+export interface ImageStudioConversation {
+  id: number
+  title: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ImageStudioGeneration {
+  id: number
+  conversation_id: number
+  group_id: number
+  prompt: string
+  model: string
+  size: string
+  quality: string
+  n: number
+  image_count: number
+  status: string
+  cost: number
+  created_at: string
+  images?: string[]
+  /** Source/reference images for image-to-image generations (absolute asset paths). */
+  input_images?: string[]
+}
+
+export interface GenerateImageStudioRequest {
+  conversation_id?: number
+  group_id: number
+  prompt: string
+  model: string
+  size: string
+  quality: string
+  n: number
+  /**
+   * Client-only: when set, the request is sent as multipart/form-data for
+   * image-to-image (the file is appended as the `image` form field). Never
+   * serialised into the JSON body.
+   */
+  referenceImage?: File | null
+}
+
+export interface GenerateImageStudioResponse {
+  generation_id: number
+  conversation_id: number
+  images: string[]
+  /** Persisted source images for image-to-image generations (absolute asset paths). */
+  input_images?: string[]
+  cost: number
+  balance: number
+}
+
 // Payment types
 export type { SubscriptionPlan, PaymentOrder, CheckoutInfoResponse } from './payment'
 

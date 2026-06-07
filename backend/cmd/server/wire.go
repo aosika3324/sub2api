@@ -7,6 +7,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/server"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/setup"
 
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
@@ -46,6 +48,10 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		// Privacy client factory for OpenAI training opt-out
 		providePrivacyClientFactory,
 
+		// Image studio local store root dir (resolved from the data dir; lives in
+		// cmd because internal/service must not import internal/setup → cycle).
+		provideImageStoreRootDir,
+
 		// BuildInfo provider
 		provideServiceBuildInfo,
 
@@ -60,6 +66,14 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 
 func providePrivacyClientFactory() service.PrivacyClientFactory {
 	return repository.CreatePrivacyReqClient
+}
+
+// provideImageStoreRootDir resolves the on-disk root for the image studio's local
+// ImageStore: <data dir>/images. setup.GetDataDir lives outside internal/service
+// (which cannot import internal/setup without an import cycle), so the dir is
+// resolved here and injected as the named service.ImageStoreRootDir type.
+func provideImageStoreRootDir() service.ImageStoreRootDir {
+	return service.ImageStoreRootDir(filepath.Join(setup.GetDataDir(), "images"))
 }
 
 func provideServiceBuildInfo(buildInfo handler.BuildInfo) service.BuildInfo {

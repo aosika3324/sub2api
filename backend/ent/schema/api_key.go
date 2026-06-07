@@ -47,6 +47,9 @@ func (APIKey) Fields() []ent.Field {
 		field.String("status").
 			MaxLen(20).
 			Default(domain.StatusActive),
+		field.Bool("internal").
+			Default(false).
+			Comment("Marks hidden studio-managed keys not visible in user key listings"),
 		field.Time("last_used_at").
 			Optional().
 			Nillable().

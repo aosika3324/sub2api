@@ -51,7 +51,8 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		SetNillableExpiresAt(key.ExpiresAt).
 		SetRateLimit5h(key.RateLimit5h).
 		SetRateLimit1d(key.RateLimit1d).
-		SetRateLimit7d(key.RateLimit7d)
+		SetRateLimit7d(key.RateLimit7d).
+		SetInternal(key.Internal)
 
 	if len(key.IPWhitelist) > 0 {
 		builder.SetIPWhitelist(key.IPWhitelist)
@@ -66,6 +67,7 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		key.LastUsedAt = created.LastUsedAt
 		key.CreatedAt = created.CreatedAt
 		key.UpdatedAt = created.UpdatedAt
+		key.Internal = created.Internal
 	}
 	return translatePersistenceError(err, nil, service.ErrAPIKeyExists)
 }
@@ -85,23 +87,23 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id int64) (*service.APIK
 	return apiKeyEntityToService(m), nil
 }
 
-// GetKeyAndOwnerID 根据 API Key ID 获取其 key 与所有者（用户）ID。
+// GetKeyAndOwnerID 根据 API Key ID 获取其 key、所有者（用户）ID 与 internal 标记。
 // 相比 GetByID，此方法性能更优，因为：
 //   - 使用 Select() 只查询必要字段，减少数据传输量
 //   - 不加载完整的 API Key 实体及其关联数据（User、Group 等）
-//   - 适用于删除等只需 key 与用户 ID 的场景
-func (r *apiKeyRepository) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, error) {
+//   - 适用于删除等只需 key、用户 ID 与 internal 标记的场景
+func (r *apiKeyRepository) GetKeyAndOwnerID(ctx context.Context, id int64) (string, int64, bool, error) {
 	m, err := r.activeQuery().
 		Where(apikey.IDEQ(id)).
-		Select(apikey.FieldKey, apikey.FieldUserID).
+		Select(apikey.FieldKey, apikey.FieldUserID, apikey.FieldInternal).
 		Only(ctx)
 	if err != nil {
 		if dbent.IsNotFound(err) {
-			return "", 0, service.ErrAPIKeyNotFound
+			return "", 0, false, service.ErrAPIKeyNotFound
 		}
-		return "", 0, err
+		return "", 0, false, err
 	}
-	return m.Key, m.UserID, nil
+	return m.Key, m.UserID, m.Internal, nil
 }
 
 func (r *apiKeyRepository) GetByKey(ctx context.Context, key string) (*service.APIKey, error) {
@@ -395,6 +397,10 @@ func (r *apiKeyRepository) ListByUserID(ctx context.Context, userID int64, param
 			q = q.Where(apikey.GroupIDEQ(*filters.GroupID))
 		}
 	}
+	// Hide system-managed internal keys from user-facing listings.
+	if filters.ExcludeInternal {
+		q = q.Where(apikey.InternalEQ(false))
+	}
 
 	total, err := q.Count(ctx)
 	if err != nil {
@@ -427,8 +433,10 @@ func (r *apiKeyRepository) VerifyOwnership(ctx context.Context, userID int64, ap
 		return []int64{}, nil
 	}
 
+	// 排除 internal(系统托管)key:VerifyOwnership 服务于用户端归属校验
+	// (如 DashboardAPIKeysUsage 的用量查询),不应让隐藏 key 通过校验而泄露信息。
 	ids, err := r.client.APIKey.Query().
-		Where(apikey.UserIDEQ(userID), apikey.IDIn(apiKeyIDs...), apikey.DeletedAtIsNil()).
+		Where(apikey.UserIDEQ(userID), apikey.IDIn(apiKeyIDs...), apikey.DeletedAtIsNil(), apikey.InternalEQ(false)).
 		IDs(ctx)
 	if err != nil {
 		return nil, err
@@ -571,6 +579,26 @@ func (r *apiKeyRepository) ListKeysByGroupID(ctx context.Context, groupID int64)
 	return keys, nil
 }
 
+// FindInternalByUserAndGroup returns the first internal API key for the given
+// (userID, groupID, name) triple, or (nil, nil) when no such key exists yet.
+func (r *apiKeyRepository) FindInternalByUserAndGroup(ctx context.Context, userID, groupID int64, name string) (*service.APIKey, error) {
+	m, err := r.activeQuery().
+		Where(
+			apikey.UserIDEQ(userID),
+			apikey.GroupIDEQ(groupID),
+			apikey.InternalEQ(true),
+			apikey.NameEQ(name),
+		).
+		First(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return apiKeyEntityToService(m), nil
+}
+
 // IncrementQuotaUsed 使用 Ent 原子递增 quota_used 字段并返回新值
 func (r *apiKeyRepository) IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error) {
 	updated, err := r.client.APIKey.UpdateOneID(id).
@@ -701,6 +729,7 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		CreatedAt:     m.CreatedAt,
 		UpdatedAt:     m.UpdatedAt,
 		GroupID:       m.GroupID,
+		Internal:      m.Internal,
 		Quota:         m.Quota,
 		QuotaUsed:     m.QuotaUsed,
 		ExpiresAt:     m.ExpiresAt,
