@@ -155,6 +155,7 @@ type studioStatusUpdate struct {
 	status      string
 	storageKeys []string
 	cost        float64
+	imageCount  int
 	width       int
 	height      int
 	errMsg      string
@@ -197,19 +198,20 @@ func (s *studioRepoStub) CreateGeneration(_ context.Context, g *dbent.ImageGener
 	return &clone, nil
 }
 
-func (s *studioRepoStub) UpdateGenerationStatus(_ context.Context, id int64, status string, storageKeys []string, cost float64, width, height int, errMsg string) error {
+func (s *studioRepoStub) UpdateGenerationStatus(_ context.Context, id int64, status string, storageKeys []string, cost float64, imageCount, width, height int, errMsg string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.updateErr != nil {
 		return s.updateErr
 	}
 	s.statusUpdates = append(s.statusUpdates, studioStatusUpdate{
-		id: id, status: status, storageKeys: storageKeys, cost: cost, width: width, height: height, errMsg: errMsg,
+		id: id, status: status, storageKeys: storageKeys, cost: cost, imageCount: imageCount, width: width, height: height, errMsg: errMsg,
 	})
 	if g, ok := s.generations[id]; ok {
 		g.Status = status
 		g.StorageKeys = storageKeys
 		g.Cost = cost
+		g.ImageCount = imageCount
 		w, h, e := width, height, errMsg
 		g.Width = &w
 		g.Height = &h
@@ -457,6 +459,7 @@ func TestImageStudioService_Generate_Success_NewConversation(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "succeeded", last.status)
 	require.Len(t, last.storageKeys, 2)
+	require.Equal(t, 2, last.imageCount, "imageCount must equal len(images)")
 
 	// Stored N images.
 	require.Equal(t, 2, f.store.putCalls)

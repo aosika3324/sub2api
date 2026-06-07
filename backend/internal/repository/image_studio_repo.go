@@ -134,11 +134,12 @@ func (r *imageStudioRepository) CreateGeneration(ctx context.Context, g *dbent.I
 }
 
 // UpdateGenerationStatus updates result fields after a generation completes or fails.
-func (r *imageStudioRepository) UpdateGenerationStatus(ctx context.Context, id int64, status string, storageKeys []string, cost float64, width, height int, errMsg string) error {
+func (r *imageStudioRepository) UpdateGenerationStatus(ctx context.Context, id int64, status string, storageKeys []string, cost float64, imageCount, width, height int, errMsg string) error {
 	client := clientFromContext(ctx, r.client)
 	u := client.ImageGeneration.UpdateOneID(id).
 		SetStatus(status).
-		SetCost(cost)
+		SetCost(cost).
+		SetImageCount(imageCount)
 
 	if len(storageKeys) > 0 {
 		u = u.SetStorageKeys(storageKeys)

@@ -389,7 +389,7 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	}
 
 	// --- Step 7: persist succeeded. ---
-	if err := s.repo.UpdateGenerationStatus(ctx, genID, imageStudioStatusSucceeded, keys, cost, width, height, ""); err != nil {
+	if err := s.repo.UpdateGenerationStatus(ctx, genID, imageStudioStatusSucceeded, keys, cost, len(images), width, height, ""); err != nil {
 		reqLog.Error("image_studio.update_generation_succeeded_failed",
 			zap.Int64("generation_id", genID),
 			zap.Error(err),
@@ -478,7 +478,7 @@ func (s *ImageStudioService) markFailed(ctx context.Context, genID int64, cause 
 	if cause != nil {
 		msg = cause.Error()
 	}
-	if err := s.repo.UpdateGenerationStatus(ctx, genID, imageStudioStatusFailed, nil, 0, 0, 0, msg); err != nil {
+	if err := s.repo.UpdateGenerationStatus(ctx, genID, imageStudioStatusFailed, nil, 0, 0, 0, 0, msg); err != nil {
 		reqLog.Error("image_studio.update_generation_failed_failed",
 			zap.Int64("generation_id", genID),
 			zap.Error(err),

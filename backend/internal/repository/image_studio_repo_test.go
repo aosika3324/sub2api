@@ -167,6 +167,7 @@ func (s *ImageStudioRepoSuite) TestUpdateGenerationStatus() {
 		"done",
 		[]string{"s3://bucket/img1.png"},
 		0.04,
+		1,
 		1024,
 		1024,
 		"",
@@ -178,6 +179,7 @@ func (s *ImageStudioRepoSuite) TestUpdateGenerationStatus() {
 	s.Require().Equal("done", got.Status)
 	s.Require().InDelta(0.04, got.Cost, 1e-9)
 	s.Require().Equal([]string{"s3://bucket/img1.png"}, got.StorageKeys)
+	s.Require().Equal(1, got.ImageCount)
 	s.Require().NotNil(got.Width)
 	s.Require().Equal(1024, *got.Width)
 	s.Require().NotNil(got.Height)
@@ -194,7 +196,7 @@ func (s *ImageStudioRepoSuite) TestUpdateGenerationStatus_Error() {
 	gen, err := s.repo.CreateGeneration(s.ctx, s.newTestGeneration(u.ID, conv.ID, g.ID))
 	s.Require().NoError(err)
 
-	err = s.repo.UpdateGenerationStatus(s.ctx, gen.ID, "failed", nil, 0, 0, 0, "upstream error")
+	err = s.repo.UpdateGenerationStatus(s.ctx, gen.ID, "failed", nil, 0, 0, 0, 0, "upstream error")
 	s.Require().NoError(err)
 
 	got, err := s.repo.GetGeneration(s.ctx, gen.ID)
