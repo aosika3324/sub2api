@@ -109,8 +109,8 @@ describe('ImageComposer', () => {
     // Selects are rendered in order: group, model, size, quality, count
     const selects = wrapper.findAll('select')
     expect(selects.length).toBe(5)
-    // gpt-image-2 (default) supports 1536x1024 + high quality
-    await selects[2].setValue('1536x1024') // size
+    // gpt-image-2 (default) — pick a non-default resolution tier + high quality
+    await selects[2].setValue('2K') // size
     await selects[3].setValue('high') // quality
     await selects[4].setValue('3') // n
 
@@ -124,7 +124,7 @@ describe('ImageComposer', () => {
       group_id: 7,
       prompt: 'a cat riding a bike',
       model: 'gpt-image-2',
-      size: '1536x1024',
+      size: '2K',
       quality: 'high',
       n: 3,
     })
@@ -138,8 +138,12 @@ describe('ImageComposer', () => {
     await wrapper.find('textarea').setValue('a fox in a meadow')
 
     const selects = wrapper.findAll('select')
+    // The size select offers the 1K/2K/4K resolution tiers.
+    const sizeValues = selects[2].findAll('option').map((o) => o.attributes('value'))
+    expect(sizeValues).toEqual(['1K', '2K', '4K'])
+
     // Move size/quality away from the defaults.
-    await selects[2].setValue('1536x1024')
+    await selects[2].setValue('4K')
     await selects[3].setValue('high')
     await flushPromises()
 
@@ -152,7 +156,7 @@ describe('ImageComposer', () => {
     const emitted = wrapper.emitted('generate')
     expect(emitted![0][0]).toMatchObject({
       model: 'gpt-image-1.5',
-      size: '1024x1024',
+      size: '1K',
       quality: 'auto',
     })
   })

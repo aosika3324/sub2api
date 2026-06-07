@@ -36,9 +36,9 @@ export const MODEL_OPTIONS: Array<{ value: ModelId; label: string }> = [
 // Both supported models share the gpt-image family option matrix.
 const GPT_IMAGE_MATRIX: ModelMatrix = {
   sizes: [
-    { value: '1024x1024', label: '1024 × 1024' },
-    { value: '1024x1536', label: '1024 × 1536' },
-    { value: '1536x1024', label: '1536 × 1024' },
+    { value: '1K', label: '1K' },
+    { value: '2K', label: '2K' },
+    { value: '4K', label: '4K' },
   ],
   qualities: [
     { value: 'auto', labelKey: 'imageStudio.qualityAuto' },
@@ -46,7 +46,7 @@ const GPT_IMAGE_MATRIX: ModelMatrix = {
     { value: 'medium', labelKey: 'imageStudio.qualityMedium' },
     { value: 'high', labelKey: 'imageStudio.qualityHigh' },
   ],
-  defaultSize: '1024x1024',
+  defaultSize: '1K',
   defaultQuality: 'auto',
 }
 

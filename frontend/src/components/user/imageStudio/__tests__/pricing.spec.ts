@@ -11,21 +11,21 @@ describe('estimateCost', () => {
   // gpt-image-1.5 / gpt-image-2, so every combination returns null and the
   // server computes the real charge.
   it('returns null for gpt-image-1.5 across all size/quality combos', () => {
-    expect(estimateCost('gpt-image-1.5', '1024x1024', 'auto', 1)).toBeNull()
-    expect(estimateCost('gpt-image-1.5', '1024x1024', 'high', 1)).toBeNull()
-    expect(estimateCost('gpt-image-1.5', '1024x1536', 'low', 2)).toBeNull()
-    expect(estimateCost('gpt-image-1.5', '1536x1024', 'medium', 4)).toBeNull()
+    expect(estimateCost('gpt-image-1.5', '1K', 'auto', 1)).toBeNull()
+    expect(estimateCost('gpt-image-1.5', '1K', 'high', 1)).toBeNull()
+    expect(estimateCost('gpt-image-1.5', '2K', 'low', 2)).toBeNull()
+    expect(estimateCost('gpt-image-1.5', '4K', 'medium', 4)).toBeNull()
   })
 
   it('returns null for gpt-image-2 across all size/quality combos', () => {
-    expect(estimateCost('gpt-image-2', '1024x1024', 'auto', 1)).toBeNull()
-    expect(estimateCost('gpt-image-2', '1024x1024', 'high', 1)).toBeNull()
-    expect(estimateCost('gpt-image-2', '1024x1536', 'low', 2)).toBeNull()
-    expect(estimateCost('gpt-image-2', '1536x1024', 'medium', 4)).toBeNull()
+    expect(estimateCost('gpt-image-2', '1K', 'auto', 1)).toBeNull()
+    expect(estimateCost('gpt-image-2', '1K', 'high', 1)).toBeNull()
+    expect(estimateCost('gpt-image-2', '2K', 'low', 2)).toBeNull()
+    expect(estimateCost('gpt-image-2', '4K', 'medium', 4)).toBeNull()
   })
 
   it('returns null for unknown models too', () => {
-    expect(estimateCost('mystery', '1024x1024', 'high', 1)).toBeNull()
+    expect(estimateCost('mystery', '1K', 'high', 1)).toBeNull()
   })
 })
 
@@ -51,7 +51,7 @@ describe('aspectRatioFromSize', () => {
 describe('model option matrices', () => {
   it('both models share the gpt-image sizes and qualities', () => {
     const v15 = optionsForModel('gpt-image-1.5')
-    expect(v15.sizes.map((s) => s.value)).toContain('1024x1536')
+    expect(v15.sizes.map((s) => s.value)).toEqual(['1K', '2K', '4K'])
     expect(v15.qualities.map((q) => q.value)).toEqual(['auto', 'low', 'medium', 'high'])
 
     const v2 = optionsForModel('gpt-image-2')
@@ -64,7 +64,7 @@ describe('model option matrices', () => {
   })
 
   it('provides valid defaults per model', () => {
-    expect(defaultsForModel('gpt-image-1.5')).toEqual({ size: '1024x1024', quality: 'auto' })
-    expect(defaultsForModel('gpt-image-2')).toEqual({ size: '1024x1024', quality: 'auto' })
+    expect(defaultsForModel('gpt-image-1.5')).toEqual({ size: '1K', quality: 'auto' })
+    expect(defaultsForModel('gpt-image-2')).toEqual({ size: '1K', quality: 'auto' })
   })
 })
