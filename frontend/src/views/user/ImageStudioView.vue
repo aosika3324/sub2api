@@ -13,7 +13,7 @@
       <div class="grid grid-cols-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
         <!-- Left: conversations (flat / borderless) -->
         <aside
-          class="order-2 h-fit lg:order-1 lg:sticky lg:top-6 lg:max-h-[calc(100vh-4rem)]"
+          class="order-2 h-fit min-h-0 lg:order-1 lg:h-[calc(100vh-8rem)]"
         >
           <ConversationList
             :conversations="store.conversations"
@@ -29,7 +29,7 @@
 
         <!-- Main column: chat-style — history (scrolls) on top, composer pinned bottom -->
         <section
-          class="order-1 flex min-h-[60vh] min-w-0 flex-col gap-3 lg:order-2 lg:h-[calc(100vh-3.5rem)]"
+          class="order-1 flex min-h-[60vh] min-w-0 flex-col gap-3 lg:order-2 lg:h-[calc(100vh-8rem)]"
         >
           <!--
             History scroll area. Always-mounted with a stable dark surface so
