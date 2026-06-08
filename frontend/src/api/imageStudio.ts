@@ -157,10 +157,18 @@ export async function deleteGeneration(id: number): Promise<void> {
 /**
  * Fetch a protected image asset as a Blob.
  * The apiClient injects the Bearer token automatically.
+ *
+ * The backend builds asset URLs already prefixed with the API base path
+ * (e.g. "/api/v1/user/image-studio/assets/:genID/:idx"), but `apiClient`'s
+ * baseURL is also "/api/v1". Passing the absolute path straight through would
+ * make axios produce "/api/v1/api/v1/..." (a 404). Strip the leading base
+ * prefix so the final request carries exactly one "/api/v1" segment.
+ *
  * @param url - The asset URL (e.g. /api/v1/user/image-studio/assets/:genID/:idx)
  */
 export async function fetchAssetBlob(url: string): Promise<Blob> {
-  const { data } = await apiClient.get<Blob>(url, { responseType: 'blob' })
+  const path = url.replace(/^\/api\/v1(?=\/)/, '')
+  const { data } = await apiClient.get<Blob>(path, { responseType: 'blob' })
   return data
 }
 

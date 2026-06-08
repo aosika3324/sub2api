@@ -130,6 +130,12 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
   async function generate(req: GenerateImageStudioRequest): Promise<void> {
     generating.value = true
     error.value = null
+    // When the request carries no conversation_id the backend auto-creates a
+    // fresh conversation and returns its id. Remember that so we can adopt it as
+    // the active conversation and surface it in the sidebar (otherwise every
+    // generation from the global view would silently spawn a new one-off
+    // conversation and fragment a multi-turn session).
+    const createdNewConversation = req.conversation_id == null
     try {
       // `req` already carries `referenceImage` (when set) — the API layer turns
       // it into a multipart upload. We never persist the File on the generation.
@@ -154,6 +160,23 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
       }
 
       generations.value = [newGen, ...generations.value]
+
+      // Adopt the auto-created conversation as active and surface it in the
+      // sidebar immediately, so subsequent turns reuse it instead of spawning
+      // more one-off conversations. A locally synthesized entry avoids an extra
+      // round-trip; its title is the server's prompt-derived title and is
+      // refreshed authoritatively on the next real conversation load.
+      if (createdNewConversation && resp.conversation_id) {
+        activeConversationId.value = resp.conversation_id
+        if (!conversations.value.some((c) => c.id === resp.conversation_id)) {
+          const now = new Date().toISOString()
+          const title = (req.prompt ?? '').trim().slice(0, 80) || 'New image'
+          conversations.value = [
+            { id: resp.conversation_id, title, created_at: now, updated_at: now },
+            ...conversations.value,
+          ]
+        }
+      }
 
       // Update auth store balance
       const authStore = useAuthStore()

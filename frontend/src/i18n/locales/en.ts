@@ -1382,6 +1382,7 @@ export default {
     conversationDeleted: 'Conversation deleted',
     generationDeleted: 'Image deleted',
     errorGeneric: 'An error occurred. Please try again.',
+    retryReferenceFetchFailed: 'Could not load the reference image; this retry will run as text-to-image.',
     errorGroupNotEnabled: 'Image generation is not enabled for this group.',
     imageSettings: 'Image settings',
     aspectRatio: 'Aspect ratio',

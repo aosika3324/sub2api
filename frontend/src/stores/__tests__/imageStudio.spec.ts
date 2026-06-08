@@ -195,6 +195,33 @@ describe('useImageStudioStore', () => {
       expect(store.generating).toBe(false)
     })
 
+    it('M6: 自动创建会话后采用为 active 并加入侧栏列表', async () => {
+      // req has no conversation_id → backend auto-creates one (id 1 in resp).
+      mockGenerate.mockResolvedValue(fakeGenerateResp)
+
+      const store = useImageStudioStore()
+      expect(store.activeConversationId).toBeNull()
+
+      await store.generate(fakeGenerateReq)
+
+      expect(store.activeConversationId).toBe(1)
+      expect(store.conversations.some((c) => c.id === 1)).toBe(true)
+    })
+
+    it('M6: 传入 conversation_id 时不改变 active, 不新增会话', async () => {
+      mockGenerate.mockResolvedValue({ ...fakeGenerateResp, conversation_id: 8 })
+
+      const store = useImageStudioStore()
+      store.activeConversationId = 8
+      store.conversations = [fakeConversation2] // id 2
+
+      await store.generate({ ...fakeGenerateReq, conversation_id: 8 })
+
+      expect(store.activeConversationId).toBe(8)
+      expect(store.conversations).toHaveLength(1)
+      expect(store.conversations[0].id).toBe(2)
+    })
+
     it('generate 失败时不更新余额', async () => {
       mockGenerate.mockRejectedValue(new Error('fail'))
 

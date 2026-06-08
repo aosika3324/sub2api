@@ -342,6 +342,11 @@ async function handleRetry(generation: ImageStudioGeneration) {
   const source = generation.input_images?.[0]
   if (source) {
     referenceImage = await fetchInputAsFile(source)
+    if (!referenceImage) {
+      // The reference image could not be re-fetched. Warn instead of silently
+      // degrading an image-to-image retry into a text-to-image one.
+      appStore.showWarning(t('imageStudio.retryReferenceFetchFailed'))
+    }
   }
   runGenerate({
     group_id: generation.group_id,

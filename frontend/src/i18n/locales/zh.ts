@@ -1386,6 +1386,7 @@ export default {
     conversationDeleted: '会话已删除',
     generationDeleted: '图片已删除',
     errorGeneric: '发生错误，请重试。',
+    retryReferenceFetchFailed: '参考图获取失败，本次重试将作为文生图进行。',
     errorGroupNotEnabled: '当前分组未开启图片生成功能。',
     imageSettings: '图像设置',
     aspectRatio: '宽高比',
