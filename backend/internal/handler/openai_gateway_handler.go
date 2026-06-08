@@ -81,6 +81,7 @@ func NewOpenAIGatewayHandler(
 	usageRecordWorkerPool *service.UsageRecordWorkerPool,
 	errorPassthroughService *service.ErrorPassthroughService,
 	contentModerationService *service.ContentModerationService,
+	imageLimiter *service.ImageConcurrencyLimiter,
 	cfg *config.Config,
 ) *OpenAIGatewayHandler {
 	pingInterval := time.Duration(0)
@@ -91,6 +92,12 @@ func NewOpenAIGatewayHandler(
 			maxAccountSwitches = cfg.Gateway.MaxAccountSwitches
 		}
 	}
+	// Share the single process-wide image-generation limiter (injected) so the
+	// gateway HTTP/WS paths and the in-app image studio enforce ONE global cap.
+	// Fall back to a private instance if none is provided (e.g. standalone tests).
+	if imageLimiter == nil {
+		imageLimiter = &imageConcurrencyLimiter{}
+	}
 	return &OpenAIGatewayHandler{
 		gatewayService:           gatewayService,
 		billingCacheService:      billingCacheService,
@@ -99,7 +106,7 @@ func NewOpenAIGatewayHandler(
 		errorPassthroughService:  errorPassthroughService,
 		contentModerationService: contentModerationService,
 		concurrencyHelper:        NewConcurrencyHelper(concurrencyService, SSEPingFormatComment, pingInterval),
-		imageLimiter:             &imageConcurrencyLimiter{},
+		imageLimiter:             imageLimiter,
 		maxAccountSwitches:       maxAccountSwitches,
 		cfg:                      cfg,
 	}
@@ -1237,9 +1244,34 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		return
 	}
 
-	if service.IsImageGenerationIntent("/v1/responses", reqModel, firstMessage) && !service.GroupAllowsImageGeneration(apiKey.Group) {
+	imageIntent := service.IsImageGenerationIntent("/v1/responses", reqModel, firstMessage)
+	if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
 		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, service.ImageGenerationPermissionMessage())
 		return
+	}
+
+	// Acquire an image-generation concurrency slot for image-intent WS requests,
+	// at parity with the HTTP path (openai_images.go). The WS is already upgraded
+	// here, so on overflow we close with TryAgainLater instead of an HTTP error.
+	// Skipped when the limiter is disabled (Acquire returns acquired=true).
+	if imageIntent && h.imageLimiter != nil && h.cfg != nil {
+		ic := h.cfg.Gateway.ImageConcurrency
+		wait := strings.TrimSpace(ic.OverflowMode) == config.ImageConcurrencyOverflowModeWait
+		imageRelease, imageAcquired := h.imageLimiter.Acquire(
+			ctx,
+			ic.Enabled,
+			ic.MaxConcurrentRequests,
+			wait,
+			time.Duration(ic.WaitTimeoutSeconds)*time.Second,
+			ic.MaxWaitingRequests,
+		)
+		if !imageAcquired {
+			closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "Image generation concurrency limit exceeded, please retry later")
+			return
+		}
+		if imageRelease != nil {
+			defer imageRelease()
+		}
 	}
 
 	// 解析渠道级模型映射
