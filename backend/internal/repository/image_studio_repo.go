@@ -89,6 +89,77 @@ func (r *imageStudioRepository) DeleteConversation(ctx context.Context, id int64
 	return err
 }
 
+// DeleteConversationCascade soft-deletes a conversation together with all of its
+// (non-soft-deleted) generations in a single transaction, and returns the
+// storage keys (output + input) of those generations so the caller can delete
+// the underlying files. Ownership scoping is the caller's responsibility.
+func (r *imageStudioRepository) DeleteConversationCascade(ctx context.Context, id int64) ([]string, error) {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		return r.deleteConversationCascade(ctx, tx.Client(), id)
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	txCtx := dbent.NewTxContext(ctx, tx)
+	defer func() { _ = tx.Rollback() }()
+
+	keys, err := r.deleteConversationCascade(txCtx, tx.Client(), id)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
+func (r *imageStudioRepository) deleteConversationCascade(ctx context.Context, client *dbent.Client, id int64) ([]string, error) {
+	now := time.Now()
+
+	// Collect the storage keys of the conversation's live generations BEFORE
+	// deleting them, so the caller can remove the underlying files.
+	gens, err := client.ImageGeneration.Query().
+		Where(
+			imagegeneration.ConversationIDEQ(id),
+			imagegeneration.DeletedAtIsNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var keys []string
+	for _, g := range gens {
+		keys = append(keys, g.StorageKeys...)
+		keys = append(keys, g.InputStorageKeys...)
+	}
+
+	// Soft-delete the child generations.
+	if _, err := client.ImageGeneration.Update().
+		Where(
+			imagegeneration.ConversationIDEQ(id),
+			imagegeneration.DeletedAtIsNil(),
+		).
+		SetDeletedAt(now).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+
+	// Soft-delete the conversation itself.
+	if _, err := client.ImageConversation.Update().
+		Where(
+			imageconversation.IDEQ(id),
+			imageconversation.DeletedAtIsNil(),
+		).
+		SetDeletedAt(now).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+
+	return keys, nil
+}
+
 // DeleteGeneration soft-deletes a generation by stamping deleted_at.
 func (r *imageStudioRepository) DeleteGeneration(ctx context.Context, id int64) error {
 	client := clientFromContext(ctx, r.client)

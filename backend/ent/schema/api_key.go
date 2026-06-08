@@ -147,5 +147,14 @@ func (APIKey) Indexes() []ent.Index {
 		// Index for quota queries
 		index.Fields("quota", "quota_used"),
 		index.Fields("expires_at"),
+		// Partial unique index for hidden internal (studio-managed) keys: there must
+		// be at most one live internal key per (user_id, group_id, name). This makes
+		// EnsureStudioAPIKey's concurrent-create recovery branch reliable — a racing
+		// insert hits a unique violation (PG 23505 → ErrAPIKeyExists) instead of
+		// silently creating a duplicate. Scoped to internal rows so normal user keys
+		// (which may legitimately repeat a name across a user's groups) are unaffected.
+		index.Fields("user_id", "group_id", "name").
+			Unique().
+			Annotations(entsql.IndexWhere("internal = true AND deleted_at IS NULL")),
 	}
 }

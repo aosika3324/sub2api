@@ -35,19 +35,48 @@ func extForContentType(contentType string) string {
 		return "jpeg"
 	case "image/webp":
 		return "webp"
+	case "image/gif":
+		return "gif"
+	case "image/avif":
+		return "avif"
+	case "image/svg+xml":
+		return "svg"
+	case "image/bmp":
+		return "bmp"
+	case "image/tiff":
+		return "tiff"
+	case "image/heic":
+		return "heic"
+	case "image/heif":
+		return "heif"
 	default:
 		// Covers "image/png" and any unknown type.
 		return "png"
 	}
 }
 
-// contentTypeForExt maps file extensions back to MIME content-types.
+// contentTypeForExt maps file extensions back to MIME content-types. It must stay
+// the exact inverse of extForContentType so a stored image round-trips losslessly.
 func contentTypeForExt(ext string) string {
 	switch strings.ToLower(ext) {
 	case "jpeg", "jpg":
 		return "image/jpeg"
 	case "webp":
 		return "image/webp"
+	case "gif":
+		return "image/gif"
+	case "avif":
+		return "image/avif"
+	case "svg":
+		return "image/svg+xml"
+	case "bmp":
+		return "image/bmp"
+	case "tiff":
+		return "image/tiff"
+	case "heic":
+		return "image/heic"
+	case "heif":
+		return "image/heif"
 	default:
 		return "image/png"
 	}
