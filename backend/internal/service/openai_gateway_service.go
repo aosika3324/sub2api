@@ -5712,6 +5712,13 @@ func (s *OpenAIGatewayService) ComputeImageCostBreakdown(ctx context.Context, us
 	if s == nil || result == nil || result.ImageCount <= 0 {
 		return nil
 	}
+	// Resolve the billing size tier (output-tier preferred) BEFORE pricing, exactly
+	// as RecordUsage does. Without this the studio reports/persists a cost based on
+	// the requested size while RecordUsage later charges based on the resolved
+	// (often output) size — breaking the "reported cost == charged cost" invariant.
+	// ApplyOpenAIImageBillingResolution is idempotent, so RecordUsage's later call
+	// is a harmless no-op.
+	ApplyOpenAIImageBillingResolution(result)
 	multiplier := s.resolveOpenAIUsageRateMultiplier(ctx, user, apiKey)
 	imageMultiplier := resolveImageRateMultiplier(apiKey, multiplier)
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)

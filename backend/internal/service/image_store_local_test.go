@@ -45,6 +45,13 @@ func TestImageStoreLocal_ContentTypeExtRoundTrip(t *testing.T) {
 		{"image/jpeg", "image/jpeg", "jpeg"},
 		{"image/jpg", "image/jpeg", "jpeg"}, // normalised to jpeg on round-trip
 		{"image/webp", "image/webp", "webp"},
+		{"image/gif", "image/gif", "gif"},
+		{"image/avif", "image/avif", "avif"},
+		{"image/svg+xml", "image/svg+xml", "svg"},
+		{"image/bmp", "image/bmp", "bmp"},
+		{"image/tiff", "image/tiff", "tiff"},
+		{"image/heic", "image/heic", "heic"},
+		{"image/heif", "image/heif", "heif"},
 		{"image/unknown", "image/png", "png"}, // falls back to png
 	}
 

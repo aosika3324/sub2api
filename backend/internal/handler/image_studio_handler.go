@@ -42,6 +42,7 @@ type imageStudioRepo interface {
 	GetConversation(ctx context.Context, id int64) (*dbent.ImageConversation, error)
 	UpdateConversationTitle(ctx context.Context, id int64, title string) error
 	DeleteConversation(ctx context.Context, id int64) error
+	DeleteConversationCascade(ctx context.Context, id int64) ([]string, error)
 	GetGeneration(ctx context.Context, id int64) (*dbent.ImageGeneration, error)
 	ListGenerations(ctx context.Context, userID int64, conversationID *int64, page, size int) ([]*dbent.ImageGeneration, int, error)
 	DeleteGeneration(ctx context.Context, id int64) error
@@ -369,9 +370,17 @@ func (h *ImageStudioHandler) DeleteConversation(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.DeleteConversation(c.Request.Context(), id); err != nil {
+	// Cascade: soft-delete the conversation AND its generations in one
+	// transaction, returning the stored image keys so we can remove the files.
+	keys, err := h.repo.DeleteConversationCascade(c.Request.Context(), id)
+	if err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+	// Best-effort file cleanup (row deletes are the source of truth; a missing
+	// file must not fail the request). Mirrors DeleteGeneration's behavior.
+	for _, key := range keys {
+		_ = h.store.Delete(c.Request.Context(), key)
 	}
 	response.Success(c, gin.H{"message": "conversation deleted"})
 }
@@ -596,6 +605,8 @@ func (h *ImageStudioHandler) respondGenerateError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrImageStudioGroupNotAllowed),
 		errors.Is(err, service.ErrImageStudioImageGenerationDisabled):
 		response.Forbidden(c, err.Error())
+	case errors.Is(err, service.ErrImageStudioConversationNotFound):
+		response.NotFound(c, "Conversation not found")
 	case errors.Is(err, service.ErrImageStudioBusy):
 		response.Error(c, http.StatusTooManyRequests, err.Error())
 	case errors.Is(err, service.ErrImageStudioNoImages),

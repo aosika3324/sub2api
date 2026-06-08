@@ -159,6 +159,11 @@ var (
 	// ErrImageStudioNoAccount is returned when generation succeeded but reported no
 	// account (RecordUsage requires a non-nil account).
 	ErrImageStudioNoAccount = errors.New("image studio: generation returned no account")
+	// ErrImageStudioConversationNotFound is returned when a client-supplied
+	// conversation_id does not exist or does not belong to the acting user. The
+	// handler maps it to 404 (matching the other conversation endpoints) so it
+	// never leaks the existence of another user's conversation.
+	ErrImageStudioConversationNotFound = errors.New("image studio: conversation not found")
 )
 
 const (
@@ -167,6 +172,9 @@ const (
 	imageStudioStatusSucceeded = "succeeded"
 	imageStudioStatusFailed    = "failed"
 	imageStudioTitleMaxLen     = 80
+	// imageStudioMaxN caps the number of images per request, matching the OpenAI
+	// images endpoints' published limit. N is clamped (not rejected) to this.
+	imageStudioMaxN = 10
 )
 
 // ---------------------------------------------------------------------------
@@ -316,6 +324,8 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	n := in.N
 	if n <= 0 {
 		n = 1
+	} else if n > imageStudioMaxN {
+		n = imageStudioMaxN
 	}
 	gen, err := s.repo.CreateGeneration(ctx, &dbent.ImageGeneration{
 		UserID:         userID,
@@ -414,6 +424,13 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 
 	width, height := imageStudioDimensions(genResult.Result)
 
+	// Bill for the number of images actually decoded + stored, not the upstream
+	// data-array length. A partial-decode response (some entries missing/invalid
+	// b64_json) yields fewer stored images than result.ImageCount; charging the
+	// original count would overcharge for undelivered images. len(images) is
+	// guaranteed > 0 here, so the ImageCount > 0 billing guards still hold.
+	genResult.Result.ImageCount = len(images)
+
 	// --- Step 6b: record usage (cost calc + atomic deduct + usage_log). ---
 	// Spec §9: a RecordUsage failure here (after generate + store succeed) is a
 	// rare system error; balance was already gated by pre-flight, so we log
@@ -483,6 +500,15 @@ func (s *ImageStudioService) resolveAllowedGroup(ctx context.Context, userID, gr
 // (title derived from the prompt) when none was supplied.
 func (s *ImageStudioService) resolveConversation(ctx context.Context, userID int64, in ImageStudioGenerateInput) (int64, error) {
 	if in.ConversationID != nil {
+		// Never trust a client-supplied conversation_id: verify it exists and
+		// belongs to the acting user before appending generations to it. A
+		// missing/foreign id is reported as not-found (handler → 404) so it can't
+		// be used to attach rows to, or probe the existence of, another user's
+		// conversation.
+		conv, err := s.repo.GetConversation(ctx, *in.ConversationID)
+		if err != nil || conv == nil || conv.UserID != userID {
+			return 0, ErrImageStudioConversationNotFound
+		}
 		return *in.ConversationID, nil
 	}
 	conv, err := s.repo.CreateConversation(ctx, userID, deriveConversationTitle(in.Prompt))

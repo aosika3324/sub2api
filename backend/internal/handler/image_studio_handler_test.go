@@ -44,10 +44,15 @@ func (s *studioGeneratorStub) Generate(_ context.Context, userID int64, in servi
 }
 
 type studioRepoStub struct {
-	generation *dbent.ImageGeneration
-	getGenErr  error
-	delGenErr  error
-	delGenCall int
+	generation   *dbent.ImageGeneration
+	conversation *dbent.ImageConversation
+	getConvErr   error
+	getGenErr    error
+	delGenErr    error
+	delGenCall   int
+	cascadeKeys  []string
+	cascadeErr   error
+	cascadeCall  int
 }
 
 func (s *studioRepoStub) CreateConversation(_ context.Context, _ int64, _ string) (*dbent.ImageConversation, error) {
@@ -57,12 +62,16 @@ func (s *studioRepoStub) ListConversations(_ context.Context, _ int64, _, _ int)
 	return nil, 0, nil
 }
 func (s *studioRepoStub) GetConversation(_ context.Context, _ int64) (*dbent.ImageConversation, error) {
-	return nil, nil
+	return s.conversation, s.getConvErr
 }
 func (s *studioRepoStub) UpdateConversationTitle(_ context.Context, _ int64, _ string) error {
 	return nil
 }
 func (s *studioRepoStub) DeleteConversation(_ context.Context, _ int64) error { return nil }
+func (s *studioRepoStub) DeleteConversationCascade(_ context.Context, _ int64) ([]string, error) {
+	s.cascadeCall++
+	return s.cascadeKeys, s.cascadeErr
+}
 func (s *studioRepoStub) GetGeneration(_ context.Context, _ int64) (*dbent.ImageGeneration, error) {
 	return s.generation, s.getGenErr
 }
@@ -427,4 +436,39 @@ func TestImageStudioDeleteGeneration_OwnerDeletesFilesAndRow(t *testing.T) {
 	require.Equal(t, 1, repo.delGenCall)
 	// Both output and user-provided reference (input) images are removed.
 	require.ElementsMatch(t, []string{"a", "b", "input_a", "input_b"}, store.deletedKeys)
+}
+
+func TestImageStudioDeleteConversation_OtherUser404(t *testing.T) {
+	repo := &studioRepoStub{conversation: &dbent.ImageConversation{ID: 3, UserID: 99}}
+	store := &studioStoreStub{}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodDelete, "/conversations/3", "")
+	c.Params = gin.Params{{Key: "id", Value: "3"}}
+	setStudioAuth(c, 7) // requesting user 7, not the owner (99)
+
+	h.DeleteConversation(c)
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Equal(t, 0, repo.cascadeCall, "must not cascade another user's conversation")
+	require.Empty(t, store.deletedKeys)
+}
+
+func TestImageStudioDeleteConversation_OwnerCascadesAndDeletesFiles(t *testing.T) {
+	repo := &studioRepoStub{
+		conversation: &dbent.ImageConversation{ID: 3, UserID: 7},
+		// Keys of all generations in the conversation, returned by the cascade.
+		cascadeKeys: []string{"a", "b", "input_a"},
+	}
+	store := &studioStoreStub{}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodDelete, "/conversations/3", "")
+	c.Params = gin.Params{{Key: "id", Value: "3"}}
+	setStudioAuth(c, 7)
+
+	h.DeleteConversation(c)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, 1, repo.cascadeCall)
+	// The conversation's generation files (output + input) are all removed.
+	require.ElementsMatch(t, []string{"a", "b", "input_a"}, store.deletedKeys)
 }

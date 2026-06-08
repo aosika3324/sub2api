@@ -255,7 +255,13 @@ func (s *studioRepoStub) ListGenerations(_ context.Context, _ int64, _ *int64, _
 	return nil, 0, nil
 }
 
-func (s *studioRepoStub) GetConversation(_ context.Context, _ int64) (*dbent.ImageConversation, error) {
+func (s *studioRepoStub) GetConversation(_ context.Context, id int64) (*dbent.ImageConversation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if c, ok := s.conversations[id]; ok {
+		clone := *c
+		return &clone, nil
+	}
 	return nil, errors.New("not found")
 }
 
@@ -265,6 +271,10 @@ func (s *studioRepoStub) UpdateConversationTitle(_ context.Context, _ int64, _ s
 
 func (s *studioRepoStub) DeleteConversation(_ context.Context, _ int64) error {
 	return nil
+}
+
+func (s *studioRepoStub) DeleteConversationCascade(_ context.Context, _ int64) ([]string, error) {
+	return nil, nil
 }
 
 func (s *studioRepoStub) DeleteGeneration(_ context.Context, _ int64) error {
@@ -517,6 +527,9 @@ func TestImageStudioService_Generate_Success_NewConversation(t *testing.T) {
 func TestImageStudioService_Generate_Success_ExistingConversation(t *testing.T) {
 	f := newStudioFixture(t)
 	convID := int64(555)
+	// The conversation must exist and belong to the acting user (id 1); Generate
+	// now verifies ownership of a client-supplied conversation_id.
+	f.repo.conversations[convID] = &dbent.ImageConversation{ID: convID, UserID: 1}
 	in := studioInput(10)
 	in.ConversationID = &convID
 
@@ -526,6 +539,76 @@ func TestImageStudioService_Generate_Success_ExistingConversation(t *testing.T) 
 	require.NotNil(t, res)
 	require.Equal(t, 0, f.repo.createdConv, "must reuse existing conversation")
 	require.Equal(t, convID, res.ConversationID)
+}
+
+func TestImageStudioService_Generate_ForeignConversation_NotFound(t *testing.T) {
+	f := newStudioFixture(t)
+	convID := int64(777)
+	// Conversation belongs to a different user; the acting user (id 1) must be
+	// rejected with the not-found sentinel (handler maps it to 404).
+	f.repo.conversations[convID] = &dbent.ImageConversation{ID: convID, UserID: 2}
+	in := studioInput(10)
+	in.ConversationID = &convID
+
+	res, err := f.svc.Generate(context.Background(), 1, in)
+
+	require.Nil(t, res)
+	require.ErrorIs(t, err, ErrImageStudioConversationNotFound)
+	// Nothing should have been generated, billed, or persisted.
+	require.Equal(t, 0, f.gen.calls)
+	require.Equal(t, 0, f.usage.calls)
+}
+
+func TestImageStudioService_Generate_MissingConversation_NotFound(t *testing.T) {
+	f := newStudioFixture(t)
+	missing := int64(9999)
+	in := studioInput(10)
+	in.ConversationID = &missing
+
+	res, err := f.svc.Generate(context.Background(), 1, in)
+
+	require.Nil(t, res)
+	require.ErrorIs(t, err, ErrImageStudioConversationNotFound)
+}
+
+func TestImageStudioService_Generate_BillsDecodedCount_NotDataCount(t *testing.T) {
+	f := newStudioFixture(t)
+	// Upstream reported 2 images, but only 1 decoded successfully.
+	f.gen.result = &ImageGenResult{
+		Result:  &OpenAIForwardResult{ImageCount: 2, ImageSize: "2K", Model: "gpt-image-2"},
+		Account: &Account{ID: 99, Platform: PlatformOpenAI},
+	}
+	f.gen.images = []StudioGeneratedImage{{Data: []byte("a"), ContentType: "image/png"}}
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Len(t, res.Images, 1)
+	require.Equal(t, 1, f.store.putCalls, "only the decoded image is stored")
+	// Cost + usage must be computed on the actually-delivered count, not the
+	// upstream data-array length, so the user is not overcharged.
+	require.NotNil(t, f.cost.last)
+	require.Equal(t, 1, f.cost.last.ImageCount, "cost computed on decoded count")
+	require.NotNil(t, f.usage.last)
+	require.NotNil(t, f.usage.last.Result)
+	require.Equal(t, 1, f.usage.last.Result.ImageCount, "billed on decoded count")
+	last, ok := f.repo.lastStatus()
+	require.True(t, ok)
+	require.Equal(t, 1, last.imageCount, "persisted image_count matches decoded count")
+}
+
+func TestImageStudioService_Generate_ClampsNToMax(t *testing.T) {
+	f := newStudioFixture(t)
+	in := studioInput(10)
+	in.N = 1000
+
+	res, err := f.svc.Generate(context.Background(), 1, in)
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.NotNil(t, f.gen.last.Parsed)
+	require.Equal(t, imageStudioMaxN, f.gen.last.Parsed.N, "N is clamped to the studio max before forwarding upstream")
 }
 
 func TestImageStudioService_Generate_GenerateError_MarksFailed_NoUsage(t *testing.T) {

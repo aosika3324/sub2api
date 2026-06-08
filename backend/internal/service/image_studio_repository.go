@@ -19,6 +19,11 @@ type ImageStudioRepository interface {
 	UpdateConversationTitle(ctx context.Context, id int64, title string) error
 	// DeleteConversation soft-deletes a conversation. Ownership scoping is the caller's responsibility.
 	DeleteConversation(ctx context.Context, id int64) error
+	// DeleteConversationCascade soft-deletes a conversation together with all of its
+	// generations in one transaction and returns the storage keys (output + input)
+	// of those generations so the caller can delete the underlying files. Ownership
+	// scoping is the caller's responsibility.
+	DeleteConversationCascade(ctx context.Context, id int64) ([]string, error)
 	// CreateGeneration persists a new image generation record built by the caller.
 	CreateGeneration(ctx context.Context, g *dbent.ImageGeneration) (*dbent.ImageGeneration, error)
 	// UpdateGenerationStatus updates result fields after a generation completes or fails.
