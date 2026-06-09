@@ -37,7 +37,11 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 
 	if isOpenAIImageRateLimitError(statusCode, responseBody) {
 		if s != nil && s.rateLimitService != nil {
-			_ = s.rateLimitService.HandleOpenAIImageRateLimit(stateCtx, account, statusCode, headers, responseBody)
+			modelForCooldown := ""
+			if len(requestedModel) > 0 {
+				modelForCooldown = requestedModel[0]
+			}
+			_ = s.rateLimitService.HandleOpenAIImageRateLimit(stateCtx, account, statusCode, headers, responseBody, modelForCooldown)
 		}
 		return false
 	}

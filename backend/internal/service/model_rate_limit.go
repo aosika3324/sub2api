@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	modelRateLimitsKey                 = "model_rate_limits"
-	antigravityGeminiModelRateLimitKey = "antigravity:gemini"
-	openAIImageGenerationRateLimitKey  = "openai:image_generation"
+	modelRateLimitsKey                      = "model_rate_limits"
+	antigravityGeminiModelRateLimitKey      = "antigravity:gemini"
+	openAIImageGenerationRateLimitKey       = "openai:image_generation"
+	openAICodexImageGenerationRateLimitKey  = "openai:codex_image_generation"
 )
 
 // isRateLimitActiveForKey 检查指定 key 的限流是否生效
@@ -79,7 +80,13 @@ func (a *Account) modelRateLimitKeysForRequest(ctx context.Context, requestedMod
 			keys = append(keys, antigravityGeminiModelRateLimitKey)
 		}
 	case PlatformOpenAI:
-		if openAIImageGenerationRateLimitApplies(ctx, requestedModel, modelKey) && modelKey != openAIImageGenerationRateLimitKey {
+		if openAICodexImageGenerationRateLimitApplies(requestedModel, modelKey) {
+			codexModelKey := strings.TrimSpace(requestedModel)
+			if !isOpenAICodexImageGenerationModel(codexModelKey) {
+				codexModelKey = strings.TrimSpace(modelKey)
+			}
+			keys = []string{codexModelKey, openAICodexImageGenerationRateLimitKey}
+		} else if openAIImageGenerationRateLimitApplies(ctx, requestedModel, modelKey) && modelKey != openAIImageGenerationRateLimitKey {
 			keys = append(keys, openAIImageGenerationRateLimitKey)
 		}
 	}
@@ -87,10 +94,28 @@ func (a *Account) modelRateLimitKeysForRequest(ctx context.Context, requestedMod
 }
 
 func openAIImageGenerationRateLimitApplies(ctx context.Context, requestedModel, modelKey string) bool {
+	if openAICodexImageGenerationRateLimitApplies(requestedModel, modelKey) {
+		return false
+	}
 	if isOpenAIImageGenerationModel(requestedModel) || isOpenAIImageGenerationModel(modelKey) {
 		return true
 	}
 	return OpenAIImageGenerationIntentFromContext(ctx)
+}
+
+func openAICodexImageGenerationRateLimitApplies(requestedModel, modelKey string) bool {
+	return isOpenAICodexImageGenerationModel(requestedModel) || isOpenAICodexImageGenerationModel(modelKey)
+}
+
+func isOpenAICodexImageGenerationModel(model string) bool {
+	return strings.EqualFold(strings.TrimSpace(model), openAICodexImageModelAlias)
+}
+
+func openAIImageGenerationRateLimitKeyForRequest(requestedModel string) string {
+	if isOpenAICodexImageGenerationModel(requestedModel) {
+		return openAICodexImageGenerationRateLimitKey
+	}
+	return openAIImageGenerationRateLimitKey
 }
 
 func WithOpenAIImageGenerationIntent(ctx context.Context) context.Context {

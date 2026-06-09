@@ -212,6 +212,51 @@ func TestIsModelRateLimited(t *testing.T) {
 			expected:       true,
 		},
 		{
+			name: "openai image generation family key does not block codex image alias",
+			account: &Account{
+				Platform: PlatformOpenAI,
+				Extra: map[string]any{
+					modelRateLimitsKey: map[string]any{
+						openAIImageGenerationRateLimitKey: map[string]any{
+							"rate_limit_reset_at": future,
+						},
+					},
+				},
+			},
+			requestedModel: openAICodexImageModelAlias,
+			expected:       false,
+		},
+		{
+			name: "openai codex image generation family key blocks codex alias",
+			account: &Account{
+				Platform: PlatformOpenAI,
+				Extra: map[string]any{
+					modelRateLimitsKey: map[string]any{
+						openAICodexImageGenerationRateLimitKey: map[string]any{
+							"rate_limit_reset_at": future,
+						},
+					},
+				},
+			},
+			requestedModel: openAICodexImageModelAlias,
+			expected:       true,
+		},
+		{
+			name: "openai codex image generation family key does not block official image model",
+			account: &Account{
+				Platform: PlatformOpenAI,
+				Extra: map[string]any{
+					modelRateLimitsKey: map[string]any{
+						openAICodexImageGenerationRateLimitKey: map[string]any{
+							"rate_limit_reset_at": future,
+						},
+					},
+				},
+			},
+			requestedModel: "gpt-image-2",
+			expected:       false,
+		},
+		{
 			name: "openai image generation family key does not block text model",
 			account: &Account{
 				Platform: PlatformOpenAI,

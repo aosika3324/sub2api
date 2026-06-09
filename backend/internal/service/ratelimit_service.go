@@ -1626,7 +1626,7 @@ func (s *RateLimitService) HandleTempUnschedulable(ctx context.Context, account 
 	return s.tryTempUnschedulable(ctx, account, statusCode, responseBody)
 }
 
-func (s *RateLimitService) HandleOpenAIImageRateLimit(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte) bool {
+func (s *RateLimitService) HandleOpenAIImageRateLimit(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte, requestedModel string) bool {
 	if s == nil || account == nil || s.accountRepo == nil {
 		return false
 	}
@@ -1642,11 +1642,12 @@ func (s *RateLimitService) HandleOpenAIImageRateLimit(ctx context.Context, accou
 	}
 
 	resetAt := openAIImageRateLimitResetAt(headers, responseBody)
-	if err := s.accountRepo.SetModelRateLimit(ctx, account.ID, openAIImageGenerationRateLimitKey, resetAt, openAIImageRateLimitReason); err != nil {
-		slog.Warn("openai_image_rate_limit_set_model_rate_limit_failed", "account_id", account.ID, "scope", openAIImageGenerationRateLimitKey, "error", err)
+	scope := openAIImageGenerationRateLimitKeyForRequest(requestedModel)
+	if err := s.accountRepo.SetModelRateLimit(ctx, account.ID, scope, resetAt, openAIImageRateLimitReason); err != nil {
+		slog.Warn("openai_image_rate_limit_set_model_rate_limit_failed", "account_id", account.ID, "scope", scope, "error", err)
 		return true
 	}
-	slog.Info("openai_image_rate_limited", "account_id", account.ID, "scope", openAIImageGenerationRateLimitKey, "reset_at", resetAt, "reset_in", time.Until(resetAt).Truncate(time.Second))
+	slog.Info("openai_image_rate_limited", "account_id", account.ID, "scope", scope, "reset_at", resetAt, "reset_in", time.Until(resetAt).Truncate(time.Second))
 	return true
 }
 
