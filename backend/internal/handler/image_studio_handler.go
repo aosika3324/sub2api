@@ -747,12 +747,12 @@ func applyStudioAssetCacheHeaders(c *gin.Context, gen *dbent.ImageGeneration, ke
 	}
 
 	if studioAssetETagMatches(c.GetHeader("If-None-Match"), etag) {
-		c.Status(http.StatusNotModified)
+		c.AbortWithStatus(http.StatusNotModified)
 		return true
 	}
 	if raw := strings.TrimSpace(c.GetHeader("If-Modified-Since")); raw != "" && !modified.IsZero() {
 		if since, err := http.ParseTime(raw); err == nil && !modified.After(since.UTC()) {
-			c.Status(http.StatusNotModified)
+			c.AbortWithStatus(http.StatusNotModified)
 			return true
 		}
 	}
