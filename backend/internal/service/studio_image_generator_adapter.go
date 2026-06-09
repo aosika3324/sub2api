@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -64,7 +65,7 @@ func (a *studioImageGeneratorAdapter) GenerateStudioImages(ctx context.Context, 
 		return result, nil, err
 	}
 
-	images, decodeErr := decodeStudioImagesFromCapturedBody(capture.Body(), capture.ContentType())
+	images, decodeErr := a.decodeStudioImagesFromCapturedBody(ctx, capture.Body(), capture.ContentType(), result)
 	if decodeErr != nil {
 		return result, nil, decodeErr
 	}
@@ -81,12 +82,24 @@ func (a *studioImageGeneratorAdapter) maxAccountSwitches() int {
 }
 
 // decodeStudioImagesFromCapturedBody parses the captured non-streaming images
-// response body (OpenAI b64_json shape: {"data":[{"b64_json":"...","content_type"?:"..."}], ...})
-// and returns the decoded image bytes. This is the isolated, unit-tested core.
+// response body (usually {"data":[{"b64_json":"..."}], ...}) and returns the
+// decoded image bytes. This pure helper preserves the historical behavior: HTTP
+// URL-only entries need an explicit downloader and otherwise remain an error.
 //
 // Content type: defaults to image/png; if a per-image content type is present in
 // the response (content_type / mime_type / output_format) it is used instead.
 func decodeStudioImagesFromCapturedBody(body []byte, fallbackContentType string) ([]StudioGeneratedImage, error) {
+	return decodeStudioImagesFromCapturedBodyWithDownloader(context.Background(), body, fallbackContentType, nil)
+}
+
+type studioImageURLDownloader func(ctx context.Context, rawURL string) ([]byte, string, error)
+
+func decodeStudioImagesFromCapturedBodyWithDownloader(
+	ctx context.Context,
+	body []byte,
+	fallbackContentType string,
+	downloadURL studioImageURLDownloader,
+) ([]StudioGeneratedImage, error) {
 	if len(bytes.TrimSpace(body)) == 0 {
 		return nil, ErrImageStudioNoImages
 	}
@@ -107,26 +120,43 @@ func decodeStudioImagesFromCapturedBody(body []byte, fallbackContentType string)
 	var images []StudioGeneratedImage
 	var firstErr error
 	data.ForEach(func(_, item gjson.Result) bool {
+		ct := studioImageEntryContentType(item)
+		if ct == "" {
+			ct = defaultCT
+		}
+
 		b64 := strings.TrimSpace(item.Get("b64_json").String())
-		if b64 == "" {
-			// No inline base64 for this entry (e.g. a url-only response). The studio
-			// forces response_format=b64_json, so a missing field is a hard error we
-			// record but keep scanning the remaining entries.
+		if b64 != "" {
+			decoded, err := decodeStudioBase64(b64)
+			if err != nil {
+				if firstErr == nil {
+					firstErr = fmt.Errorf("image studio: decode b64_json: %w", err)
+				}
+				return true
+			}
+			images = append(images, StudioGeneratedImage{Data: decoded, ContentType: ct})
+			return true
+		}
+
+		rawURL := studioImageEntryURL(item)
+		if rawURL == "" {
 			if firstErr == nil {
 				firstErr = fmt.Errorf("image studio: response entry missing b64_json")
 			}
 			return true
 		}
-		decoded, err := decodeStudioBase64(b64)
+
+		decoded, downloadedCT, err := decodeStudioURLImage(ctx, rawURL, downloadURL)
 		if err != nil {
 			if firstErr == nil {
-				firstErr = fmt.Errorf("image studio: decode b64_json: %w", err)
+				firstErr = fmt.Errorf("image studio: decode url image: %w", err)
 			}
 			return true
 		}
-		ct := studioImageEntryContentType(item)
-		if ct == "" {
-			ct = defaultCT
+		if downloadedCT != "" {
+			ct = downloadedCT
+		} else if detected := normalizeStudioImageContentType(http.DetectContentType(decoded)); detected != "" {
+			ct = detected
 		}
 		images = append(images, StudioGeneratedImage{Data: decoded, ContentType: ct})
 		return true
@@ -139,6 +169,149 @@ func decodeStudioImagesFromCapturedBody(body []byte, fallbackContentType string)
 		return nil, ErrImageStudioNoImages
 	}
 	return images, nil
+}
+
+func (a *studioImageGeneratorAdapter) decodeStudioImagesFromCapturedBody(
+	ctx context.Context,
+	body []byte,
+	fallbackContentType string,
+	result *ImageGenResult,
+) ([]StudioGeneratedImage, error) {
+	return decodeStudioImagesFromCapturedBodyWithDownloader(
+		ctx,
+		body,
+		fallbackContentType,
+		func(ctx context.Context, rawURL string) ([]byte, string, error) {
+			return a.downloadStudioImageURL(ctx, rawURL, result)
+		},
+	)
+}
+
+func decodeStudioURLImage(
+	ctx context.Context,
+	rawURL string,
+	downloadURL studioImageURLDownloader,
+) ([]byte, string, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return nil, "", fmt.Errorf("empty image url")
+	}
+	if strings.HasPrefix(strings.ToLower(rawURL), "data:image/") {
+		data, err := decodeStudioBase64(rawURL)
+		return data, studioDataURLContentType(rawURL), err
+	}
+	if downloadURL == nil {
+		return nil, "", fmt.Errorf("url-only image response requires server download")
+	}
+	return downloadURL(ctx, rawURL)
+}
+
+func (a *studioImageGeneratorAdapter) downloadStudioImageURL(
+	ctx context.Context,
+	rawURL string,
+	result *ImageGenResult,
+) ([]byte, string, error) {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return nil, "", fmt.Errorf("empty image url")
+	}
+	if !strings.HasPrefix(strings.ToLower(rawURL), "http://") &&
+		!strings.HasPrefix(strings.ToLower(rawURL), "https://") {
+		return nil, "", fmt.Errorf("unsupported image url scheme")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
+	if err != nil {
+		return nil, "", err
+	}
+	req = req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileOpenAI))
+	req.Header.Set("Accept", "image/*,*/*;q=0.8")
+	req.Header.Set("User-Agent", openAIImageBackendUserAgent)
+	if result != nil && result.Account != nil {
+		if customUA := strings.TrimSpace(result.Account.GetOpenAIUserAgent()); customUA != "" {
+			req.Header.Set("User-Agent", customUA)
+		}
+		if a != nil && a.gw != nil && strings.HasPrefix(rawURL, openAIChatGPTStartURL) {
+			if token, _, tokenErr := a.gw.GetAccessToken(ctx, result.Account); tokenErr == nil && strings.TrimSpace(token) != "" {
+				req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(token))
+			}
+		}
+	}
+
+	proxyURL := ""
+	accountID := int64(0)
+	accountConcurrency := 0
+	if result != nil && result.Account != nil {
+		accountID = result.Account.ID
+		accountConcurrency = result.Account.Concurrency
+		if result.Account.ProxyID != nil && result.Account.Proxy != nil {
+			proxyURL = result.Account.Proxy.URL()
+		}
+	}
+
+	var resp *http.Response
+	if a != nil && a.gw != nil && a.gw.httpUpstream != nil {
+		resp, err = a.gw.httpUpstream.Do(req, proxyURL, accountID, accountConcurrency)
+	} else {
+		resp, err = http.DefaultClient.Do(req)
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		limit := openAIUpstreamErrorBodyReadLimit
+		if a != nil && a.gw != nil {
+			limit = openAIUpstreamErrorBodyReadLimitForConfig(a.gw.cfg)
+		}
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, limit))
+		msg := sanitizeUpstreamErrorMessage(extractUpstreamErrorMessage(body))
+		if msg == "" {
+			msg = fmt.Sprintf("download image url failed: status %d", resp.StatusCode)
+		}
+		return nil, "", fmt.Errorf("%s", msg)
+	}
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, openAIImageMaxDownloadBytes))
+	if err != nil {
+		return nil, "", err
+	}
+	if len(data) == 0 {
+		return nil, "", ErrImageStudioNoImages
+	}
+	ct := normalizeStudioImageContentType(resp.Header.Get("Content-Type"))
+	if ct == "" {
+		ct = normalizeStudioImageContentType(http.DetectContentType(data))
+	}
+	if ct == "" {
+		return nil, "", fmt.Errorf("downloaded URL did not return an image")
+	}
+	return data, ct, nil
+}
+
+func studioImageEntryURL(item gjson.Result) string {
+	for _, field := range []string{"download_url", "url", "image_url"} {
+		if raw := strings.TrimSpace(item.Get(field).String()); raw != "" {
+			return raw
+		}
+	}
+	return ""
+}
+
+func studioDataURLContentType(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if !strings.HasPrefix(strings.ToLower(raw), "data:") {
+		return ""
+	}
+	comma := strings.Index(raw, ",")
+	if comma < 0 {
+		return ""
+	}
+	meta := strings.TrimPrefix(raw[:comma], "data:")
+	if semi := strings.Index(meta, ";"); semi >= 0 {
+		meta = meta[:semi]
+	}
+	return normalizeStudioImageContentType(meta)
 }
 
 // studioImageEntryContentType resolves a per-image content type from the common

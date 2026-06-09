@@ -3,6 +3,7 @@
 package service
 
 import (
+	"context"
 	"encoding/base64"
 	"testing"
 
@@ -82,6 +83,37 @@ func TestStudioImageDecode_NoImages(t *testing.T) {
 		_, err := decodeStudioImagesFromCapturedBody([]byte(`{"data":[{"url":"http://x/y.png"}]}`), "")
 		require.Error(t, err)
 	})
+}
+
+func TestStudioImageDecode_URLOnlyWithDownloader(t *testing.T) {
+	body := []byte(`{"data":[{"url":"https://cdn.example.com/image.webp"}]}`)
+
+	images, err := decodeStudioImagesFromCapturedBodyWithDownloader(
+		context.Background(),
+		body,
+		"",
+		func(ctx context.Context, rawURL string) ([]byte, string, error) {
+			require.Equal(t, "https://cdn.example.com/image.webp", rawURL)
+			return []byte("downloaded-image"), "image/webp", nil
+		},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, images, 1)
+	require.Equal(t, []byte("downloaded-image"), images[0].Data)
+	require.Equal(t, "image/webp", images[0].ContentType)
+}
+
+func TestStudioImageDecode_DataURL(t *testing.T) {
+	raw := []byte("inline-url-image")
+	body := []byte(`{"data":[{"url":"data:image/jpeg;base64,` + base64.StdEncoding.EncodeToString(raw) + `"}]}`)
+
+	images, err := decodeStudioImagesFromCapturedBody(body, "")
+
+	require.NoError(t, err)
+	require.Len(t, images, 1)
+	require.Equal(t, raw, images[0].Data)
+	require.Equal(t, "image/jpeg", images[0].ContentType)
 }
 
 // TestStudioCaptureWriter_CapturesBodyAndContentType verifies the capturing
