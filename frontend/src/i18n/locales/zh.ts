@@ -1399,6 +1399,8 @@ export default {
     noImages: '暂无图片',
     generationFailed: '生成失败',
     imageLoadFailed: '图片加载失败',
+    imageLoading: '图片加载中',
+    cachedUrlFallback: '缓存链接',
     deleteConversationTitle: '删除会话？',
     deleteConversationMessage: '该操作将永久删除此会话及其所有图片。',
     deleteGenerationTitle: '删除图片？',

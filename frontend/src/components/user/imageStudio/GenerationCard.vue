@@ -107,8 +107,8 @@
       <!-- Succeeded with images -->
       <div
         v-else-if="isSucceeded && images.length > 0"
-        class="grid gap-3"
-        :class="gridColsClass"
+        class="result-grid"
+        :class="[gridColsClass, { 'result-grid-single': images.length === 1 }]"
       >
         <AuthedImage
           v-for="(url, idx) in images"
@@ -116,6 +116,7 @@
           :url="url"
           :alt="generation.prompt"
           :aspect-ratio="aspectRatio"
+          class="result-image"
           @open="$emit('open', $event)"
         />
       </div>
@@ -262,5 +263,26 @@ function formatElapsed(ms: number) {
 /* Small fixed-height source thumbnails for image-to-image inputs. */
 .source-thumb {
   @apply h-16 w-16 flex-shrink-0;
+}
+
+.result-grid {
+  @apply grid gap-3;
+}
+
+.result-grid-single {
+  @apply mx-auto w-full;
+  max-width: min(100%, 920px);
+}
+
+.result-image {
+  min-height: 280px;
+  max-height: min(72vh, 860px);
+}
+
+@media (max-width: 640px) {
+  .result-image {
+    min-height: 220px;
+    max-height: 72vh;
+  }
 }
 </style>

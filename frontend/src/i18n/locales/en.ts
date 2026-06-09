@@ -1395,6 +1395,8 @@ export default {
     noImages: 'No images',
     generationFailed: 'Generation failed',
     imageLoadFailed: 'Image failed to load',
+    imageLoading: 'Loading image',
+    cachedUrlFallback: 'Cached URL',
     deleteConversationTitle: 'Delete conversation?',
     deleteConversationMessage: 'This will permanently delete this conversation and all its images.',
     deleteGenerationTitle: 'Delete image?',

@@ -102,24 +102,40 @@
 
           <div class="control-field control-field-model">
             <span class="control-label">{{ t('imageStudio.model') }}</span>
-            <Select
-              v-model="model"
-              class="workbench-select"
-              :options="modelOptions"
-              :disabled="disabled"
-              :aria-label="t('imageStudio.model')"
-            />
+            <div class="model-chip-grid" role="radiogroup" :aria-label="t('imageStudio.model')">
+              <button
+                v-for="option in modelOptions"
+                :key="option.value"
+                type="button"
+                class="model-chip"
+                :class="{ 'model-chip-active': model === option.value }"
+                :disabled="disabled"
+                :aria-checked="model === option.value"
+                role="radio"
+                @click="selectModel(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
           </div>
 
           <div class="control-field control-field-count">
             <span class="control-label">{{ t('imageStudio.count') }}</span>
-            <Select
-              v-model="n"
-              class="workbench-select"
-              :options="countOptions"
-              :disabled="disabled"
-              :aria-label="t('imageStudio.count')"
-            />
+            <div class="count-chip-grid" role="radiogroup" :aria-label="t('imageStudio.count')">
+              <button
+                v-for="count in countOptions"
+                :key="count.value"
+                type="button"
+                class="count-chip"
+                :class="{ 'count-chip-active': n === count.value }"
+                :disabled="disabled"
+                :aria-checked="n === count.value"
+                role="radio"
+                @click="selectCount(count.value)"
+              >
+                {{ count.label }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -420,6 +436,16 @@ const qualityOptions = computed(() =>
 )
 
 const countOptions = COUNT_OPTIONS.map((v) => ({ value: v, label: String(v) }))
+
+function selectModel(next: ModelId) {
+  if (disabled.value) return
+  model.value = next
+}
+
+function selectCount(next: number) {
+  if (disabled.value) return
+  n.value = next
+}
 
 // Submit payload size: the `auto` sentinel or a concrete "WxH" pair.
 const submitSize = computed(() =>
@@ -931,6 +957,46 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 
 .mode-summary-ok {
   @apply bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300;
+}
+
+.model-chip-grid {
+  @apply grid grid-cols-1 gap-1.5;
+}
+
+.model-chip {
+  @apply min-w-0 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-left text-xs font-semibold text-gray-600 transition-colors;
+  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300;
+  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+}
+
+.model-chip-active {
+  @apply border-primary-500 bg-primary-50 text-primary-700 ring-1 ring-primary-500/30;
+  @apply dark:border-primary-500 dark:bg-primary-900/30 dark:text-primary-300;
+}
+
+.model-chip:disabled,
+.count-chip:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.count-chip-grid {
+  @apply grid grid-cols-5 gap-1.5;
+}
+
+.count-chip {
+  @apply flex h-8 min-w-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-600 transition-colors;
+  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300;
+  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+}
+
+.count-chip-active {
+  @apply border-primary-500 bg-primary-600 text-white shadow-sm;
+  @apply hover:bg-primary-600 hover:text-white;
+  @apply dark:border-primary-500 dark:bg-primary-600 dark:text-white;
 }
 
 /* Auto toggle (custom-size disabled state). */

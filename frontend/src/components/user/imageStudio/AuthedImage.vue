@@ -7,11 +7,14 @@
     <!-- Loading -->
     <div
       v-if="!visible || loading"
-      class="absolute inset-0 flex items-center justify-center"
+      class="absolute inset-0 flex flex-col items-center justify-center gap-2"
     >
       <div
         class="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
       ></div>
+      <span class="px-2 text-center text-xs text-gray-400 dark:text-dark-400">
+        {{ t('imageStudio.imageLoading') }}
+      </span>
     </div>
 
     <!-- Error -->
@@ -36,6 +39,13 @@
       @error="markImageError"
       @click="$emit('open', displaySrc)"
     />
+
+    <div
+      v-if="error && displaySrc"
+      class="pointer-events-none absolute bottom-2 left-2 rounded-md bg-black/60 px-2 py-1 text-[11px] font-medium text-white"
+    >
+      {{ t('imageStudio.cachedUrlFallback') }}
+    </div>
   </div>
 </template>
 

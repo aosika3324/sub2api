@@ -137,6 +137,8 @@ describe('ImageComposer', () => {
     expect(wrapper.find('.capability-strip').exists()).toBe(true)
     expect(wrapper.find('.reference-workbench').exists()).toBe(true)
     expect(wrapper.find('.prompt-panel').exists()).toBe(true)
+    expect(wrapper.find('.model-chip-grid').exists()).toBe(true)
+    expect(wrapper.find('.count-chip-grid').exists()).toBe(true)
     expect(wrapper.text()).toContain('imageStudio.workbenchTitle')
     expect(wrapper.text()).toContain('imageStudio.workbenchSubtitle')
     expect(wrapper.text()).toContain('imageStudio.workbenchModeTitle')
@@ -153,10 +155,9 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer([makeGroup()])
     await flushPromises()
 
-    const modelSelect = wrapper.findAll('select')[1]
-    const options = modelSelect
-      .findAll('option')
-      .map((option) => option.attributes('value'))
+    const options = wrapper
+      .findAll('.model-chip')
+      .map((option) => option.text())
 
     expect(options).toEqual([
       'gpt-image-2',
@@ -223,10 +224,11 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
     await wrapper.find('textarea').setValue('three please')
-    const selects = wrapper.findAll('select')
-    // group select + model select + count select.
-    const countSelect = selects[selects.length - 1]
-    await countSelect.setValue('3')
+    const countButton = wrapper
+      .findAll('.count-chip')
+      .find((button) => button.text() === '3')
+    expect(countButton).toBeTruthy()
+    await countButton!.trigger('click')
 
     await wrapper.find('.send-button').trigger('click')
     const emitted = wrapper.emitted('generate')
@@ -328,8 +330,11 @@ describe('ImageComposer', () => {
     await flushPromises()
 
     // Switch the model — the watcher snaps size/quality back to defaults.
-    const modelSelect = wrapper.findAll('select')[1] // group, model, count
-    await modelSelect.setValue('gpt-5')
+    const modelButton = wrapper
+      .findAll('.model-chip')
+      .find((button) => button.text() === 'gpt-5')
+    expect(modelButton).toBeTruthy()
+    await modelButton!.trigger('click')
     await flushPromises()
 
     await wrapper.find('.send-button').trigger('click')

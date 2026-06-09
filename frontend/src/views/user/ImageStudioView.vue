@@ -5,15 +5,15 @@
       (bg-gray-50 dark:bg-dark-950 + teal mesh-gradient); the serif hero carries
       the visual identity, so the bulky page header is dropped (sr-only h1 kept).
     -->
-    <div class="mx-auto max-w-[1760px]">
+    <div class="studio-page">
       <!-- Accessible title only; the serif hero carries the visual identity. -->
       <h1 class="sr-only">{{ t('imageStudio.title') }}</h1>
 
       <!-- Workbench grid -->
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-[240px_minmax(0,1fr)_400px]">
+      <div class="studio-layout">
         <!-- Left: conversations (flat / borderless) -->
         <aside
-          class="order-3 h-fit min-h-0 xl:order-1 xl:h-[calc(100vh-8rem)]"
+          class="studio-sidebar"
         >
           <ConversationList
             :conversations="store.conversations"
@@ -30,8 +30,27 @@
 
         <!-- Main column: chat-style — history (scrolls) on top, composer pinned bottom -->
         <section
-          class="order-2 flex min-h-[56vh] min-w-0 flex-col xl:order-2 xl:h-[calc(100vh-7rem)]"
+          class="studio-canvas"
         >
+          <div class="canvas-toolbar">
+            <div class="min-w-0">
+              <p class="canvas-kicker">{{ t('imageStudio.workbenchTitle') }}</p>
+              <div class="canvas-mode-pills">
+                <span>{{ t('imageStudio.capabilityGenerate') }}</span>
+                <span>{{ t('imageStudio.capabilityEdit') }}</span>
+                <span>{{ t('imageStudio.capabilityCompose') }}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="canvas-refresh"
+              :title="t('imageStudio.refreshStatus')"
+              :aria-label="t('imageStudio.refreshStatus')"
+              @click="store.refreshPendingGenerations().catch(() => {})"
+            >
+              <Icon name="refresh" size="sm" />
+            </button>
+          </div>
           <!--
             History scroll area. Always-mounted with a stable dark surface so
             switching conversations never tears the whole subtree down (which
@@ -39,7 +58,7 @@
           -->
           <div
             ref="scrollRef"
-            class="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40 dark:border-dark-700/50 dark:bg-dark-900"
+            class="canvas-scroll"
             @scroll="rememberScroll"
           >
             <TurnTimeline
@@ -61,7 +80,7 @@
           <!-- Inline error banner (e.g. 403 group not enabled) — sits above the composer -->
         </section>
 
-        <aside class="order-1 min-w-0 xl:order-3 xl:h-[calc(100vh-7rem)] xl:overflow-y-auto">
+        <aside class="studio-inspector">
           <div class="flex min-h-0 flex-col gap-3">
             <div
               v-if="inlineError"
@@ -533,6 +552,115 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.studio-page {
+  width: min(100%, 1760px);
+  margin-inline: auto;
+}
+
+.studio-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.studio-sidebar {
+  order: 3;
+  min-height: 0;
+}
+
+.studio-canvas {
+  order: 2;
+  display: flex;
+  min-height: 56vh;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.studio-inspector {
+  order: 1;
+  min-width: 0;
+}
+
+.canvas-toolbar {
+  @apply mb-3 flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white/80 px-4 py-3 shadow-sm;
+  @apply dark:border-dark-700/50 dark:bg-dark-800/80;
+}
+
+.canvas-kicker {
+  @apply text-sm font-semibold text-gray-900 dark:text-white;
+}
+
+.canvas-mode-pills {
+  @apply mt-2 flex flex-wrap gap-1.5;
+}
+
+.canvas-mode-pills span {
+  @apply rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600;
+  @apply dark:bg-dark-700 dark:text-gray-300;
+}
+
+.canvas-refresh {
+  @apply flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition-colors;
+  @apply hover:bg-primary-50 hover:text-primary-600;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+}
+
+.canvas-scroll {
+  @apply min-h-0 flex-1 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40;
+  @apply dark:border-dark-700/50 dark:bg-dark-900;
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .studio-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .studio-sidebar {
+    order: 1;
+  }
+
+  .studio-canvas {
+    order: 2;
+  }
+
+  .studio-inspector {
+    order: 3;
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1280px) {
+  .studio-layout {
+    grid-template-columns: 260px minmax(0, 1fr) min(430px, 27vw);
+    align-items: stretch;
+  }
+
+  .studio-sidebar {
+    order: 1;
+    height: calc(100vh - 8rem);
+  }
+
+  .studio-canvas {
+    order: 2;
+    height: calc(100vh - 7rem);
+    min-height: 0;
+  }
+
+  .studio-inspector {
+    order: 3;
+    height: calc(100vh - 7rem);
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 1680px) {
+  .studio-layout {
+    grid-template-columns: 280px minmax(0, 1fr) 460px;
+  }
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
