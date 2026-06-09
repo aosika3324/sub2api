@@ -60,7 +60,22 @@ describe('GenerationCard', () => {
     const wrapper = mountCard(makeGeneration({ status: 'pending', images: [] }))
     expect(wrapper.find('.animate-spin').exists()).toBe(true)
     expect(wrapper.text()).toContain('imageStudio.generating')
+    expect(wrapper.text()).toContain('imageStudio.continueWaitingHint')
+    expect(wrapper.text()).toContain('imageStudio.refreshStatus')
     expect(wrapper.findAll('img').length).toBe(0)
+  })
+
+  it('emits refresh from a pending generation', async () => {
+    const wrapper = mountCard(makeGeneration({ status: 'pending', images: [] }))
+    const refreshBtn = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('imageStudio.refreshStatus'))
+    expect(refreshBtn).toBeTruthy()
+
+    await refreshBtn!.trigger('click')
+    const emitted = wrapper.emitted('refresh')
+    expect(emitted).toBeTruthy()
+    expect((emitted![0][0] as ImageStudioGeneration).id).toBe(1)
   })
 
   it('renders an image grid for succeeded status', () => {

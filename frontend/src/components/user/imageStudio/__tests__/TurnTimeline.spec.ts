@@ -30,7 +30,8 @@ const IconStub = defineComponent({ name: 'Icon', template: '<span />' })
 const GenerationCardStub = defineComponent({
   name: 'GenerationCardStub',
   props: { generation: { type: Object, required: true } },
-  template: '<div class="gen-card" :data-id="generation.id" />',
+  emits: ['refresh'],
+  template: '<button class="gen-card" :data-id="generation.id" @click="$emit(\'refresh\', generation)" />',
 })
 
 function makeGeneration(overrides: Partial<ImageStudioGeneration> = {}): ImageStudioGeneration {
@@ -124,5 +125,19 @@ describe('TurnTimeline', () => {
     // The card right before it is the newest turn (id 2).
     const prevChild = children[children.length - 2] as HTMLElement
     expect(prevChild.getAttribute('data-id')).toBe('2')
+  })
+
+  it('forwards pending generation refresh events', async () => {
+    const generation = makeGeneration({ id: 9, status: 'pending' })
+    const wrapper = mountTimeline({
+      generations: [generation],
+      loading: false,
+      generating: false,
+    })
+
+    await wrapper.find('.gen-card').trigger('click')
+    const emitted = wrapper.emitted('refresh')
+    expect(emitted).toBeTruthy()
+    expect((emitted![0][0] as ImageStudioGeneration).id).toBe(9)
   })
 })

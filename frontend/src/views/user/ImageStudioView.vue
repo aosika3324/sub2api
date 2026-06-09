@@ -48,6 +48,7 @@
               :generating="store.generating"
               :pending-prompt="pendingPrompt"
               @retry="handleRetry"
+              @refresh="handleRefreshGeneration"
               @delete="confirmDeleteGeneration"
               @open="openLightbox"
               @use-example="handleUseExample"
@@ -431,6 +432,15 @@ async function handleRetry(generation: ImageStudioGeneration) {
 
 function confirmDeleteGeneration(generation: ImageStudioGeneration) {
   deleteGenTarget.value = generation
+}
+
+async function handleRefreshGeneration(generation: ImageStudioGeneration) {
+  try {
+    await store.refreshGeneration(generation.id)
+    appStore.showInfo(t('imageStudio.statusRefreshed'))
+  } catch (err) {
+    appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
+  }
 }
 
 async function handleDeleteGeneration() {

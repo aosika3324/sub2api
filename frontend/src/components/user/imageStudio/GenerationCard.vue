@@ -76,6 +76,13 @@
         <p class="text-sm text-gray-500 dark:text-gray-400">
           {{ t('imageStudio.generating') }}
         </p>
+        <p class="max-w-sm text-center text-xs text-gray-400 dark:text-dark-500">
+          {{ t('imageStudio.continueWaitingHint') }}
+        </p>
+        <button type="button" class="btn btn-secondary" @click="$emit('refresh', generation)">
+          <Icon name="refresh" size="sm" class="mr-1.5" />
+          {{ t('imageStudio.refreshStatus') }}
+        </button>
       </div>
 
       <!-- Failed -->
@@ -135,6 +142,7 @@ const props = defineProps<{
 
 defineEmits<{
   (e: 'retry', generation: ImageStudioGeneration): void
+  (e: 'refresh', generation: ImageStudioGeneration): void
   (e: 'delete', generation: ImageStudioGeneration): void
   (e: 'open', src: string): void
 }>()

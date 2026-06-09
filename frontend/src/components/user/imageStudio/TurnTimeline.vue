@@ -68,6 +68,7 @@
           :key="gen.id"
           :generation="gen"
           @retry="$emit('retry', $event)"
+          @refresh="$emit('refresh', $event)"
           @delete="$emit('delete', $event)"
           @open="$emit('open', $event)"
         />
@@ -118,6 +119,7 @@ const props = defineProps<{
 
 defineEmits<{
   (e: 'retry', generation: ImageStudioGeneration): void
+  (e: 'refresh', generation: ImageStudioGeneration): void
   (e: 'delete', generation: ImageStudioGeneration): void
   (e: 'open', src: string): void
   (e: 'useExample', prompt: string): void
