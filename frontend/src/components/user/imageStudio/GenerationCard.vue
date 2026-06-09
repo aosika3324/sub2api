@@ -76,6 +76,9 @@
         <p class="text-sm text-gray-500 dark:text-gray-400">
           {{ t('imageStudio.generating') }}
         </p>
+        <p class="text-xs font-medium text-primary-600 dark:text-primary-300">
+          {{ t('imageStudio.waitingElapsed', { elapsed: elapsedLabel }) }}
+        </p>
         <p class="max-w-sm text-center text-xs text-gray-400 dark:text-dark-500">
           {{ t('imageStudio.continueWaitingHint') }}
         </p>
@@ -128,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ImageStudioGeneration } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
@@ -161,6 +164,31 @@ const isSucceeded = computed(
 
 const images = computed(() => props.generation.images ?? [])
 
+const now = ref(Date.now())
+let elapsedTimer: number | null = null
+
+function stopElapsedTimer() {
+  if (elapsedTimer == null) return
+  window.clearInterval(elapsedTimer)
+  elapsedTimer = null
+}
+
+function syncElapsedTimer() {
+  now.value = Date.now()
+  if (!isPending.value) {
+    stopElapsedTimer()
+    return
+  }
+  if (elapsedTimer == null) {
+    elapsedTimer = window.setInterval(() => {
+      now.value = Date.now()
+    }, 1000)
+  }
+}
+
+watch(isPending, syncElapsedTimer, { immediate: true })
+onBeforeUnmount(stopElapsedTimer)
+
 // Source/reference images for image-to-image generations. When present we render
 // a small "source" row above the output grid and flag the turn with an i2i chip.
 const inputImages = computed(() => props.generation.input_images ?? [])
@@ -182,6 +210,27 @@ const formattedTime = computed(() => {
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleString()
 })
+
+const elapsedLabel = computed(() => {
+  const createdAt = props.generation.created_at
+    ? new Date(props.generation.created_at).getTime()
+    : NaN
+  const elapsedMs = Number.isFinite(createdAt) ? Math.max(0, now.value - createdAt) : 0
+  return formatElapsed(elapsedMs)
+})
+
+function formatElapsed(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  const mm = String(minutes).padStart(2, '0')
+  const ss = String(seconds).padStart(2, '0')
+  if (hours > 0) {
+    return `${hours}:${mm}:${ss}`
+  }
+  return `${mm}:${ss}`
+}
 </script>
 
 <style scoped>

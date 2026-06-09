@@ -576,12 +576,34 @@ func TestImageStudioService_StartGenerate_ReturnsPendingAndCompletesInBackground
 
 func TestImageStudioService_StartGenerate_DeletedPendingDoesNotStoreOrBill(t *testing.T) {
 	f := newStudioFixture(t)
-	releaseGeneration := make(chan struct{})
-	generatorDone := make(chan struct{})
 	statusChecked := make(chan struct{})
-	f.gen.block = releaseGeneration
-	f.gen.done = generatorDone
 	f.repo.getGenSignal = statusChecked
+
+	limiter := &ImageConcurrencyLimiter{}
+	cfg := &config.Config{}
+	cfg.Gateway.ImageConcurrency.Enabled = true
+	cfg.Gateway.ImageConcurrency.MaxConcurrentRequests = 1
+	cfg.Gateway.ImageConcurrency.OverflowMode = config.ImageConcurrencyOverflowModeWait
+	cfg.Gateway.ImageConcurrency.WaitTimeoutSeconds = 5
+	cfg.Gateway.ImageConcurrency.MaxWaitingRequests = 1
+	f.svc = NewImageStudioService(ImageStudioServiceDeps{
+		Users:         f.users,
+		Groups:        f.groups,
+		KeyEnsurer:    f.keys,
+		Eligibility:   f.elig,
+		Generator:     f.gen,
+		CostResolver:  f.cost,
+		UsageRecord:   f.usage,
+		Subscriptions: f.subs,
+		Repo:          f.repo,
+		Store:         f.store,
+		Limiter:       limiter,
+		Cfg:           cfg,
+	})
+
+	releaseSlot, ok := limiter.Acquire(context.Background(), true, 1, false, 0, 0)
+	require.True(t, ok)
+	defer releaseSlot()
 
 	res, err := f.svc.StartGenerate(context.Background(), 1, studioInput(10))
 
@@ -589,17 +611,13 @@ func TestImageStudioService_StartGenerate_DeletedPendingDoesNotStoreOrBill(t *te
 	require.NotNil(t, res)
 	require.NoError(t, f.repo.DeleteGeneration(context.Background(), res.GenerationID))
 
-	close(releaseGeneration)
-	select {
-	case <-generatorDone:
-	case <-time.After(time.Second):
-		t.Fatal("generator did not finish")
-	}
+	releaseSlot()
 	select {
 	case <-statusChecked:
 	case <-time.After(time.Second):
 		t.Fatal("generation status was not checked")
 	}
+	require.Equal(t, 0, f.gen.calls, "deleted pending job must not call upstream generator")
 	require.Equal(t, 0, f.store.putCalls)
 	require.Equal(t, 0, f.usage.calls)
 }

@@ -473,6 +473,11 @@ func (s *ImageStudioService) finishPreparedGeneration(ctx context.Context, prepa
 		defer release()
 	}
 
+	if err := s.ensureGenerationStillActive(ctx, genID); err != nil {
+		s.logGenerationNoLongerActive(reqLog, genID, err)
+		return nil, err
+	}
+
 	// --- Step 5: build the parsed images request + run the shared pipeline. ---
 	// An input image routes through /v1/images/edits (multipart); otherwise the
 	// JSON /v1/images/generations path is used.
@@ -518,10 +523,7 @@ func (s *ImageStudioService) finishPreparedGeneration(ctx context.Context, prepa
 	}
 
 	if err := s.ensureGenerationStillActive(ctx, genID); err != nil {
-		reqLog.Info("image_studio.generation_no_longer_active",
-			zap.Int64("generation_id", genID),
-			zap.Error(err),
-		)
+		s.logGenerationNoLongerActive(reqLog, genID, err)
 		return nil, err
 	}
 
@@ -825,6 +827,16 @@ func (s *ImageStudioService) ensureGenerationStillActive(ctx context.Context, ge
 		return fmt.Errorf("image studio: generation is no longer pending")
 	}
 	return nil
+}
+
+func (s *ImageStudioService) logGenerationNoLongerActive(reqLog *zap.Logger, genID int64, err error) {
+	if reqLog == nil {
+		return
+	}
+	reqLog.Info("image_studio.generation_no_longer_active",
+		zap.Int64("generation_id", genID),
+		zap.Error(err),
+	)
 }
 
 // markFailed records a failed generation; storage/usage are intentionally not

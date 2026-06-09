@@ -1394,6 +1394,7 @@ export default {
     retryReferenceFetchFailed: '参考图获取失败，本次重试将作为文生图进行。',
     errorGroupNotEnabled: '当前分组未开启图片生成功能。',
     continueWaitingHint: '任务已保存在历史中，可以离开后回来继续等待，工作台会持续轮询状态。',
+    waitingElapsed: '已等待 {elapsed}',
     refreshStatus: '刷新状态',
     statusRefreshed: '生成状态已刷新',
     imageSettings: '图像设置',
