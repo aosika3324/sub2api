@@ -33,6 +33,7 @@
       loading="lazy"
       class="h-full w-full cursor-zoom-in transition-transform duration-200 group-hover:scale-[1.02]"
       :class="aspectRatio ? 'object-contain' : 'object-cover'"
+      @error="markImageError"
       @click="$emit('open', src)"
     />
   </div>
@@ -91,6 +92,10 @@ onBeforeUnmount(() => {
   observer?.disconnect()
   observer = null
 })
+
+function markImageError() {
+  error.value = new Error('Image failed to render')
+}
 
 const containerStyle = computed(() => ({
   aspectRatio:

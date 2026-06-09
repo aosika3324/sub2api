@@ -69,168 +69,156 @@
         @keydown.meta.enter.prevent="submit"
       ></textarea>
 
-      <!-- Control bar -->
-      <div class="composer-controls flex flex-wrap items-center gap-2 px-3 pb-3">
-        <!-- Group (drives billing) -->
-        <Select
-          v-model="groupId"
-          class="pill-select"
-          :options="groupOptions"
-          :disabled="disabled || imageGroups.length === 0"
-          :placeholder="t('imageStudio.selectGroup')"
-          :title="t('imageStudio.group')"
-          :aria-label="t('imageStudio.group')"
-        />
+      <!-- Visible workbench controls -->
+      <div class="workbench-panel">
+        <div class="workbench-row">
+          <div class="control-field control-field-group">
+            <span class="control-label">{{ t('imageStudio.group') }}</span>
+            <Select
+              v-model="groupId"
+              class="workbench-select"
+              :options="groupOptions"
+              :disabled="disabled || imageGroups.length === 0"
+              :placeholder="t('imageStudio.selectGroup')"
+              :aria-label="t('imageStudio.group')"
+            />
+          </div>
 
-        <!-- Mode -->
-        <div class="segmented mode-segmented" role="group" :aria-label="t('imageStudio.mode')">
-          <button
-            v-for="option in modeOptions"
-            :key="option.value"
-            type="button"
-            class="segmented-btn"
-            :class="{ 'segmented-btn-active': mode === option.value }"
-            :disabled="disabled"
-            :aria-pressed="mode === option.value"
-            @click="mode = option.value"
-          >
-            {{ option.label }}
-          </button>
+          <div class="control-field control-field-mode">
+            <span class="control-label">{{ t('imageStudio.mode') }}</span>
+            <div class="segmented mode-segmented" role="group" :aria-label="t('imageStudio.mode')">
+              <button
+                v-for="option in modeOptions"
+                :key="option.value"
+                type="button"
+                class="segmented-btn"
+                :class="{ 'segmented-btn-active': mode === option.value }"
+                :disabled="disabled"
+                :aria-pressed="mode === option.value"
+                @click="mode = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="control-field control-field-model">
+            <span class="control-label">{{ t('imageStudio.model') }}</span>
+            <Select
+              v-model="model"
+              class="workbench-select"
+              :options="modelOptions"
+              :disabled="disabled"
+              :aria-label="t('imageStudio.model')"
+            />
+          </div>
+
+          <div class="control-field control-field-count">
+            <span class="control-label">{{ t('imageStudio.count') }}</span>
+            <Select
+              v-model="n"
+              class="workbench-select"
+              :options="countOptions"
+              :disabled="disabled"
+              :aria-label="t('imageStudio.count')"
+            />
+          </div>
         </div>
 
-        <!-- Settings summary pill (toggles the popover) -->
-        <div ref="settingsWrapRef" class="relative">
-          <button
-            type="button"
-            class="summary-pill"
-            :class="{ 'summary-pill-open': settingsOpen }"
-            :disabled="disabled"
-            :aria-expanded="settingsOpen"
-            :aria-haspopup="true"
-            :title="t('imageStudio.imageSettings')"
-            @click="toggleSettings"
-          >
-            <Icon name="sparkles" size="xs" class="flex-shrink-0 opacity-70" />
-            <span class="truncate">{{ summaryText }}</span>
-            <Icon
-              :name="settingsOpen ? 'chevronDown' : 'chevronUp'"
-              size="xs"
-              class="flex-shrink-0 text-gray-400 dark:text-dark-400"
-            />
-          </button>
-
-          <!-- Settings popover -->
-          <div
-            v-if="settingsOpen"
-            class="settings-popover"
-            role="dialog"
-            :aria-label="t('imageStudio.imageSettings')"
-            @mousedown.stop
-          >
-            <p class="settings-title">{{ t('imageStudio.imageSettings') }}</p>
-
-            <!-- Model -->
-            <div class="settings-row">
-              <label class="settings-label">{{ t('imageStudio.model') }}</label>
-              <Select
-                v-model="model"
-                class="settings-select"
-                :options="modelOptions"
+        <div class="workbench-row workbench-row-secondary">
+          <div class="control-field control-field-quality">
+            <span class="control-label">{{ t('imageStudio.quality') }}</span>
+            <div class="segmented" role="group" :aria-label="t('imageStudio.quality')">
+              <button
+                v-for="q in qualityOptions"
+                :key="q.value"
+                type="button"
+                class="segmented-btn"
+                :class="{ 'segmented-btn-active': quality === q.value }"
                 :disabled="disabled"
-                :aria-label="t('imageStudio.model')"
+                :aria-pressed="quality === q.value"
+                @click="quality = q.value"
+              >
+                {{ q.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="control-field control-field-size">
+            <span class="control-label">{{ t('imageStudio.aspectRatio') }}</span>
+            <div class="aspect-grid" role="group" :aria-label="t('imageStudio.aspectRatio')">
+              <button
+                v-for="preset in aspectPresets"
+                :key="preset.size"
+                type="button"
+                class="aspect-btn"
+                :class="{ 'aspect-btn-active': isPresetActive(preset) }"
+                :disabled="disabled"
+                :aria-pressed="isPresetActive(preset)"
+                @click="applyPreset(preset)"
+              >
+                {{ presetLabel(preset) }}
+              </button>
+            </div>
+          </div>
+
+          <div class="control-field control-field-custom">
+            <div class="flex items-center justify-between gap-3">
+              <span class="control-label">{{ t('imageStudio.customSize') }}</span>
+              <label class="auto-toggle">
+                <input
+                  v-model="sizeAuto"
+                  type="checkbox"
+                  class="auto-checkbox"
+                  :disabled="disabled"
+                />
+                <span>{{ t('imageStudio.aspectAuto') }}</span>
+              </label>
+            </div>
+            <div class="mt-1.5 flex items-center gap-2">
+              <input
+                v-model.number="width"
+                type="number"
+                min="1"
+                class="size-input"
+                :disabled="disabled || sizeAuto"
+                :placeholder="t('imageStudio.width')"
+                :aria-label="t('imageStudio.width')"
               />
-            </div>
-
-            <!-- Quality (segmented) -->
-            <div class="settings-row">
-              <label class="settings-label">{{ t('imageStudio.quality') }}</label>
-              <div class="segmented" role="group" :aria-label="t('imageStudio.quality')">
-                <button
-                  v-for="q in qualityOptions"
-                  :key="q.value"
-                  type="button"
-                  class="segmented-btn"
-                  :class="{ 'segmented-btn-active': quality === q.value }"
-                  :disabled="disabled"
-                  :aria-pressed="quality === q.value"
-                  @click="quality = q.value"
-                >
-                  {{ q.label }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Custom size (W × H) -->
-            <div class="settings-row">
-              <div class="flex items-center justify-between">
-                <label class="settings-label">{{ t('imageStudio.customSize') }}</label>
-                <label class="auto-toggle">
-                  <input
-                    v-model="sizeAuto"
-                    type="checkbox"
-                    class="auto-checkbox"
-                    :disabled="disabled"
-                  />
-                  <span>{{ t('imageStudio.aspectAuto') }}</span>
-                </label>
-              </div>
-              <div class="mt-1.5 flex items-center gap-2">
-                <input
-                  v-model.number="width"
-                  type="number"
-                  min="1"
-                  class="size-input"
-                  :disabled="disabled || sizeAuto"
-                  :placeholder="t('imageStudio.width')"
-                  :aria-label="t('imageStudio.width')"
-                />
-                <span class="text-gray-400 dark:text-dark-500">×</span>
-                <input
-                  v-model.number="height"
-                  type="number"
-                  min="1"
-                  class="size-input"
-                  :disabled="disabled || sizeAuto"
-                  :placeholder="t('imageStudio.height')"
-                  :aria-label="t('imageStudio.height')"
-                />
-              </div>
-            </div>
-
-            <!-- Aspect ratio presets -->
-            <div class="settings-row">
-              <label class="settings-label">{{ t('imageStudio.aspectRatio') }}</label>
-              <div class="aspect-grid" role="group" :aria-label="t('imageStudio.aspectRatio')">
-                <button
-                  v-for="preset in aspectPresets"
-                  :key="preset.size"
-                  type="button"
-                  class="aspect-btn"
-                  :class="{ 'aspect-btn-active': isPresetActive(preset) }"
-                  :disabled="disabled"
-                  :aria-pressed="isPresetActive(preset)"
-                  @click="applyPreset(preset)"
-                >
-                  {{ presetLabel(preset) }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Count -->
-            <div class="settings-row">
-              <label class="settings-label">{{ t('imageStudio.count') }}</label>
-              <Select
-                v-model="n"
-                class="settings-select settings-select-narrow"
-                :options="countOptions"
-                :disabled="disabled"
-                :aria-label="t('imageStudio.count')"
+              <span class="text-gray-400 dark:text-dark-500">x</span>
+              <input
+                v-model.number="height"
+                type="number"
+                min="1"
+                class="size-input"
+                :disabled="disabled || sizeAuto"
+                :placeholder="t('imageStudio.height')"
+                :aria-label="t('imageStudio.height')"
               />
             </div>
           </div>
         </div>
 
-        <!-- Upload reference image -->
+        <button
+          v-if="mode !== 'generate' || referencePreviews.length > 0"
+          type="button"
+          class="reference-dropzone"
+          :class="{ 'reference-dropzone-empty': referencePreviews.length === 0 }"
+          :disabled="disabled"
+          @click="triggerFilePicker"
+        >
+          <Icon name="image" size="sm" class="text-primary-500" />
+          <span class="reference-dropzone-text">
+            {{ referencePreviews.length > 0 ? t('imageStudio.referenceImage') : t('imageStudio.upload') }}
+          </span>
+          <span class="reference-dropzone-count">
+            {{ referencePreviews.length }}/{{ MAX_REFERENCE_IMAGES }}
+          </span>
+        </button>
+      </div>
+
+      <!-- Action bar -->
+      <div class="composer-controls action-bar">
         <button
           type="button"
           class="upload-pill"
@@ -251,27 +239,18 @@
           @change="onFileChange"
         />
 
-        <!-- Balance pill -->
-        <span
-          class="balance-pill"
-          :title="t('common.balance')"
-        >
+        <span class="balance-pill" :title="t('common.balance')">
           <Icon name="dollar" size="xs" class="flex-shrink-0 text-green-500" />
           <span class="text-gray-400 dark:text-dark-500">{{ t('imageStudio.balanceShort') }}</span>
           <span class="font-medium text-gray-900 dark:text-white">${{ balance.toFixed(2) }}</span>
         </span>
 
-        <!-- Cost estimate + send -->
-        <span
-          v-if="costEstimate != null"
-          class="ml-auto text-xs text-gray-400 dark:text-dark-500"
-        >
-          ≈${{ costEstimate.toFixed(2) }}
+        <span v-if="costEstimate != null" class="text-xs text-gray-400 dark:text-dark-500">
+          ~= {{ costEstimate.toFixed(2) }}
         </span>
         <button
           type="button"
           class="send-button"
-          :class="{ 'ml-auto': costEstimate == null }"
           :disabled="!canGenerate"
           :aria-label="t('imageStudio.sendAria')"
           :title="t('imageStudio.sendAria')"
@@ -382,28 +361,6 @@ const submitSize = computed(() =>
   sizeAuto.value ? 'auto' : formatSize(width.value, height.value)
 )
 
-// Human summary for the trigger pill: matching preset label, else WxH, else auto.
-const sizeSummary = computed(() => {
-  if (sizeAuto.value) return t('imageStudio.aspectAuto')
-  const match = ASPECT_PRESETS.find(
-    (p) => p.size !== 'auto' && p.size === formatSize(width.value, height.value)
-  )
-  if (match) return match.label
-  return `${width.value}×${height.value}`
-})
-
-const qualityLabel = computed(() => {
-  const found = qualityOptions.value.find((q) => q.value === quality.value)
-  return found ? found.label : quality.value
-})
-
-const summaryText = computed(
-  () =>
-    `${qualityLabel.value} · ${sizeSummary.value} · ${t('imageStudio.countShort', {
-      count: n.value,
-    })}`
-)
-
 // ---- Aspect preset helpers ----
 function presetLabel(preset: AspectPreset): string {
   return preset.size === 'auto' ? t('imageStudio.aspectAuto') : preset.label
@@ -425,44 +382,6 @@ function applyPreset(preset: AspectPreset) {
   sizeAuto.value = false
   width.value = parsed.w
   height.value = parsed.h
-}
-
-// ---- Settings popover open/close ----
-const settingsOpen = ref(false)
-const settingsWrapRef = ref<HTMLElement | null>(null)
-
-function onSettingsOutside(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  // The Select inside the popover teleports its dropdown to <body>, so a click on
-  // one of its options lands outside settingsWrapRef. Don't treat that (or any
-  // teleported Select surface) as an "outside" click that should close us.
-  if (target.closest?.('.select-dropdown-portal')) return
-  if (settingsWrapRef.value && !settingsWrapRef.value.contains(target)) {
-    closeSettings()
-  }
-}
-
-function onSettingsKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') closeSettings()
-}
-
-function openSettings() {
-  if (settingsOpen.value) return
-  settingsOpen.value = true
-  document.addEventListener('mousedown', onSettingsOutside)
-  document.addEventListener('keydown', onSettingsKeydown)
-}
-
-function closeSettings() {
-  if (!settingsOpen.value) return
-  settingsOpen.value = false
-  document.removeEventListener('mousedown', onSettingsOutside)
-  document.removeEventListener('keydown', onSettingsKeydown)
-}
-
-function toggleSettings() {
-  if (disabled.value) return
-  settingsOpen.value ? closeSettings() : openSettings()
 }
 
 // When the model changes, reset size/quality to that model's defaults to avoid
@@ -502,7 +421,8 @@ const canGenerate = computed(
     !disabled.value &&
     prompt.value.trim().length > 0 &&
     groupId.value !== null &&
-    imageGroups.value.length > 0
+    imageGroups.value.length > 0 &&
+    hasRequiredReferenceSelection()
 )
 
 // Best-effort client-side cost estimate. Currently always null (server is the
@@ -518,6 +438,12 @@ const referenceImages = ref<File[]>([])
 const referencePreviews = ref<Array<{ file: File; url: string }>>([])
 const referenceError = ref<string>('')
 const dragActive = ref(false)
+
+function hasRequiredReferenceSelection(): boolean {
+  if (mode.value === 'edit') return referenceImages.value.length >= 1
+  if (mode.value === 'compose') return referenceImages.value.length >= 2
+  return true
+}
 
 function addReferences(files: File[]) {
   referenceError.value = ''
@@ -667,8 +593,6 @@ onMounted(autoGrow)
 
 onBeforeUnmount(() => {
   revokeReferenceUrls()
-  document.removeEventListener('mousedown', onSettingsOutside)
-  document.removeEventListener('keydown', onSettingsKeydown)
 })
 
 defineExpose({ resetPrompt, fillPrompt, resetReference })
@@ -683,56 +607,82 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
   min-height: 60px;
 }
 
-/*
-  Restyle the shared Select trigger LOCALLY into a small compact pill (shape
-  only), without touching the global Select.vue. Colors follow the sub2api
-  palette (slate surfaces, teal focus). Scoped :deep reaches the trigger button.
-*/
-.pill-select {
-  @apply w-auto;
+.workbench-panel {
+  @apply mx-3 mb-3 rounded-2xl border border-gray-100 bg-gray-50/80 p-3;
+  @apply dark:border-dark-700/70 dark:bg-dark-900/45;
 }
 
-.pill-select :deep(.select-trigger) {
-  @apply gap-1 rounded-full border-transparent bg-gray-100 px-3 py-1.5 text-xs;
-  @apply text-gray-700;
-  @apply hover:border-transparent hover:bg-gray-200;
+.workbench-row {
+  @apply grid gap-3;
+  grid-template-columns: minmax(9rem, 1fr) minmax(12rem, 1.3fr) minmax(13rem, 1.4fr) minmax(5.5rem, 0.55fr);
+}
+
+.workbench-row-secondary {
+  @apply mt-3;
+  grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1.8fr) minmax(12rem, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .workbench-row,
+  .workbench-row-secondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .workbench-row,
+  .workbench-row-secondary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.control-field {
+  @apply min-w-0;
+}
+
+.control-label {
+  @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-normal text-gray-400 dark:text-dark-400;
+}
+
+.workbench-select :deep(.select-trigger) {
+  @apply h-9 rounded-lg border-gray-200 bg-white px-3 py-2 text-sm text-gray-800;
+  @apply hover:border-gray-300;
   @apply focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30;
-  @apply dark:bg-dark-700 dark:text-gray-200;
-  @apply dark:hover:bg-dark-600 dark:focus:border-primary-500;
-  width: auto;
+  @apply dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200;
 }
 
-.pill-select :deep(.select-trigger-open) {
-  @apply border-primary-500 ring-2 ring-primary-500/30;
-}
-
-.pill-select :deep(.select-trigger-disabled) {
-  @apply bg-gray-100 dark:bg-dark-900;
-}
-
-.pill-select :deep(.select-value) {
+.workbench-select :deep(.select-value) {
   @apply truncate;
-  max-width: 9rem;
 }
 
-.pill-select :deep(.select-icon) {
-  @apply text-gray-400 dark:text-dark-400;
+.workbench-select :deep(.select-trigger-disabled) {
+  @apply opacity-60;
 }
 
-/* Settings summary pill (popover trigger). */
-.summary-pill {
-  @apply inline-flex max-w-[16rem] items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-700 transition-colors;
-  @apply hover:bg-gray-200;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
-  @apply dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600;
+.reference-dropzone {
+  @apply mt-3 flex w-full items-center gap-2 rounded-xl border border-dashed border-primary-300 bg-primary-50/70 px-3 py-2 text-left text-sm text-primary-700 transition-colors;
+  @apply hover:bg-primary-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-primary-700/60 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30;
 }
 
-.summary-pill-open {
-  @apply ring-2 ring-primary-500/30;
+.reference-dropzone-empty {
+  @apply text-gray-500 dark:text-dark-300;
 }
 
-.summary-pill:disabled {
-  @apply cursor-not-allowed opacity-50;
+.reference-dropzone:disabled {
+  @apply cursor-not-allowed opacity-60;
+}
+
+.reference-dropzone-text {
+  @apply min-w-0 flex-1 truncate;
+}
+
+.reference-dropzone-count {
+  @apply rounded-full bg-white/80 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:bg-dark-800 dark:text-primary-300;
+}
+
+.action-bar {
+  @apply flex flex-wrap items-center gap-2 px-3 pb-3;
 }
 
 /* Upload pill. */
@@ -745,36 +695,6 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 
 .upload-pill:disabled {
   @apply cursor-not-allowed opacity-50;
-}
-
-/* ============= Settings popover ============= */
-.settings-popover {
-  @apply absolute bottom-full left-0 z-30 mb-2 w-72 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl;
-  @apply dark:border-dark-700 dark:bg-dark-800;
-}
-
-.settings-title {
-  @apply mb-3 text-sm font-semibold text-gray-900 dark:text-white;
-}
-
-.settings-row {
-  @apply mb-3 last:mb-0;
-}
-
-.settings-label {
-  @apply mb-1 block text-xs font-medium text-gray-500 dark:text-dark-400;
-}
-
-.settings-select :deep(.select-trigger) {
-  @apply rounded-lg px-3 py-2 text-sm;
-  @apply border-gray-200 bg-white text-gray-800;
-  @apply hover:border-gray-300;
-  @apply focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30;
-  @apply dark:border-dark-600 dark:bg-dark-900 dark:text-gray-200;
-}
-
-.settings-select-narrow {
-  @apply w-24;
 }
 
 /* Segmented quality control. */

@@ -88,12 +88,6 @@ function mountComposer(groups: Group[], props: Record<string, unknown> = {}) {
   })
 }
 
-// Open the settings popover by clicking the summary pill (first non-send button
-// that carries the summary-pill class).
-async function openSettings(wrapper: ReturnType<typeof mountComposer>) {
-  await wrapper.find('.summary-pill').trigger('click')
-}
-
 describe('ImageComposer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -133,22 +127,21 @@ describe('ImageComposer', () => {
     })
   })
 
-  it('opening the summary pill shows the settings panel', async () => {
+  it('renders visible workbench controls', async () => {
     const wrapper = mountComposer([makeGroup()])
     await flushPromises()
 
-    expect(wrapper.find('.settings-popover').exists()).toBe(false)
-    await openSettings(wrapper)
-    expect(wrapper.find('.settings-popover').exists()).toBe(true)
+    expect(wrapper.find('.workbench-panel').exists()).toBe(true)
+    expect(wrapper.text()).toContain('imageStudio.modeGenerate')
+    expect(wrapper.text()).toContain('imageStudio.modeEdit')
+    expect(wrapper.text()).toContain('imageStudio.modeCompose')
   })
 
-  it('clicking an aspect preset updates the summary and the submitted size', async () => {
+  it('clicking an aspect preset updates the submitted size', async () => {
     const groups = [makeGroup({ id: 7 })]
     const wrapper = mountComposer(groups)
     await flushPromises()
     await wrapper.find('textarea').setValue('landscape please')
-
-    await openSettings(wrapper)
 
     // Pick the 16:9 preset (1024x576).
     const presetBtn = wrapper
@@ -156,9 +149,6 @@ describe('ImageComposer', () => {
       .find((b) => b.text() === '16:9')
     expect(presetBtn).toBeTruthy()
     await presetBtn!.trigger('click')
-
-    // Summary pill reflects the matched preset label.
-    expect(wrapper.find('.summary-pill').text()).toContain('16:9')
 
     await wrapper.find('.send-button').trigger('click')
     const emitted = wrapper.emitted('generate')
@@ -169,8 +159,6 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
     await wrapper.find('textarea').setValue('auto size')
-
-    await openSettings(wrapper)
     const autoBtn = wrapper
       .findAll('.aspect-btn')
       .find((b) => b.text() === 'imageStudio.aspectAuto')
@@ -186,8 +174,6 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
     await wrapper.find('textarea').setValue('hi-q')
-
-    await openSettings(wrapper)
     const highBtn = wrapper
       .findAll('.segmented-btn')
       .find((b) => b.text() === 'imageStudio.qualityHigh')
@@ -203,11 +189,8 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
     await wrapper.find('textarea').setValue('three please')
-
-    await openSettings(wrapper)
-    // Inside the popover: model Select then count Select.
     const selects = wrapper.findAll('select')
-    // group select (control row) + model + count.
+    // group select + model select + count select.
     const countSelect = selects[selects.length - 1]
     await countSelect.setValue('3')
 
@@ -235,6 +218,32 @@ describe('ImageComposer', () => {
     await wrapper.find('.send-button').trigger('click')
     const emitted = wrapper.emitted('generate')
     expect(emitted![0][0]).toMatchObject({ referenceImage: file, referenceImages: [file, file2] })
+  })
+
+  it('requires reference images for edit and compose modes', async () => {
+    const wrapper = mountComposer([makeGroup({ id: 7 })])
+    await flushPromises()
+    await wrapper.find('textarea').setValue('edit this')
+
+    const editBtn = wrapper
+      .findAll('.segmented-btn')
+      .find((b) => b.text() === 'imageStudio.modeEdit')
+    expect(editBtn).toBeTruthy()
+    await editBtn!.trigger('click')
+    expect(wrapper.find('.send-button').attributes('disabled')).toBeDefined()
+
+    const file = new File(['x'], 'src.png', { type: 'image/png' })
+    const input = wrapper.find('input[type="file"]')
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    await input.trigger('change')
+    expect(wrapper.find('.send-button').attributes('disabled')).toBeUndefined()
+
+    const composeBtn = wrapper
+      .findAll('.segmented-btn')
+      .find((b) => b.text() === 'imageStudio.modeCompose')
+    expect(composeBtn).toBeTruthy()
+    await composeBtn!.trigger('click')
+    expect(wrapper.find('.send-button').attributes('disabled')).toBeDefined()
   })
 
   it('rejects a non-image reference file with an inline error', async () => {
@@ -271,8 +280,6 @@ describe('ImageComposer', () => {
     await flushPromises()
     await wrapper.find('textarea').setValue('a fox in a meadow')
 
-    await openSettings(wrapper)
-
     // Move size away from default via an aspect preset + quality to high.
     const preset = wrapper.findAll('.aspect-btn').find((b) => b.text() === '4:3')
     await preset!.trigger('click')
@@ -299,7 +306,7 @@ describe('ImageComposer', () => {
   it('does not show a client-side cost estimate (server is source of truth)', async () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
-    expect(wrapper.text()).not.toContain('≈$')
+    expect(wrapper.text()).not.toContain('~=')
   })
 
   it('fillPrompt populates the prompt textarea (example chips)', async () => {

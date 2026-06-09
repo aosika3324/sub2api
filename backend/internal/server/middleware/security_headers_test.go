@@ -359,6 +359,15 @@ func TestEnhanceCSPPolicy(t *testing.T) {
 		assert.Equal(t, 1, countDirectiveValue(enhanced, "style-src", AirwallexDemoCheckoutDomain))
 		assert.Equal(t, 1, countDirectiveValue(enhanced, "frame-src", AirwallexDemoCheckoutDomain))
 	})
+
+	t.Run("adds_image_sources_for_cached_image_assets", func(t *testing.T) {
+		policy := "default-src 'self'; img-src 'self'"
+		enhanced := enhanceCSPPolicy(policy)
+
+		assert.Equal(t, 1, countDirectiveValue(enhanced, "img-src", "blob:"))
+		assert.Equal(t, 1, countDirectiveValue(enhanced, "img-src", "data:"))
+		assert.Equal(t, 1, countDirectiveValue(enhanced, "img-src", "https:"))
+	})
 }
 
 func countDirectiveValue(policy, directive, value string) int {

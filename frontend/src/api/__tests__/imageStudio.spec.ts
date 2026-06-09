@@ -30,7 +30,7 @@ describe('imageStudio API', () => {
     clearHistory = api.clearHistory
     adapter = vi.fn().mockResolvedValue({
       status: 200,
-      data: new Blob(['img']),
+      data: new Blob(['img'], { type: 'image/png' }),
       headers: {},
       config: {},
       statusText: 'OK',
