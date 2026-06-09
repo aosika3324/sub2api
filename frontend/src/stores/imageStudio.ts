@@ -201,6 +201,7 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
         n: req.n,
         image_count: resp.images.length,
         status: isFinalSuccess ? 'succeeded' : (resp.status || 'pending'),
+        error: resp.error,
         cost: resp.cost,
         created_at: new Date().toISOString(),
         images: resp.images,

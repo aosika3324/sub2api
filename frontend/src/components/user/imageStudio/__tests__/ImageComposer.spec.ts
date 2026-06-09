@@ -2,12 +2,16 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>()
+  return {
+    ...actual,
+    useI18n: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key,
-  }),
-}))
+    }),
+  }
+})
 
 import ImageComposer from '../ImageComposer.vue'
 import type { Group } from '@/types'
@@ -45,6 +49,14 @@ const SelectStub = defineComponent({
 })
 
 const IconStub = defineComponent({ name: 'Icon', template: '<span />' })
+const AuthedImageStub = defineComponent({
+  name: 'AuthedImage',
+  props: {
+    url: { type: String, required: true },
+    alt: { type: String, default: '' },
+  },
+  template: '<img :src="url" :alt="alt" />',
+})
 
 function makeGroup(overrides: Partial<Group> = {}): Group {
   return {
@@ -83,6 +95,7 @@ function mountComposer(groups: Group[], props: Record<string, unknown> = {}) {
       stubs: {
         Select: SelectStub,
         Icon: IconStub,
+        AuthedImage: AuthedImageStub,
       },
     },
   })
@@ -259,6 +272,22 @@ describe('ImageComposer', () => {
     await wrapper.find('.send-button').trigger('click')
     const emitted = wrapper.emitted('generate')
     expect(emitted![0][0]).toMatchObject({ referenceImage: file, referenceImages: [file, file2] })
+  })
+
+  it('emits selectReference when a history image is selected', async () => {
+    const wrapper = mountComposer([makeGroup({ id: 7 })], {
+      historyImages: [{ key: '1:0', url: '/assets/1/0', prompt: 'old image' }],
+    })
+    await flushPromises()
+
+    await wrapper.find('.history-toggle').trigger('click')
+    const item = wrapper.find('.history-reference-item')
+    expect(item.exists()).toBe(true)
+    await item.trigger('click')
+
+    const emitted = wrapper.emitted('selectReference')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0][0]).toMatchObject({ key: '1:0', url: '/assets/1/0' })
   })
 
   it('requires reference images for edit and compose modes', async () => {

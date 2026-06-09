@@ -1947,6 +1947,7 @@ export interface ImageStudioGeneration {
   n: number
   image_count: number
   status: string
+  error?: string
   cost: number
   created_at: string
   images?: string[]
@@ -1981,6 +1982,7 @@ export interface GenerateImageStudioResponse {
   /** Persisted source images for image-to-image generations (absolute asset paths). */
   input_images?: string[]
   status?: string
+  error?: string
   cost: number
   balance: number
 }

@@ -1450,6 +1450,11 @@ export default {
     modelGroupGpt5: 'GPT-5 系列',
     quickEdit: '编辑',
     quickEditReady: '已将这张图加入参考图，请描述想要的编辑效果。',
+    addReference: '加入参考',
+    referenceAdded: '已加入参考图。',
+    selectFromHistory: '从历史选择',
+    noHistoryImages: '暂无历史图片',
+    conversationHistory: '历史会话',
   },
 
   // Empty States

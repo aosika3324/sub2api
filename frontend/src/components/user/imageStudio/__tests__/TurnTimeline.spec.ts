@@ -30,8 +30,13 @@ const IconStub = defineComponent({ name: 'Icon', template: '<span />' })
 const GenerationCardStub = defineComponent({
   name: 'GenerationCardStub',
   props: { generation: { type: Object, required: true } },
-  emits: ['refresh'],
-  template: '<button class="gen-card" :data-id="generation.id" @click="$emit(\'refresh\', generation)" />',
+  emits: ['refresh', 'reference'],
+  template: `
+    <div class="gen-card" :data-id="generation.id">
+      <button class="refresh" @click="$emit('refresh', generation)" />
+      <button class="reference" @click="$emit('reference', { generation, url: generation.images[0] })" />
+    </div>
+  `,
 })
 
 function makeGeneration(overrides: Partial<ImageStudioGeneration> = {}): ImageStudioGeneration {
@@ -116,8 +121,8 @@ describe('TurnTimeline', () => {
       pendingPrompt: 'a new prompt in flight',
     })
 
-    // The shimmer placeholder is present and shows the pending prompt.
-    expect(wrapper.find('.shimmer').exists()).toBe(true)
+    // The compact live placeholder is present and shows the pending prompt.
+    expect(wrapper.find('.live-generating-card').exists()).toBe(true)
     expect(wrapper.text()).toContain('a new prompt in flight')
     expect(wrapper.text()).toContain('imageStudio.generating')
 
@@ -125,7 +130,7 @@ describe('TurnTimeline', () => {
     const gallery = wrapper.find('.timeline-list')
     const children = Array.from(gallery.element.children)
     const lastChild = children[children.length - 1] as HTMLElement
-    expect(lastChild.querySelector('.shimmer')).not.toBeNull()
+    expect(lastChild.classList.contains('live-generating-card')).toBe(true)
     // The card right before it is the newest turn (id 2).
     const prevChild = children[children.length - 2] as HTMLElement
     expect(prevChild.getAttribute('data-id')).toBe('2')
@@ -139,9 +144,23 @@ describe('TurnTimeline', () => {
       generating: false,
     })
 
-    await wrapper.find('.gen-card').trigger('click')
+    await wrapper.find('.gen-card .refresh').trigger('click')
     const emitted = wrapper.emitted('refresh')
     expect(emitted).toBeTruthy()
     expect((emitted![0][0] as ImageStudioGeneration).id).toBe(9)
+  })
+
+  it('forwards add-reference events', async () => {
+    const generation = makeGeneration({ id: 10, images: ['/assets/10/0'] })
+    const wrapper = mountTimeline({
+      generations: [generation],
+      loading: false,
+      generating: false,
+    })
+
+    await wrapper.find('.gen-card .reference').trigger('click')
+    const emitted = wrapper.emitted('reference')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0][0]).toMatchObject({ url: '/assets/10/0' })
   })
 })

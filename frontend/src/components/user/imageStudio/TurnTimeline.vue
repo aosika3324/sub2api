@@ -98,32 +98,31 @@
           @delete="$emit('delete', $event)"
           @open="$emit('open', $event)"
           @edit="$emit('edit', $event)"
+          @reference="$emit('reference', $event)"
         />
 
         <!-- Live generating placeholder (shimmer) at the very bottom -->
         <div
           v-if="generating"
           key="__generating__"
-          class="card overflow-hidden p-0"
+          class="card live-generating-card"
         >
-          <div class="border-b border-gray-100 p-4 dark:border-dark-700/60">
+          <div class="live-generating-pulse">
+            <span></span>
+          </div>
+          <div class="min-w-0 flex-1">
             <p
               v-if="pendingPrompt"
-              class="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-900 dark:text-white"
+              class="line-clamp-2 break-words text-sm font-semibold text-gray-900 dark:text-white"
             >
               {{ pendingPrompt }}
             </p>
-            <div class="mt-3 flex items-center gap-2">
-              <span
-                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
-              ></span>
-              <span class="text-xs font-medium text-primary-600 dark:text-primary-400">
-                {{ t('imageStudio.generating') }}
-              </span>
-            </div>
-          </div>
-          <div class="p-4">
-            <div class="shimmer aspect-square w-full rounded-xl"></div>
+            <p class="mt-1 text-xs text-primary-600 dark:text-primary-300">
+              {{ t('imageStudio.generating') }}
+            </p>
+            <p class="mt-2 max-w-md text-xs leading-relaxed text-gray-500 dark:text-dark-300">
+              {{ t('imageStudio.waitingHint') }}
+            </p>
           </div>
         </div>
       </TransitionGroup>
@@ -153,6 +152,7 @@ defineEmits<{
   (e: 'delete', generation: ImageStudioGeneration): void
   (e: 'open', src: string): void
   (e: 'edit', payload: { generation: ImageStudioGeneration; url: string }): void
+  (e: 'reference', payload: { generation: ImageStudioGeneration; url: string }): void
   (e: 'useExample', prompt: string): void
   (e: 'loadMore'): void
 }>()
@@ -196,11 +196,24 @@ const capabilityItems = computed(() => [
 
 <style scoped>
 .timeline-content {
-  @apply min-h-full p-3 sm:p-4;
+  @apply min-h-full p-3 pb-8 sm:p-4 sm:pb-10;
 }
 
 .timeline-list {
   @apply space-y-4;
+}
+
+.live-generating-card {
+  @apply flex min-h-[180px] items-center justify-center gap-5 p-6;
+}
+
+.live-generating-pulse {
+  @apply flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full border border-primary-200 bg-primary-50 text-primary-600;
+  @apply dark:border-primary-800/60 dark:bg-primary-900/20 dark:text-primary-300;
+}
+
+.live-generating-pulse span {
+  @apply h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent;
 }
 
 .example-chip {

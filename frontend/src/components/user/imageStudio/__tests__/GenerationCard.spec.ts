@@ -97,6 +97,7 @@ describe('GenerationCard', () => {
     // Cost chip is shown
     expect(wrapper.text()).toContain('$0.0800')
     expect(wrapper.text()).toContain('imageStudio.quickEdit')
+    expect(wrapper.text()).toContain('imageStudio.addReference')
   })
 
   it('emits edit with the selected image url from the quick edit button', async () => {
@@ -116,9 +117,29 @@ describe('GenerationCard', () => {
     })
   })
 
+  it('emits reference with the selected image url from the add reference button', async () => {
+    const wrapper = mountCard(makeGeneration())
+    const refBtn = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('imageStudio.addReference'))
+    expect(refBtn).toBeTruthy()
+
+    await refBtn!.trigger('click')
+
+    const emitted = wrapper.emitted('reference')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0][0]).toMatchObject({
+      generation: expect.objectContaining({ id: 1 }),
+      url: '/assets/1/0',
+    })
+  })
+
   it('renders an error message and a Retry button for failed status', async () => {
-    const wrapper = mountCard(makeGeneration({ status: 'failed', images: [] }))
+    const wrapper = mountCard(
+      makeGeneration({ status: 'failed', images: [], error: 'upstream timeout' })
+    )
     expect(wrapper.text()).toContain('imageStudio.generationFailed')
+    expect(wrapper.text()).toContain('upstream timeout')
 
     const retryBtn = wrapper
       .findAll('button')

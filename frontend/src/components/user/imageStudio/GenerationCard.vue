@@ -69,7 +69,7 @@
       <!-- Pending / generating -->
       <div
         v-if="isPending"
-        class="flex flex-col items-center justify-center gap-3 py-10"
+        class="pending-state"
       >
         <div
           class="h-8 w-8 animate-spin rounded-full border-[3px] border-primary-500 border-t-transparent"
@@ -97,6 +97,12 @@
         <Icon name="x" size="lg" class="text-red-500" />
         <p class="text-sm text-red-600 dark:text-red-400">
           {{ t('imageStudio.generationFailed') }}
+        </p>
+        <p
+          v-if="failureMessage"
+          class="max-w-xl whitespace-pre-wrap break-words rounded-lg bg-white/70 px-3 py-2 text-left text-xs leading-relaxed text-red-700 dark:bg-red-950/20 dark:text-red-300"
+        >
+          {{ failureMessage }}
         </p>
         <button type="button" class="btn btn-secondary" @click="$emit('retry', generation)">
           <Icon name="refresh" size="sm" class="mr-1.5" />
@@ -132,6 +138,16 @@
             <Icon name="edit" size="xs" :stroke-width="2" />
             <span>{{ t('imageStudio.quickEdit') }}</span>
           </button>
+          <button
+            type="button"
+            class="quick-reference-button"
+            :title="t('imageStudio.addReference')"
+            :aria-label="t('imageStudio.addReference')"
+            @click="$emit('reference', { generation, url })"
+          >
+            <Icon name="plus" size="xs" :stroke-width="2" />
+            <span>{{ t('imageStudio.addReference') }}</span>
+          </button>
         </div>
       </div>
 
@@ -165,6 +181,7 @@ defineEmits<{
   (e: 'delete', generation: ImageStudioGeneration): void
   (e: 'open', src: string): void
   (e: 'edit', payload: { generation: ImageStudioGeneration; url: string }): void
+  (e: 'reference', payload: { generation: ImageStudioGeneration; url: string }): void
 }>()
 
 const { t } = useI18n()
@@ -180,6 +197,7 @@ const isSucceeded = computed(
 )
 
 const images = computed(() => props.generation.images ?? [])
+const failureMessage = computed(() => (props.generation.error ?? '').trim())
 
 const now = ref(Date.now())
 let elapsedTimer: number | null = null
@@ -284,6 +302,10 @@ function formatElapsed(ms: number) {
   @apply p-4;
 }
 
+.pending-state {
+  @apply flex min-h-[360px] flex-col items-center justify-center gap-3 py-10;
+}
+
 /* Small fixed-height source thumbnails for image-to-image inputs. */
 .source-thumb {
   @apply h-16 w-16 flex-shrink-0;
@@ -311,6 +333,11 @@ function formatElapsed(ms: number) {
   @apply hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50;
 }
 
+.quick-reference-button {
+  @apply absolute left-3 top-12 z-10 inline-flex h-8 items-center gap-1.5 rounded-full bg-black/55 px-3 text-xs font-semibold text-white shadow-sm backdrop-blur transition-colors;
+  @apply hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50;
+}
+
 @media (max-width: 640px) {
   .generation-body {
     @apply p-3;
@@ -322,6 +349,10 @@ function formatElapsed(ms: number) {
 
   .quick-edit-button {
     @apply left-2 top-2 h-7 px-2.5;
+  }
+
+  .quick-reference-button {
+    @apply left-2 top-10 h-7 px-2.5;
   }
 }
 </style>

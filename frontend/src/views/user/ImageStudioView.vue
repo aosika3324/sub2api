@@ -73,6 +73,7 @@
               @delete="confirmDeleteGeneration"
               @open="openLightbox"
               @edit="handleQuickEdit"
+              @reference="handleAddReference"
               @use-example="handleUseExample"
               @load-more="handleLoadMoreGenerations"
             />
@@ -104,7 +105,9 @@
               :loading-groups="loadingGroups"
               :generating="store.generating"
               :balance="balance"
+              :history-images="historyImages"
               @generate="handleGenerate"
+              @select-reference="handleSelectHistoryReference"
             />
           </div>
         </aside>
@@ -192,7 +195,10 @@ import Icon from '@/components/icons/Icon.vue'
 import ConversationList from '@/components/user/imageStudio/ConversationList.vue'
 import TurnTimeline from '@/components/user/imageStudio/TurnTimeline.vue'
 import ImageComposer from '@/components/user/imageStudio/ImageComposer.vue'
-import type { ComposerSubmitPayload } from '@/components/user/imageStudio/ImageComposer.vue'
+import type {
+  ComposerHistoryImage,
+  ComposerSubmitPayload,
+} from '@/components/user/imageStudio/ImageComposer.vue'
 import {
   clearImageStudioScroll,
   readImageStudioScroll,
@@ -212,6 +218,7 @@ const lightboxSrc = ref('')
 const pendingPrompt = ref('')
 const clearHistoryOpen = ref(false)
 const pendingPollTimer = ref<number | null>(null)
+const historyReferenceGenerations = ref<ImageStudioGeneration[]>([])
 
 const composerRef = ref<InstanceType<typeof ImageComposer> | null>(null)
 const scrollRef = ref<HTMLElement | null>(null)
@@ -219,6 +226,15 @@ const deleteConvTarget = ref<ImageStudioConversation | null>(null)
 const deleteGenTarget = ref<ImageStudioGeneration | null>(null)
 
 const balance = computed(() => authStore.user?.balance ?? 0)
+const historyImages = computed<ComposerHistoryImage[]>(() =>
+  historyReferenceGenerations.value.flatMap((generation) =>
+    (generation.images ?? []).map((url, idx) => ({
+      key: `${generation.id}:${idx}`,
+      url,
+      prompt: generation.prompt,
+    }))
+  )
+)
 
 // ==================== Auto-scroll (chat: newest at the bottom) ====================
 
@@ -267,8 +283,17 @@ async function scrollToBottom(smooth = true) {
 watch(
   () => [store.generations.length, store.generating] as const,
   () => {
-    if (store.generating || isNearBottom()) {
-      scrollToBottom()
+    if (store.generating || isNearBottom()) scrollToBottom()
+  },
+  { flush: 'post' }
+)
+
+watch(
+  () => store.generations.map((g) => `${g.id}:${g.status}:${g.images?.length ?? 0}`).join('|'),
+  () => {
+    if (isNearBottom()) scrollToBottom(false)
+    if (store.generations.some((g) => (g.images ?? []).length > 0)) {
+      loadHistoryReferenceImages()
     }
   }
 )
@@ -329,6 +354,17 @@ async function loadGroups() {
   }
 }
 
+async function loadHistoryReferenceImages() {
+  try {
+    const resp = await imageStudioAPI.listGenerations(1, 60)
+    historyReferenceGenerations.value = resp.items.filter((generation) =>
+      (generation.images ?? []).length > 0
+    )
+  } catch {
+    historyReferenceGenerations.value = []
+  }
+}
+
 // ==================== Conversation handlers ====================
 
 async function handleCreateConversation() {
@@ -385,6 +421,7 @@ async function handleDeleteConversation() {
     if (wasActive) {
       await store.loadGenerations()
     }
+    loadHistoryReferenceImages()
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
   }
@@ -400,6 +437,7 @@ async function runGenerate(payload: ComposerSubmitPayload) {
       conversation_id: store.activeConversationId ?? undefined,
       ...payload,
     })
+    loadHistoryReferenceImages()
     composerRef.value?.resetPrompt()
     composerRef.value?.resetReference?.()
   } catch (err) {
@@ -478,6 +516,25 @@ async function handleQuickEdit(payload: { generation: ImageStudioGeneration; url
   appStore.showInfo(t('imageStudio.quickEditReady'))
 }
 
+async function appendReferenceFromUrl(url: string) {
+  const file = await fetchInputAsFile(url)
+  if (!file) {
+    appStore.showError(t('imageStudio.imageLoadFailed'))
+    return
+  }
+  composerRef.value?.appendReferenceFiles?.([file])
+  composerRef.value?.focusPrompt?.()
+  appStore.showInfo(t('imageStudio.referenceAdded'))
+}
+
+function handleAddReference(payload: { generation: ImageStudioGeneration; url: string }) {
+  appendReferenceFromUrl(payload.url)
+}
+
+function handleSelectHistoryReference(payload: ComposerHistoryImage) {
+  appendReferenceFromUrl(payload.url)
+}
+
 function confirmDeleteGeneration(generation: ImageStudioGeneration) {
   deleteGenTarget.value = generation
 }
@@ -496,6 +553,7 @@ async function handleLoadMoreGenerations() {
       })
       rememberScroll()
     }
+    loadHistoryReferenceImages()
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
   }
@@ -504,6 +562,7 @@ async function handleLoadMoreGenerations() {
 async function handleRefreshGeneration(generation: ImageStudioGeneration) {
   try {
     await store.refreshGeneration(generation.id)
+    loadHistoryReferenceImages()
     appStore.showInfo(t('imageStudio.statusRefreshed'))
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
@@ -516,6 +575,9 @@ async function handleDeleteGeneration() {
   if (!target) return
   try {
     await store.deleteGeneration(target.id)
+    historyReferenceGenerations.value = historyReferenceGenerations.value.filter(
+      (generation) => generation.id !== target.id
+    )
     appStore.showSuccess(t('imageStudio.generationDeleted'))
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
@@ -530,6 +592,7 @@ async function handleClearHistory() {
   clearHistoryOpen.value = false
   try {
     await store.clearHistory()
+    historyReferenceGenerations.value = []
     scrollPositions.clear()
     clearImageStudioScroll()
     appStore.showSuccess(t('imageStudio.historyCleared'))
@@ -549,7 +612,11 @@ function openLightbox(src: string) {
 onMounted(async () => {
   loadGroups()
   try {
-    await Promise.all([store.loadConversations(), store.loadGenerations()])
+    await Promise.all([
+      store.loadConversations(),
+      store.loadGenerations(),
+      loadHistoryReferenceImages(),
+    ])
     await scrollToBottom(false)
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
@@ -622,7 +689,7 @@ onBeforeUnmount(() => {
 }
 
 .canvas-scroll {
-  @apply min-h-0 flex-1 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40;
+  @apply min-h-0 flex-1 scroll-pb-10 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40;
   @apply dark:border-dark-700/50 dark:bg-dark-900;
 }
 

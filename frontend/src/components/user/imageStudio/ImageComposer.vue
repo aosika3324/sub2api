@@ -233,6 +233,53 @@
                 {{ referencePreviews.length }}/{{ MAX_REFERENCE_IMAGES }}
               </span>
             </button>
+            <button
+              type="button"
+              class="history-toggle"
+              :disabled="disabled || historyImages.length === 0"
+              :aria-expanded="historyOpen"
+              @click="historyOpen = !historyOpen"
+            >
+              <span class="inline-flex min-w-0 items-center gap-2">
+                <Icon name="grid" size="xs" />
+                <span class="truncate">{{ t('imageStudio.selectFromHistory') }}</span>
+              </span>
+              <span class="history-count">{{ historyImages.length }}</span>
+              <Icon
+                name="chevronDown"
+                size="xs"
+                class="transition-transform"
+                :class="{ 'rotate-180': historyOpen }"
+              />
+            </button>
+            <Transition name="fold">
+              <div v-if="historyOpen" class="history-reference-grid">
+                <p
+                  v-if="historyImages.length === 0"
+                  class="col-span-full px-2 py-4 text-center text-xs text-gray-400 dark:text-dark-400"
+                >
+                  {{ t('imageStudio.noHistoryImages') }}
+                </p>
+                <button
+                  v-for="item in historyImages"
+                  :key="item.key"
+                  type="button"
+                  class="history-reference-item"
+                  :disabled="disabled"
+                  :title="item.prompt"
+                  @click="emit('selectReference', item)"
+                >
+                  <AuthedImage
+                    :url="item.url"
+                    :alt="item.prompt"
+                    class="history-reference-image"
+                  />
+                  <span class="history-reference-overlay">
+                    <Icon name="plus" size="xs" :stroke-width="2.5" />
+                  </span>
+                </button>
+              </div>
+            </Transition>
             <div v-if="referencePreviews.length > 0" class="reference-grid">
               <div
                 v-for="(item, idx) in referencePreviews"
@@ -331,6 +378,7 @@ import { useI18n } from 'vue-i18n'
 import type { Group } from '@/types'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import AuthedImage from './AuthedImage.vue'
 import {
   MODEL_OPTIONS,
   optionsForModel,
@@ -345,6 +393,12 @@ import {
 } from './pricing'
 
 type ComposerMode = 'generate' | 'edit' | 'compose'
+
+export interface ComposerHistoryImage {
+  key: string
+  url: string
+  prompt: string
+}
 
 export interface ComposerSubmitPayload {
   group_id: number
@@ -363,10 +417,12 @@ const props = defineProps<{
   loadingGroups?: boolean
   generating?: boolean
   balance?: number
+  historyImages?: ComposerHistoryImage[]
 }>()
 
 const emit = defineEmits<{
   (e: 'generate', payload: ComposerSubmitPayload): void
+  (e: 'selectReference', payload: ComposerHistoryImage): void
 }>()
 
 const { t } = useI18n()
@@ -389,8 +445,10 @@ const width = ref(1024)
 const height = ref(1024)
 const sizeAuto = ref(false)
 const settingsOpen = ref(false)
+const historyOpen = ref(false)
 
 const balance = computed(() => props.balance ?? 0)
+const historyImages = computed(() => props.historyImages ?? [])
 
 const groupOptions = computed(() =>
   imageGroups.value.map((g) => ({ value: g.id, label: g.name }))
@@ -680,6 +738,13 @@ function loadReferenceFiles(files: File[], nextMode: ComposerMode = 'edit') {
   }
 }
 
+function appendReferenceFiles(files: File[]) {
+  const accepted = addReferences(files)
+  if (accepted > 0) {
+    nextTick(() => promptRef.value?.focus())
+  }
+}
+
 function focusPrompt() {
   nextTick(() => promptRef.value?.focus())
 }
@@ -727,7 +792,14 @@ onBeforeUnmount(() => {
   revokeReferenceUrls()
 })
 
-defineExpose({ resetPrompt, fillPrompt, resetReference, loadReferenceFiles, focusPrompt })
+defineExpose({
+  resetPrompt,
+  fillPrompt,
+  resetReference,
+  loadReferenceFiles,
+  appendReferenceFiles,
+  focusPrompt,
+})
 </script>
 
 <style scoped>
@@ -968,6 +1040,42 @@ defineExpose({ resetPrompt, fillPrompt, resetReference, loadReferenceFiles, focu
 
 .reference-counter {
   @apply flex-shrink-0 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 dark:bg-dark-700 dark:text-gray-300;
+}
+
+.history-toggle {
+  @apply mt-2 flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-xs font-semibold text-gray-600 transition-colors;
+  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-900 dark:text-gray-300 dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+  @apply disabled:cursor-not-allowed disabled:opacity-45;
+}
+
+.history-count {
+  @apply ml-auto flex-shrink-0 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-dark-700 dark:text-gray-300;
+}
+
+.history-reference-grid {
+  @apply mt-2 grid grid-cols-4 gap-2 rounded-lg border border-gray-200 bg-gray-50/80 p-2 dark:border-dark-600 dark:bg-dark-900/50;
+}
+
+.history-reference-item {
+  @apply relative overflow-hidden rounded-lg border border-gray-200 bg-gray-100 transition-colors;
+  @apply hover:border-primary-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-700 dark:hover:border-primary-600;
+  aspect-ratio: 1 / 1;
+}
+
+.history-reference-image {
+  @apply h-full w-full rounded-none;
+}
+
+.history-reference-overlay {
+  @apply absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity;
+}
+
+.history-reference-item:hover .history-reference-overlay,
+.history-reference-item:focus-visible .history-reference-overlay {
+  @apply opacity-100;
 }
 
 .reference-grid {

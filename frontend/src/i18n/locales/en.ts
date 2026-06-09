@@ -1446,6 +1446,11 @@ export default {
     modelGroupGpt5: 'GPT-5 family',
     quickEdit: 'Edit',
     quickEditReady: 'Image added as a reference. Describe the edit you want.',
+    addReference: 'Add ref',
+    referenceAdded: 'Image added to references.',
+    selectFromHistory: 'Choose from history',
+    noHistoryImages: 'No history images yet',
+    conversationHistory: 'History',
   },
 
   // Empty States
