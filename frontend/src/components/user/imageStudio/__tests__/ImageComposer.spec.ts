@@ -137,6 +137,18 @@ describe('ImageComposer', () => {
     expect(wrapper.text()).toContain('imageStudio.modeCompose')
   })
 
+  it('exposes only the requested image model choices', async () => {
+    const wrapper = mountComposer([makeGroup()])
+    await flushPromises()
+
+    const modelSelect = wrapper.findAll('select')[1]
+    const options = modelSelect
+      .findAll('option')
+      .map((option) => option.attributes('value'))
+
+    expect(options).toEqual(['gpt-image-2', 'codex-gpt-image-2', 'auto', 'gpt-5'])
+  })
+
   it('clicking an aspect preset updates the submitted size', async () => {
     const groups = [makeGroup({ id: 7 })]
     const wrapper = mountComposer(groups)
@@ -291,13 +303,13 @@ describe('ImageComposer', () => {
 
     // Switch the model — the watcher snaps size/quality back to defaults.
     const modelSelect = wrapper.findAll('select')[1] // group, model, count
-    await modelSelect.setValue('gpt-5-3')
+    await modelSelect.setValue('gpt-5')
     await flushPromises()
 
     await wrapper.find('.send-button').trigger('click')
     const emitted = wrapper.emitted('generate')
     expect(emitted![0][0]).toMatchObject({
-      model: 'gpt-5-3',
+      model: 'gpt-5',
       size: '1024x1024',
       quality: 'auto',
     })

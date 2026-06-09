@@ -6,6 +6,7 @@ import {
   defaultsForModel,
   ASPECT_PRESETS,
   COUNT_OPTIONS,
+  MODEL_OPTIONS,
   parseSize,
   formatSize,
   isAutoSize,
@@ -109,11 +110,20 @@ describe('size helpers', () => {
 })
 
 describe('model option matrices', () => {
+  it('exposes the requested model choices only', () => {
+    expect(MODEL_OPTIONS.map((m) => m.value)).toEqual([
+      'gpt-image-2',
+      'codex-gpt-image-2',
+      'auto',
+      'gpt-5',
+    ])
+  })
+
   it('workbench models share the gpt-image sizes and qualities', () => {
     const v2 = optionsForModel('gpt-image-2')
     expect(v2.sizes.map((s) => s.value)).toEqual(['1K', '2K', '4K'])
     expect(v2.qualities.map((q) => q.value)).toEqual(['auto', 'low', 'medium', 'high'])
-    expect(optionsForModel('gpt-5-3').sizes).toEqual(v2.sizes)
+    expect(optionsForModel('gpt-5').sizes).toEqual(v2.sizes)
     expect(optionsForModel('codex-gpt-image-2').qualities).toEqual(v2.qualities)
   })
 
