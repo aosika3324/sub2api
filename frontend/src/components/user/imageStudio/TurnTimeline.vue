@@ -71,7 +71,7 @@
     </div>
 
     <!-- Results gallery (oldest → newest, newest nearest the composer) -->
-    <div v-else class="p-4">
+    <div v-else class="timeline-content">
       <div v-if="hasMore" class="mb-4 flex justify-center">
         <button
           type="button"
@@ -88,7 +88,7 @@
         </button>
       </div>
 
-      <TransitionGroup tag="div" name="reveal" class="space-y-4">
+      <TransitionGroup tag="div" name="reveal" class="timeline-list">
         <GenerationCard
           v-for="gen in orderedGenerations"
           :key="gen.id"
@@ -97,6 +97,7 @@
           @refresh="$emit('refresh', $event)"
           @delete="$emit('delete', $event)"
           @open="$emit('open', $event)"
+          @edit="$emit('edit', $event)"
         />
 
         <!-- Live generating placeholder (shimmer) at the very bottom -->
@@ -151,6 +152,7 @@ defineEmits<{
   (e: 'refresh', generation: ImageStudioGeneration): void
   (e: 'delete', generation: ImageStudioGeneration): void
   (e: 'open', src: string): void
+  (e: 'edit', payload: { generation: ImageStudioGeneration; url: string }): void
   (e: 'useExample', prompt: string): void
   (e: 'loadMore'): void
 }>()
@@ -193,6 +195,14 @@ const capabilityItems = computed(() => [
 </script>
 
 <style scoped>
+.timeline-content {
+  @apply min-h-full p-3 sm:p-4;
+}
+
+.timeline-list {
+  @apply space-y-4;
+}
+
 .example-chip {
   @apply inline-flex max-w-full items-center rounded-full border border-gray-200 bg-white/70 px-3.5 py-2 text-sm text-gray-700 transition-all;
   @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 hover:shadow-sm;

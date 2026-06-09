@@ -1,5 +1,5 @@
 <template>
-  <div class="card overflow-hidden p-0">
+  <div class="generation-card card overflow-hidden p-0">
     <!-- Header: prompt + params chips -->
     <div class="border-b border-gray-100 p-4 dark:border-dark-700/60">
       <div class="flex items-start justify-between gap-3">
@@ -48,7 +48,7 @@
     </div>
 
     <!-- Body -->
-    <div class="p-4">
+    <div class="generation-body">
       <!-- Source / reference images (image-to-image) -->
       <div v-if="inputImages.length > 0" class="mb-3">
         <p class="mb-1.5 text-xs font-medium text-gray-400 dark:text-dark-500">
@@ -110,15 +110,29 @@
         class="result-grid"
         :class="[gridColsClass, { 'result-grid-single': images.length === 1 }]"
       >
-        <AuthedImage
+        <div
           v-for="(url, idx) in images"
           :key="`${generation.id}-${idx}`"
-          :url="url"
-          :alt="generation.prompt"
-          :aspect-ratio="aspectRatio"
-          class="result-image"
-          @open="$emit('open', $event)"
-        />
+          class="result-item"
+        >
+          <AuthedImage
+            :url="url"
+            :alt="generation.prompt"
+            :aspect-ratio="aspectRatio"
+            class="result-image"
+            @open="$emit('open', $event)"
+          />
+          <button
+            type="button"
+            class="quick-edit-button"
+            :title="t('imageStudio.quickEdit')"
+            :aria-label="t('imageStudio.quickEdit')"
+            @click="$emit('edit', { generation, url })"
+          >
+            <Icon name="edit" size="xs" :stroke-width="2" />
+            <span>{{ t('imageStudio.quickEdit') }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- Succeeded but no images returned -->
@@ -150,6 +164,7 @@ defineEmits<{
   (e: 'refresh', generation: ImageStudioGeneration): void
   (e: 'delete', generation: ImageStudioGeneration): void
   (e: 'open', src: string): void
+  (e: 'edit', payload: { generation: ImageStudioGeneration; url: string }): void
 }>()
 
 const { t } = useI18n()
@@ -260,6 +275,15 @@ function formatElapsed(ms: number) {
 .chip-mode {
   @apply bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300;
 }
+
+.generation-card {
+  @apply w-full;
+}
+
+.generation-body {
+  @apply p-4;
+}
+
 /* Small fixed-height source thumbnails for image-to-image inputs. */
 .source-thumb {
   @apply h-16 w-16 flex-shrink-0;
@@ -270,19 +294,34 @@ function formatElapsed(ms: number) {
 }
 
 .result-grid-single {
-  @apply mx-auto w-full;
-  max-width: min(100%, 920px);
+  @apply w-full;
+}
+
+.result-item {
+  @apply relative min-w-0;
 }
 
 .result-image {
+  @apply w-full;
   min-height: 280px;
-  max-height: min(72vh, 860px);
+}
+
+.quick-edit-button {
+  @apply absolute left-3 top-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-full bg-black/60 px-3 text-xs font-semibold text-white shadow-sm backdrop-blur transition-colors;
+  @apply hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50;
 }
 
 @media (max-width: 640px) {
+  .generation-body {
+    @apply p-3;
+  }
+
   .result-image {
     min-height: 220px;
-    max-height: 72vh;
+  }
+
+  .quick-edit-button {
+    @apply left-2 top-2 h-7 px-2.5;
   }
 }
 </style>

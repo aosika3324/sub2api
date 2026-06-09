@@ -1445,6 +1445,11 @@ export default {
     clearHistoryMessage: '此操作将永久删除全部作图会话和图片。',
     historyCleared: '图片历史已清空',
     countShort: '{count}张',
+    modelGroupImage: '图像模型',
+    modelGroupRouting: '自动路由',
+    modelGroupGpt5: 'GPT-5 系列',
+    quickEdit: '编辑',
+    quickEditReady: '已将这张图加入参考图，请描述想要的编辑效果。',
   },
 
   // Empty States

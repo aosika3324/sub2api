@@ -72,6 +72,7 @@
               @refresh="handleRefreshGeneration"
               @delete="confirmDeleteGeneration"
               @open="openLightbox"
+              @edit="handleQuickEdit"
               @use-example="handleUseExample"
               @load-more="handleLoadMoreGenerations"
             />
@@ -465,6 +466,18 @@ async function handleRetry(generation: ImageStudioGeneration) {
   })
 }
 
+async function handleQuickEdit(payload: { generation: ImageStudioGeneration; url: string }) {
+  inlineError.value = ''
+  const file = await fetchInputAsFile(payload.url)
+  if (!file) {
+    appStore.showError(t('imageStudio.imageLoadFailed'))
+    return
+  }
+  composerRef.value?.loadReferenceFiles?.([file], 'edit')
+  composerRef.value?.focusPrompt?.()
+  appStore.showInfo(t('imageStudio.quickEditReady'))
+}
+
 function confirmDeleteGeneration(generation: ImageStudioGeneration) {
   deleteGenTarget.value = generation
 }
@@ -555,6 +568,7 @@ onBeforeUnmount(() => {
 .studio-page {
   width: min(100%, 1760px);
   margin-inline: auto;
+  min-height: 0;
 }
 
 .studio-layout {
@@ -632,26 +646,39 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 1280px) {
+  .studio-page {
+    height: calc(100vh - 8rem);
+    max-height: calc(100vh - 8rem);
+    overflow: hidden;
+  }
+
   .studio-layout {
     grid-template-columns: 260px minmax(0, 1fr) min(430px, 27vw);
+    height: 100%;
     align-items: stretch;
   }
 
   .studio-sidebar {
     order: 1;
-    height: calc(100vh - 8rem);
+    height: 100%;
+    overflow: hidden;
   }
 
   .studio-canvas {
     order: 2;
-    height: calc(100vh - 7rem);
+    height: 100%;
     min-height: 0;
   }
 
   .studio-inspector {
     order: 3;
-    height: calc(100vh - 7rem);
-    overflow-y: auto;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .studio-inspector > div {
+    height: 100%;
   }
 }
 

@@ -1441,6 +1441,11 @@ export default {
     clearHistoryMessage: 'This will permanently delete all image conversations and images.',
     historyCleared: 'Image history cleared',
     countShort: '{count} imgs',
+    modelGroupImage: 'Image models',
+    modelGroupRouting: 'Routing',
+    modelGroupGpt5: 'GPT-5 family',
+    quickEdit: 'Edit',
+    quickEditReady: 'Image added as a reference. Describe the edit you want.',
   },
 
   // Empty States

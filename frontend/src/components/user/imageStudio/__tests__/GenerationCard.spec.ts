@@ -96,6 +96,24 @@ describe('GenerationCard', () => {
     expect(imgs[1].attributes('src')).toBe('blob:/assets/1/1')
     // Cost chip is shown
     expect(wrapper.text()).toContain('$0.0800')
+    expect(wrapper.text()).toContain('imageStudio.quickEdit')
+  })
+
+  it('emits edit with the selected image url from the quick edit button', async () => {
+    const wrapper = mountCard(makeGeneration())
+    const editBtn = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('imageStudio.quickEdit'))
+    expect(editBtn).toBeTruthy()
+
+    await editBtn!.trigger('click')
+
+    const emitted = wrapper.emitted('edit')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0][0]).toMatchObject({
+      generation: expect.objectContaining({ id: 1 }),
+      url: '/assets/1/0',
+    })
   })
 
   it('renders an error message and a Retry button for failed status', async () => {

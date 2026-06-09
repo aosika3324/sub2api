@@ -122,7 +122,7 @@ describe('TurnTimeline', () => {
     expect(wrapper.text()).toContain('imageStudio.generating')
 
     // Placeholder is the last child within the gallery (after newest turn id 2).
-    const gallery = wrapper.find('.space-y-4')
+    const gallery = wrapper.find('.timeline-list')
     const children = Array.from(gallery.element.children)
     const lastChild = children[children.length - 1] as HTMLElement
     expect(lastChild.querySelector('.shimmer')).not.toBeNull()

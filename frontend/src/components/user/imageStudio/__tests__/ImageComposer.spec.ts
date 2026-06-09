@@ -37,8 +37,8 @@ const SelectStub = defineComponent({
             emit('update:modelValue', match ? match.value : raw)
           },
         },
-        (props.options as Array<{ value: unknown; label: string }>).map((o) =>
-          h('option', { value: String(o.value) }, o.label)
+        (props.options as Array<{ value: unknown; label: string; disabled?: boolean }>).map((o) =>
+          h('option', { value: String(o.value), disabled: o.disabled }, o.label)
         )
       )
   },
@@ -134,14 +134,12 @@ describe('ImageComposer', () => {
 
     expect(wrapper.find('.workbench-panel').exists()).toBe(true)
     expect(wrapper.find('.studio-panel-header').exists()).toBe(true)
-    expect(wrapper.find('.capability-strip').exists()).toBe(true)
     expect(wrapper.find('.reference-workbench').exists()).toBe(true)
     expect(wrapper.find('.prompt-panel').exists()).toBe(true)
-    expect(wrapper.find('.model-chip-grid').exists()).toBe(true)
-    expect(wrapper.find('.count-chip-grid').exists()).toBe(true)
+    expect(wrapper.find('.settings-toggle').exists()).toBe(true)
+    expect(wrapper.find('.count-chip-grid').exists()).toBe(false)
     expect(wrapper.text()).toContain('imageStudio.workbenchTitle')
     expect(wrapper.text()).toContain('imageStudio.workbenchSubtitle')
-    expect(wrapper.text()).toContain('imageStudio.workbenchModeTitle')
     expect(wrapper.text()).toContain('imageStudio.referenceWorkbenchTitle')
     expect(wrapper.text()).toContain('imageStudio.promptTitle')
     expect(wrapper.text()).toContain('imageStudio.modeGenerate')
@@ -151,18 +149,21 @@ describe('ImageComposer', () => {
     expect(wrapper.text()).toContain('imageStudio.referenceRequirementGenerate')
   })
 
-  it('exposes only the requested image model choices', async () => {
+  it('exposes the requested image model choices in a grouped select', async () => {
     const wrapper = mountComposer([makeGroup()])
     await flushPromises()
 
     const options = wrapper
-      .findAll('.model-chip')
+      .findAll('.model-select option')
       .map((option) => option.text())
 
     expect(options).toEqual([
+      'imageStudio.modelGroupImage',
       'gpt-image-2',
       'codex-gpt-image-2',
+      'imageStudio.modelGroupRouting',
       'auto',
+      'imageStudio.modelGroupGpt5',
       'gpt-5',
       'gpt-5-1',
       'gpt-5-2',
@@ -177,6 +178,7 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer(groups)
     await flushPromises()
     await wrapper.find('textarea').setValue('landscape please')
+    await wrapper.find('.settings-toggle').trigger('click')
 
     // Pick the 16:9 preset (1024x576).
     const presetBtn = wrapper
@@ -194,6 +196,7 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
     await wrapper.find('textarea').setValue('auto size')
+    await wrapper.find('.settings-toggle').trigger('click')
     const autoBtn = wrapper
       .findAll('.aspect-btn')
       .find((b) => b.text() === 'imageStudio.aspectAuto')
@@ -209,6 +212,7 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
     await wrapper.find('textarea').setValue('hi-q')
+    await wrapper.find('.settings-toggle').trigger('click')
     const highBtn = wrapper
       .findAll('.segmented-btn')
       .find((b) => b.text() === 'imageStudio.qualityHigh')
@@ -224,6 +228,7 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
     await wrapper.find('textarea').setValue('three please')
+    await wrapper.find('.settings-toggle').trigger('click')
     const countButton = wrapper
       .findAll('.count-chip')
       .find((button) => button.text() === '3')
@@ -319,6 +324,7 @@ describe('ImageComposer', () => {
     const wrapper = mountComposer(groups)
     await flushPromises()
     await wrapper.find('textarea').setValue('a fox in a meadow')
+    await wrapper.find('.settings-toggle').trigger('click')
 
     // Move size away from default via an aspect preset + quality to high.
     const preset = wrapper.findAll('.aspect-btn').find((b) => b.text() === '4:3')
@@ -329,12 +335,8 @@ describe('ImageComposer', () => {
     await high!.trigger('click')
     await flushPromises()
 
-    // Switch the model — the watcher snaps size/quality back to defaults.
-    const modelButton = wrapper
-      .findAll('.model-chip')
-      .find((button) => button.text() === 'gpt-5')
-    expect(modelButton).toBeTruthy()
-    await modelButton!.trigger('click')
+    // Switch the model - the watcher snaps size/quality back to defaults.
+    await wrapper.findAll('select')[1].setValue('gpt-5')
     await flushPromises()
 
     await wrapper.find('.send-button').trigger('click')

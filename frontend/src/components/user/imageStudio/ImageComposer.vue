@@ -13,11 +13,7 @@
           <span class="font-medium text-gray-900 dark:text-white">${{ balance.toFixed(2) }}</span>
         </span>
       </div>
-      <div class="capability-strip">
-        <span>{{ t('imageStudio.capabilityGenerate') }}</span>
-        <span>{{ t('imageStudio.capabilityEdit') }}</span>
-        <span>{{ t('imageStudio.capabilityCompose') }}</span>
-      </div>
+
       <div class="studio-mode-summary">
         <span>{{ activeModeLabel }}</span>
         <span>{{ model }}</span>
@@ -26,27 +22,23 @@
       </div>
     </div>
 
-    <!-- No usable group hint (subtle muted inline notice) -->
     <div
       v-if="!loadingGroups && imageGroups.length === 0"
-      class="mb-2 flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/30 dark:bg-amber-900/15 dark:text-amber-300"
+      class="mx-3 mt-3 flex items-center gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/30 dark:bg-amber-900/15 dark:text-amber-300"
     >
       <Icon name="exclamationTriangle" size="xs" class="flex-shrink-0" />
       <span>{{ t('imageStudio.noImageGroupHint') }}</span>
     </div>
 
-    <!-- Unified pill: textarea on top, compact controls + send below.
-         Doubles as a drag-and-drop target for reference images. -->
     <div
       class="composer-shell"
       @dragover.prevent="onDragOver"
       @dragleave.prevent="onDragLeave"
       @drop.prevent="onDrop"
     >
-      <!-- Drag overlay -->
       <div
         v-if="dragActive"
-        class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-primary-400 bg-primary-50/80 dark:border-primary-500 dark:bg-primary-900/30"
+        class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-primary-400 bg-primary-50/80 dark:border-primary-500 dark:bg-primary-900/30"
       >
         <span class="flex items-center gap-2 text-sm font-medium text-primary-700 dark:text-primary-300">
           <Icon name="upload" size="sm" />
@@ -54,236 +46,240 @@
         </span>
       </div>
 
-      <!-- Visible workbench controls -->
-      <div class="workbench-panel">
-        <div class="workbench-section-heading">
-          <div>
-            <span class="section-eyebrow">{{ t('imageStudio.stepCreate') }}</span>
-            <h3>{{ t('imageStudio.workbenchModeTitle') }}</h3>
-          </div>
-          <span
-            class="mode-status-pill"
-            :class="{ 'mode-status-ok': hasRequiredReferenceSelection() }"
-          >
-            {{ referenceRequirement }}
-          </span>
-        </div>
-        <div class="workbench-row">
-          <div class="control-field control-field-group">
-            <span class="control-label">{{ t('imageStudio.group') }}</span>
-            <Select
-              v-model="groupId"
-              class="workbench-select"
-              :options="groupOptions"
-              :disabled="disabled || imageGroups.length === 0"
-              :placeholder="t('imageStudio.selectGroup')"
-              :aria-label="t('imageStudio.group')"
-            />
-          </div>
-
-          <div class="control-field control-field-mode">
-            <span class="control-label">{{ t('imageStudio.mode') }}</span>
-            <div class="mode-card-grid" role="group" :aria-label="t('imageStudio.mode')">
-              <button
-                v-for="option in modeOptions"
-                :key="option.value"
-                type="button"
-                class="mode-card"
-                :class="{ 'mode-card-active': mode === option.value }"
-                :disabled="disabled"
-                :aria-pressed="mode === option.value"
-                @click="mode = option.value"
-              >
-                <span class="mode-card-title">{{ option.label }}</span>
-                <span class="mode-card-copy">{{ modeHintFor(option.value) }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="control-field control-field-model">
-            <span class="control-label">{{ t('imageStudio.model') }}</span>
-            <div class="model-chip-grid" role="radiogroup" :aria-label="t('imageStudio.model')">
-              <button
-                v-for="option in modelOptions"
-                :key="option.value"
-                type="button"
-                class="model-chip"
-                :class="{ 'model-chip-active': model === option.value }"
-                :disabled="disabled"
-                :aria-checked="model === option.value"
-                role="radio"
-                @click="selectModel(option.value)"
-              >
-                {{ option.label }}
-              </button>
-            </div>
-          </div>
-
-          <div class="control-field control-field-count">
-            <span class="control-label">{{ t('imageStudio.count') }}</span>
-            <div class="count-chip-grid" role="radiogroup" :aria-label="t('imageStudio.count')">
-              <button
-                v-for="count in countOptions"
-                :key="count.value"
-                type="button"
-                class="count-chip"
-                :class="{ 'count-chip-active': n === count.value }"
-                :disabled="disabled"
-                :aria-checked="n === count.value"
-                role="radio"
-                @click="selectCount(count.value)"
-              >
-                {{ count.label }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="workbench-row workbench-row-secondary">
-          <div class="control-field control-field-quality">
-            <span class="control-label">{{ t('imageStudio.quality') }}</span>
-            <div class="segmented" role="group" :aria-label="t('imageStudio.quality')">
-              <button
-                v-for="q in qualityOptions"
-                :key="q.value"
-                type="button"
-                class="segmented-btn"
-                :class="{ 'segmented-btn-active': quality === q.value }"
-                :disabled="disabled"
-                :aria-pressed="quality === q.value"
-                @click="quality = q.value"
-              >
-                {{ q.label }}
-              </button>
-            </div>
-          </div>
-
-          <div class="control-field control-field-size">
-            <span class="control-label">{{ t('imageStudio.aspectRatio') }}</span>
-            <div class="aspect-grid" role="group" :aria-label="t('imageStudio.aspectRatio')">
-              <button
-                v-for="preset in aspectPresets"
-                :key="preset.size"
-                type="button"
-                class="aspect-btn"
-                :class="{ 'aspect-btn-active': isPresetActive(preset) }"
-                :disabled="disabled"
-                :aria-pressed="isPresetActive(preset)"
-                @click="applyPreset(preset)"
-              >
-                {{ presetLabel(preset) }}
-              </button>
-            </div>
-          </div>
-
-          <div class="control-field control-field-custom">
-            <div class="flex items-center justify-between gap-3">
-              <span class="control-label">{{ t('imageStudio.customSize') }}</span>
-              <label class="auto-toggle">
-                <input
-                  v-model="sizeAuto"
-                  type="checkbox"
-                  class="auto-checkbox"
-                  :disabled="disabled"
-                />
-                <span>{{ t('imageStudio.aspectAuto') }}</span>
-              </label>
-            </div>
-            <div class="mt-1.5 flex items-center gap-2">
-              <input
-                v-model.number="width"
-                type="number"
-                min="1"
-                class="size-input"
-                :disabled="disabled || sizeAuto"
-                :placeholder="t('imageStudio.width')"
-                :aria-label="t('imageStudio.width')"
+      <div class="composer-main">
+        <section class="workbench-panel">
+          <div class="compact-grid">
+            <div class="control-field">
+              <span class="control-label">{{ t('imageStudio.group') }}</span>
+              <Select
+                v-model="groupId"
+                class="workbench-select"
+                :options="groupOptions"
+                :disabled="disabled || imageGroups.length === 0"
+                :placeholder="t('imageStudio.selectGroup')"
+                :aria-label="t('imageStudio.group')"
               />
-              <span class="text-gray-400 dark:text-dark-500">x</span>
-              <input
-                v-model.number="height"
-                type="number"
-                min="1"
-                class="size-input"
-                :disabled="disabled || sizeAuto"
-                :placeholder="t('imageStudio.height')"
-                :aria-label="t('imageStudio.height')"
+            </div>
+
+            <div class="control-field">
+              <span class="control-label">{{ t('imageStudio.model') }}</span>
+              <Select
+                :model-value="model"
+                class="workbench-select model-select"
+                :options="modelSelectOptions"
+                :disabled="disabled"
+                :searchable="false"
+                :aria-label="t('imageStudio.model')"
+                @update:model-value="selectModelValue"
               />
             </div>
           </div>
-        </div>
 
-        <div class="reference-workbench">
-          <div class="reference-workbench-header">
-            <div>
-              <span class="section-eyebrow">{{ t('imageStudio.stepReference') }}</span>
-              <h3>{{ t('imageStudio.referenceWorkbenchTitle') }}</h3>
-            </div>
-            <span class="reference-counter">
-              {{ referencePreviews.length }}/{{ MAX_REFERENCE_IMAGES }}
-            </span>
+          <div class="mode-card-grid" role="group" :aria-label="t('imageStudio.mode')">
+            <button
+              v-for="option in modeOptions"
+              :key="option.value"
+              type="button"
+              class="mode-card"
+              :class="{ 'mode-card-active': mode === option.value }"
+              :disabled="disabled"
+              :aria-pressed="mode === option.value"
+              @click="mode = option.value"
+            >
+              <span class="mode-card-title">{{ option.label }}</span>
+              <span class="mode-card-copy">{{ modeHintFor(option.value) }}</span>
+            </button>
           </div>
+
           <button
             type="button"
-            class="reference-dropzone"
-            :class="{ 'reference-dropzone-empty': referencePreviews.length === 0 }"
-            :disabled="disabled"
-            @click="triggerFilePicker"
+            class="settings-toggle"
+            :aria-expanded="settingsOpen"
+            @click="settingsOpen = !settingsOpen"
           >
-            <Icon name="upload" size="sm" class="text-primary-500" />
-            <span class="reference-dropzone-text">
-              {{ referencePreviews.length > 0 ? t('imageStudio.referenceImage') : t('imageStudio.upload') }}
+            <span class="inline-flex items-center gap-2">
+              <Icon name="cog" size="sm" />
+              <span>{{ t('imageStudio.imageSettings') }}</span>
             </span>
+            <span class="settings-summary">{{ settingsSummary }}</span>
+            <Icon
+              name="chevronDown"
+              size="sm"
+              class="settings-chevron"
+              :class="{ 'rotate-180': settingsOpen }"
+            />
           </button>
-          <div v-if="referencePreviews.length > 0" class="reference-grid">
-            <div
-              v-for="(item, idx) in referencePreviews"
-              :key="`${idx}-${item.url}`"
-              class="reference-thumb"
-            >
-              <img
-                :src="item.url"
-                :alt="t('imageStudio.referenceImage')"
-              />
-              <button
-                type="button"
-                :title="t('imageStudio.removeReference')"
-                :aria-label="t('imageStudio.removeReference')"
-                @click="removeReference(idx)"
+
+          <Transition name="fold">
+            <div v-if="settingsOpen" class="advanced-settings">
+              <div class="control-field">
+                <span class="control-label">{{ t('imageStudio.count') }}</span>
+                <div class="count-chip-grid" role="radiogroup" :aria-label="t('imageStudio.count')">
+                  <button
+                    v-for="count in countOptions"
+                    :key="count.value"
+                    type="button"
+                    class="count-chip"
+                    :class="{ 'count-chip-active': n === count.value }"
+                    :disabled="disabled"
+                    :aria-checked="n === count.value"
+                    role="radio"
+                    @click="selectCount(count.value)"
+                  >
+                    {{ count.label }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="control-field">
+                <span class="control-label">{{ t('imageStudio.quality') }}</span>
+                <div class="segmented" role="group" :aria-label="t('imageStudio.quality')">
+                  <button
+                    v-for="q in qualityOptions"
+                    :key="q.value"
+                    type="button"
+                    class="segmented-btn"
+                    :class="{ 'segmented-btn-active': quality === q.value }"
+                    :disabled="disabled"
+                    :aria-pressed="quality === q.value"
+                    @click="quality = q.value"
+                  >
+                    {{ q.label }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="control-field">
+                <span class="control-label">{{ t('imageStudio.aspectRatio') }}</span>
+                <div class="aspect-grid" role="group" :aria-label="t('imageStudio.aspectRatio')">
+                  <button
+                    v-for="preset in aspectPresets"
+                    :key="preset.size"
+                    type="button"
+                    class="aspect-btn"
+                    :class="{ 'aspect-btn-active': isPresetActive(preset) }"
+                    :disabled="disabled"
+                    :aria-pressed="isPresetActive(preset)"
+                    @click="applyPreset(preset)"
+                  >
+                    {{ presetLabel(preset) }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="control-field">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="control-label mb-0">{{ t('imageStudio.customSize') }}</span>
+                  <label class="auto-toggle">
+                    <input
+                      v-model="sizeAuto"
+                      type="checkbox"
+                      class="auto-checkbox"
+                      :disabled="disabled"
+                    />
+                    <span>{{ t('imageStudio.aspectAuto') }}</span>
+                  </label>
+                </div>
+                <div class="mt-2 flex items-center gap-2">
+                  <input
+                    v-model.number="width"
+                    type="number"
+                    min="1"
+                    class="size-input"
+                    :disabled="disabled || sizeAuto"
+                    :placeholder="t('imageStudio.width')"
+                    :aria-label="t('imageStudio.width')"
+                  />
+                  <span class="text-gray-400 dark:text-dark-500">x</span>
+                  <input
+                    v-model.number="height"
+                    type="number"
+                    min="1"
+                    class="size-input"
+                    :disabled="disabled || sizeAuto"
+                    :placeholder="t('imageStudio.height')"
+                    :aria-label="t('imageStudio.height')"
+                  />
+                </div>
+              </div>
+            </div>
+          </Transition>
+
+          <div class="reference-workbench">
+            <div class="reference-workbench-header">
+              <div class="min-w-0">
+                <span class="section-eyebrow">{{ t('imageStudio.stepReference') }}</span>
+                <h3>{{ t('imageStudio.referenceWorkbenchTitle') }}</h3>
+              </div>
+              <span
+                class="mode-status-pill"
+                :class="{ 'mode-status-ok': hasRequiredReferenceSelection() }"
               >
-                <Icon name="x" size="xs" :stroke-width="2.5" />
-              </button>
+                {{ referenceRequirement }}
+              </span>
+            </div>
+            <button
+              type="button"
+              class="reference-dropzone"
+              :class="{ 'reference-dropzone-empty': referencePreviews.length === 0 }"
+              :disabled="disabled"
+              @click="triggerFilePicker"
+            >
+              <Icon name="upload" size="sm" class="text-primary-500" />
+              <span class="reference-dropzone-text">
+                {{ referencePreviews.length > 0 ? t('imageStudio.referenceImage') : t('imageStudio.upload') }}
+              </span>
+              <span class="reference-counter">
+                {{ referencePreviews.length }}/{{ MAX_REFERENCE_IMAGES }}
+              </span>
+            </button>
+            <div v-if="referencePreviews.length > 0" class="reference-grid">
+              <div
+                v-for="(item, idx) in referencePreviews"
+                :key="`${idx}-${item.url}`"
+                class="reference-thumb"
+              >
+                <img
+                  :src="item.url"
+                  :alt="t('imageStudio.referenceImage')"
+                />
+                <button
+                  type="button"
+                  :title="t('imageStudio.removeReference')"
+                  :aria-label="t('imageStudio.removeReference')"
+                  @click="removeReference(idx)"
+                >
+                  <Icon name="x" size="xs" :stroke-width="2.5" />
+                </button>
+              </div>
+            </div>
+            <p v-if="referenceError" class="mt-2 text-xs text-red-500">{{ referenceError }}</p>
+          </div>
+        </section>
+
+        <section class="prompt-panel">
+          <div class="workbench-section-heading compact">
+            <div>
+              <span class="section-eyebrow">{{ t('imageStudio.stepPrompt') }}</span>
+              <h3>{{ t('imageStudio.promptTitle') }}</h3>
             </div>
           </div>
-          <p class="reference-workbench-hint">{{ referenceRequirement }}</p>
-          <p v-if="referenceError" class="mt-1 text-xs text-red-500">{{ referenceError }}</p>
-        </div>
+          <textarea
+            ref="promptRef"
+            v-model="prompt"
+            rows="3"
+            :disabled="disabled"
+            class="composer-prompt"
+            :placeholder="t('imageStudio.promptPlaceholder')"
+            @input="autoGrow"
+            @paste="onPaste"
+            @keydown.ctrl.enter.prevent="submit"
+            @keydown.meta.enter.prevent="submit"
+          ></textarea>
+        </section>
       </div>
 
-      <!-- Prompt -->
-      <div class="prompt-panel">
-        <div class="workbench-section-heading compact">
-          <div>
-            <span class="section-eyebrow">{{ t('imageStudio.stepPrompt') }}</span>
-            <h3>{{ t('imageStudio.promptTitle') }}</h3>
-          </div>
-        </div>
-        <textarea
-          ref="promptRef"
-          v-model="prompt"
-          rows="1"
-          :disabled="disabled"
-          class="composer-prompt"
-          :placeholder="t('imageStudio.promptPlaceholder')"
-          @input="autoGrow"
-          @paste="onPaste"
-          @keydown.ctrl.enter.prevent="submit"
-          @keydown.meta.enter.prevent="submit"
-        ></textarea>
-      </div>
-
-      <!-- Action bar -->
-      <div class="composer-controls action-bar">
+      <div class="action-bar">
         <button
           type="button"
           class="upload-pill"
@@ -348,9 +344,11 @@ import {
   type AspectPreset,
 } from './pricing'
 
+type ComposerMode = 'generate' | 'edit' | 'compose'
+
 export interface ComposerSubmitPayload {
   group_id: number
-  mode: 'generate' | 'edit' | 'compose'
+  mode: ComposerMode
   prompt: string
   model: string
   size: string
@@ -376,7 +374,6 @@ const { t } = useI18n()
 const MAX_REFERENCE_BYTES = 20 * 1024 * 1024
 const MAX_REFERENCE_IMAGES = 8
 
-// Only groups that allow image generation are usable.
 const imageGroups = computed(() =>
   props.groups.filter((g) => g.allow_image_generation && g.status === 'active')
 )
@@ -385,15 +382,13 @@ const promptRef = ref<HTMLTextAreaElement | null>(null)
 const prompt = ref('')
 const groupId = ref<number | null>(null)
 const model = ref<ModelId>('gpt-image-2')
-const mode = ref<'generate' | 'edit' | 'compose'>('generate')
+const mode = ref<ComposerMode>('generate')
 const quality = ref('auto')
 const n = ref(1)
-
-// Size is driven by W×H inputs + an `auto` toggle (the old single `size` Select
-// was replaced by the popover's custom-size + aspect grid).
 const width = ref(1024)
 const height = ref(1024)
 const sizeAuto = ref(false)
+const settingsOpen = ref(false)
 
 const balance = computed(() => props.balance ?? 0)
 
@@ -401,8 +396,32 @@ const groupOptions = computed(() =>
   imageGroups.value.map((g) => ({ value: g.id, label: g.name }))
 )
 
-// ---- Settings options ----
-const modelOptions = MODEL_OPTIONS
+const modelSelectOptions = computed(() => [
+  {
+    value: '__image_core',
+    label: t('imageStudio.modelGroupImage'),
+    kind: 'group',
+    disabled: true,
+  },
+  ...MODEL_OPTIONS.filter((option) =>
+    option.value === 'gpt-image-2' || option.value === 'codex-gpt-image-2'
+  ),
+  {
+    value: '__routing',
+    label: t('imageStudio.modelGroupRouting'),
+    kind: 'group',
+    disabled: true,
+  },
+  ...MODEL_OPTIONS.filter((option) => option.value === 'auto'),
+  {
+    value: '__gpt5',
+    label: t('imageStudio.modelGroupGpt5'),
+    kind: 'group',
+    disabled: true,
+  },
+  ...MODEL_OPTIONS.filter((option) => option.value.startsWith('gpt-5')),
+])
+
 const aspectPresets = ASPECT_PRESETS
 const modeOptions = computed(() => [
   { value: 'generate' as const, label: t('imageStudio.modeGenerate') },
@@ -416,7 +435,7 @@ const activeModeLabel = computed(() => {
   return t('imageStudio.modeGenerate')
 })
 
-function modeHintFor(value: 'generate' | 'edit' | 'compose'): string {
+function modeHintFor(value: ComposerMode): string {
   if (value === 'edit') return t('imageStudio.modeEditHint')
   if (value === 'compose') return t('imageStudio.modeComposeHint')
   return t('imageStudio.modeGenerateHint')
@@ -437,9 +456,13 @@ const qualityOptions = computed(() =>
 
 const countOptions = COUNT_OPTIONS.map((v) => ({ value: v, label: String(v) }))
 
-function selectModel(next: ModelId) {
-  if (disabled.value) return
-  model.value = next
+function isModelId(value: unknown): value is ModelId {
+  return MODEL_OPTIONS.some((option) => option.value === value)
+}
+
+function selectModelValue(value: string | number | boolean | null) {
+  if (disabled.value || !isModelId(value)) return
+  model.value = value
 }
 
 function selectCount(next: number) {
@@ -447,12 +470,25 @@ function selectCount(next: number) {
   n.value = next
 }
 
-// Submit payload size: the `auto` sentinel or a concrete "WxH" pair.
 const submitSize = computed(() =>
   sizeAuto.value ? 'auto' : formatSize(width.value, height.value)
 )
 
-// ---- Aspect preset helpers ----
+const activeQualityLabel = computed(
+  () => qualityOptions.value.find((option) => option.value === quality.value)?.label ?? quality.value
+)
+
+const activeAspectLabel = computed(() => {
+  if (sizeAuto.value) return t('imageStudio.aspectAuto')
+  const preset = aspectPresets.find((item) => item.size === submitSize.value)
+  return preset?.label ?? submitSize.value
+})
+
+const settingsSummary = computed(
+  () =>
+    `${t('imageStudio.countShort', { count: n.value })} · ${activeQualityLabel.value} · ${activeAspectLabel.value}`
+)
+
 function presetLabel(preset: AspectPreset): string {
   return preset.size === 'auto' ? t('imageStudio.aspectAuto') : preset.label
 }
@@ -475,8 +511,6 @@ function applyPreset(preset: AspectPreset) {
   height.value = parsed.h
 }
 
-// When the model changes, reset size/quality to that model's defaults to avoid
-// invalid combinations (both models currently share one matrix).
 watch(model, (next) => {
   const d = defaultsForModel(next)
   quality.value = d.quality
@@ -491,14 +525,12 @@ watch(mode, (next) => {
   }
 })
 
-// Default the group selection to the first usable group.
 watch(
   imageGroups,
   (list) => {
     if (groupId.value === null && list.length > 0) {
       groupId.value = list[0].id
     } else if (groupId.value !== null && !list.some((g) => g.id === groupId.value)) {
-      // Previously selected group is no longer usable — reset.
       groupId.value = list.length > 0 ? list[0].id : null
     }
   },
@@ -516,13 +548,9 @@ const canGenerate = computed(
     hasRequiredReferenceSelection()
 )
 
-// Best-effort client-side cost estimate. Currently always null (server is the
-// source of truth); the markup reappears automatically if price tables land.
 const costEstimate = computed(() =>
   estimateCost(model.value, submitSize.value, quality.value, n.value)
 )
-
-// ==================== Reference image (image-to-image) ====================
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const referenceImages = ref<File[]>([])
@@ -536,7 +564,7 @@ function hasRequiredReferenceSelection(): boolean {
   return true
 }
 
-function addReferences(files: File[]) {
+function addReferences(files: File[]): number {
   referenceError.value = ''
   const nextFiles: File[] = []
   for (const file of files) {
@@ -551,12 +579,15 @@ function addReferences(files: File[]) {
     nextFiles.push(file)
   }
   if (nextFiles.length === 0) {
-    return
+    return 0
   }
   const capacity = Math.max(0, MAX_REFERENCE_IMAGES - referenceImages.value.length)
   const accepted = nextFiles.slice(0, capacity)
   if (accepted.length < nextFiles.length) {
     referenceError.value = t('imageStudio.tooManyReferences', { count: MAX_REFERENCE_IMAGES })
+  }
+  if (accepted.length === 0) {
+    return 0
   }
   referenceImages.value = [...referenceImages.value, ...accepted]
   referencePreviews.value = [
@@ -568,6 +599,7 @@ function addReferences(files: File[]) {
   } else if (referenceImages.value.length > 1) {
     mode.value = 'compose'
   }
+  return accepted.length
 }
 
 function revokeReferenceUrls() {
@@ -600,7 +632,6 @@ function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   const files = input.files ? Array.from(input.files) : []
   if (files.length > 0) addReferences(files)
-  // Reset so selecting the same file again re-triggers change.
   input.value = ''
 }
 
@@ -631,8 +662,6 @@ function onDrop(e: DragEvent) {
   if (images.length > 0) addReferences(images)
 }
 
-// Clears the reference file + revokes its object URL. Exposed for the parent so
-// it can drop the source image after a successful generate.
 function resetReference() {
   revokeReferenceUrls()
   referenceImages.value = []
@@ -642,11 +671,24 @@ function resetReference() {
   }
 }
 
+function loadReferenceFiles(files: File[], nextMode: ComposerMode = 'edit') {
+  resetReference()
+  const accepted = addReferences(files)
+  if (accepted > 0) {
+    mode.value = nextMode
+    nextTick(() => promptRef.value?.focus())
+  }
+}
+
+function focusPrompt() {
+  nextTick(() => promptRef.value?.focus())
+}
+
 function autoGrow() {
   const el = promptRef.value
   if (!el) return
   el.style.height = 'auto'
-  el.style.height = `${Math.min(el.scrollHeight, 320)}px`
+  el.style.height = `${Math.min(el.scrollHeight, 260)}px`
 }
 
 function submit() {
@@ -664,13 +706,11 @@ function submit() {
   })
 }
 
-// Allow the parent to clear the prompt after a successful generate.
 function resetPrompt() {
   prompt.value = ''
   nextTick(autoGrow)
 }
 
-// Allow the parent (onboarding chips) to fill + focus the prompt.
 function fillPrompt(value: string) {
   prompt.value = value
   nextTick(() => {
@@ -687,16 +727,16 @@ onBeforeUnmount(() => {
   revokeReferenceUrls()
 })
 
-defineExpose({ resetPrompt, fillPrompt, resetReference })
+defineExpose({ resetPrompt, fillPrompt, resetReference, loadReferenceFiles, focusPrompt })
 </script>
 
 <style scoped>
 .composer {
-  @apply rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-dark-700/50 dark:bg-dark-800/80;
+  @apply flex h-full min-h-0 flex-col rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-dark-700/50 dark:bg-dark-800/80;
 }
 
 .studio-panel-header {
-  @apply border-b border-gray-100 px-4 py-4 dark:border-dark-700/60;
+  @apply flex-shrink-0 border-b border-gray-100 px-4 py-4 dark:border-dark-700/60;
 }
 
 .studio-kicker {
@@ -711,15 +751,6 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
   @apply mt-1 text-xs leading-relaxed text-gray-500 dark:text-dark-300;
 }
 
-.capability-strip {
-  @apply mt-3 grid grid-cols-3 gap-1.5;
-}
-
-.capability-strip span {
-  @apply rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-center text-[11px] font-semibold text-gray-600;
-  @apply dark:border-dark-600 dark:bg-dark-900/70 dark:text-gray-300;
-}
-
 .studio-mode-summary {
   @apply mt-3 flex flex-wrap gap-1.5;
 }
@@ -728,69 +759,28 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
   @apply rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300;
 }
 
+.balance-pill {
+  @apply inline-flex flex-shrink-0 items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-600;
+  @apply dark:bg-dark-700 dark:text-gray-300;
+}
+
 .composer-shell {
-  @apply relative bg-transparent transition-colors focus-within:border-primary-400 dark:focus-within:border-primary-500;
+  @apply relative flex min-h-0 flex-1 flex-col;
 }
 
-.composer-prompt {
-  @apply w-full resize-none border-0 bg-transparent px-0 pb-0 pt-2 text-base leading-relaxed;
-  @apply text-gray-900 dark:text-white;
-  @apply placeholder:text-gray-400 dark:placeholder:text-dark-500;
-  @apply focus:outline-none focus:ring-0;
-  min-height: 170px;
+.composer-main {
+  @apply min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3;
 }
 
-.workbench-panel {
-  @apply m-3 rounded-xl border border-gray-100 bg-gray-50/90 p-3;
+.workbench-panel,
+.prompt-panel {
+  @apply rounded-xl border border-gray-100 bg-gray-50/90 p-3;
   @apply dark:border-dark-700/70 dark:bg-dark-900/60;
 }
 
-.workbench-section-heading {
-  @apply mb-3 flex items-start justify-between gap-3;
-}
-
-.workbench-section-heading.compact {
-  @apply mb-1;
-}
-
-.workbench-section-heading h3,
-.reference-workbench-header h3 {
-  @apply text-sm font-semibold text-gray-900 dark:text-white;
-}
-
-.section-eyebrow {
-  @apply block text-[10px] font-semibold uppercase tracking-normal text-primary-600 dark:text-primary-300;
-}
-
-.mode-status-pill {
-  @apply rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-300;
-}
-
-.mode-status-ok {
-  @apply bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300;
-}
-
-.workbench-row {
+.compact-grid {
   @apply grid gap-3;
   grid-template-columns: minmax(0, 1fr);
-}
-
-.workbench-row-secondary {
-  @apply mt-3;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-@media (min-width: 768px) and (max-width: 1279px) {
-  .workbench-row,
-  .workbench-row-secondary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1680px) {
-  .workbench-row-secondary {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .control-field {
@@ -816,24 +806,150 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
   @apply opacity-60;
 }
 
+.mode-card-grid {
+  @apply mt-3 grid grid-cols-3 gap-1.5;
+}
+
+.mode-card {
+  @apply min-w-0 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-left transition-colors;
+  @apply hover:border-primary-300 hover:bg-primary-50;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-800 dark:hover:border-primary-700 dark:hover:bg-primary-900/20;
+}
+
+.mode-card-active {
+  @apply border-primary-500 bg-primary-50 ring-1 ring-primary-500/30 dark:border-primary-500 dark:bg-primary-900/30;
+}
+
+.mode-card:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.mode-card-title {
+  @apply block truncate text-sm font-semibold text-gray-900 dark:text-white;
+}
+
+.mode-card-copy {
+  @apply mt-1 block line-clamp-2 text-[11px] leading-snug text-gray-500 dark:text-dark-300;
+}
+
+.settings-toggle {
+  @apply mt-3 flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-xs font-semibold text-gray-700 transition-colors;
+  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+}
+
+.settings-summary {
+  @apply min-w-0 flex-1 truncate text-right font-medium text-gray-400 dark:text-dark-400;
+}
+
+.settings-chevron {
+  @apply flex-shrink-0 text-gray-400 transition-transform duration-200 dark:text-dark-400;
+}
+
+.advanced-settings {
+  @apply mt-3 space-y-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-600 dark:bg-dark-800/70;
+}
+
+.segmented {
+  @apply flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-900;
+}
+
+.segmented-btn {
+  @apply flex-1 rounded-md px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors;
+  @apply hover:text-gray-900;
+  @apply dark:text-gray-300 dark:hover:text-white;
+}
+
+.segmented-btn-active {
+  @apply bg-primary-600 text-white shadow-sm;
+  @apply hover:text-white;
+  @apply dark:bg-primary-600 dark:text-white;
+}
+
+.segmented-btn:disabled,
+.aspect-btn:disabled,
+.count-chip:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.count-chip-grid {
+  @apply grid grid-cols-5 gap-1.5;
+}
+
+.count-chip {
+  @apply flex h-8 min-w-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-600 transition-colors;
+  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-900 dark:text-gray-300;
+  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+}
+
+.count-chip-active {
+  @apply border-primary-500 bg-primary-600 text-white shadow-sm;
+  @apply hover:bg-primary-600 hover:text-white;
+  @apply dark:border-primary-500 dark:bg-primary-600 dark:text-white;
+}
+
+.aspect-grid {
+  @apply grid grid-cols-3 gap-1.5;
+}
+
+.aspect-btn {
+  @apply rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[11px] font-medium text-gray-600 transition-colors;
+  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
+  @apply dark:border-dark-600 dark:bg-dark-900 dark:text-gray-300;
+  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+}
+
+.aspect-btn-active {
+  @apply border-primary-500 bg-primary-50 text-primary-700;
+  @apply dark:border-primary-500 dark:bg-primary-900/30 dark:text-primary-300;
+}
+
+.auto-toggle {
+  @apply flex cursor-pointer select-none items-center gap-1.5 text-xs text-gray-500 dark:text-dark-400;
+}
+
+.auto-checkbox {
+  @apply h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500/40 dark:border-dark-600 dark:bg-dark-900;
+}
+
+.size-input {
+  @apply w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900;
+  @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-900 dark:text-white;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
 .reference-workbench {
-  @apply mt-3 rounded-xl border border-dashed border-gray-200 bg-white/75 p-3 dark:border-dark-600 dark:bg-dark-800/60;
+  @apply mt-3 rounded-lg border border-dashed border-gray-200 bg-white/75 p-3 dark:border-dark-600 dark:bg-dark-800/60;
 }
 
 .reference-workbench-header {
   @apply mb-2 flex items-start justify-between gap-3;
 }
 
-.reference-counter {
-  @apply rounded-md bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-600 dark:bg-dark-700 dark:text-gray-300;
+.reference-workbench-header h3,
+.workbench-section-heading h3 {
+  @apply text-sm font-semibold text-gray-900 dark:text-white;
 }
 
-.reference-workbench-hint {
-  @apply mt-2 px-1 text-xs text-gray-500 dark:text-dark-400;
+.section-eyebrow {
+  @apply block text-[10px] font-semibold uppercase tracking-normal text-primary-600 dark:text-primary-300;
+}
+
+.mode-status-pill {
+  @apply flex-shrink-0 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-300;
+}
+
+.mode-status-ok {
+  @apply bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300;
 }
 
 .reference-dropzone {
-  @apply flex w-full items-center gap-2 rounded-lg border border-dashed border-primary-300 bg-primary-50/70 px-3 py-3 text-left text-sm text-primary-700 transition-colors;
+  @apply flex w-full items-center gap-2 rounded-lg border border-dashed border-primary-300 bg-primary-50/70 px-3 py-2.5 text-left text-sm text-primary-700 transition-colors;
   @apply hover:bg-primary-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
   @apply dark:border-primary-700/60 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30;
 }
@@ -848,6 +964,10 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 
 .reference-dropzone-text {
   @apply min-w-0 flex-1 truncate;
+}
+
+.reference-counter {
+  @apply flex-shrink-0 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 dark:bg-dark-700 dark:text-gray-300;
 }
 
 .reference-grid {
@@ -867,15 +987,26 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
   @apply absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80;
 }
 
-.prompt-panel {
-  @apply mx-3 mb-3 rounded-xl border border-gray-100 bg-white p-3 dark:border-dark-700/70 dark:bg-dark-900/50;
+.workbench-section-heading {
+  @apply mb-2 flex items-start justify-between gap-3;
+}
+
+.workbench-section-heading.compact {
+  @apply mb-1;
+}
+
+.composer-prompt {
+  @apply w-full resize-none border-0 bg-transparent px-0 pb-0 pt-2 text-sm leading-relaxed;
+  @apply text-gray-900 dark:text-white;
+  @apply placeholder:text-gray-400 dark:placeholder:text-dark-500;
+  @apply focus:outline-none focus:ring-0;
+  min-height: 112px;
 }
 
 .action-bar {
-  @apply flex flex-wrap items-center gap-2 px-3 pb-3;
+  @apply flex flex-shrink-0 flex-wrap items-center gap-2 border-t border-gray-100 px-3 py-3 dark:border-dark-700/60;
 }
 
-/* Upload pill. */
 .upload-pill {
   @apply inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-700 transition-colors;
   @apply hover:bg-gray-200;
@@ -887,161 +1018,6 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
   @apply cursor-not-allowed opacity-50;
 }
 
-/* Segmented quality control. */
-.segmented {
-  @apply flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-900;
-}
-
-.segmented-btn {
-  @apply flex-1 rounded-md px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors;
-  @apply hover:text-gray-900;
-  @apply dark:text-gray-300 dark:hover:text-white;
-}
-
-.segmented-btn-active {
-  @apply bg-primary-600 text-white shadow-sm;
-  @apply hover:text-white;
-  @apply dark:bg-primary-600 dark:text-white;
-}
-
-.segmented-btn:disabled {
-  @apply cursor-not-allowed opacity-50;
-}
-
-.mode-segmented {
-  @apply rounded-lg p-1;
-}
-
-.mode-segmented .segmented-btn {
-  @apply rounded-md px-2.5 py-1.5 text-xs;
-}
-
-.mode-summary {
-  @apply mt-2 flex flex-wrap items-center gap-1.5 text-[11px] leading-snug text-gray-500 dark:text-dark-300;
-}
-
-.mode-card-grid {
-  @apply grid gap-2;
-}
-
-.mode-card {
-  @apply rounded-lg border border-gray-200 bg-white px-3 py-2 text-left transition-colors;
-  @apply hover:border-primary-300 hover:bg-primary-50;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
-  @apply dark:border-dark-600 dark:bg-dark-800 dark:hover:border-primary-700 dark:hover:bg-primary-900/20;
-}
-
-.mode-card-active {
-  @apply border-primary-500 bg-primary-50 ring-1 ring-primary-500/30 dark:border-primary-500 dark:bg-primary-900/30;
-}
-
-.mode-card:disabled {
-  @apply cursor-not-allowed opacity-50;
-}
-
-.mode-card-title {
-  @apply block text-sm font-semibold text-gray-900 dark:text-white;
-}
-
-.mode-card-copy {
-  @apply mt-1 block text-xs leading-snug text-gray-500 dark:text-dark-300;
-}
-
-.mode-summary-copy {
-  @apply min-w-0 flex-1;
-}
-
-.mode-summary-requirement {
-  @apply rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300;
-}
-
-.mode-summary-ok {
-  @apply bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300;
-}
-
-.model-chip-grid {
-  @apply grid grid-cols-1 gap-1.5;
-}
-
-.model-chip {
-  @apply min-w-0 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-left text-xs font-semibold text-gray-600 transition-colors;
-  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
-  @apply dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300;
-  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
-}
-
-.model-chip-active {
-  @apply border-primary-500 bg-primary-50 text-primary-700 ring-1 ring-primary-500/30;
-  @apply dark:border-primary-500 dark:bg-primary-900/30 dark:text-primary-300;
-}
-
-.model-chip:disabled,
-.count-chip:disabled {
-  @apply cursor-not-allowed opacity-50;
-}
-
-.count-chip-grid {
-  @apply grid grid-cols-5 gap-1.5;
-}
-
-.count-chip {
-  @apply flex h-8 min-w-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-600 transition-colors;
-  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
-  @apply dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300;
-  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
-}
-
-.count-chip-active {
-  @apply border-primary-500 bg-primary-600 text-white shadow-sm;
-  @apply hover:bg-primary-600 hover:text-white;
-  @apply dark:border-primary-500 dark:bg-primary-600 dark:text-white;
-}
-
-/* Auto toggle (custom-size disabled state). */
-.auto-toggle {
-  @apply flex cursor-pointer select-none items-center gap-1.5 text-xs text-gray-500 dark:text-dark-400;
-}
-
-.auto-checkbox {
-  @apply h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500/40 dark:border-dark-600 dark:bg-dark-900;
-}
-
-/* Width / height number inputs. */
-.size-input {
-  @apply w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900;
-  @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30;
-  @apply dark:border-dark-600 dark:bg-dark-900 dark:text-white;
-  @apply disabled:cursor-not-allowed disabled:opacity-50;
-}
-
-/* Aspect preset grid. */
-.aspect-grid {
-  @apply grid grid-cols-3 gap-1.5;
-}
-
-.aspect-btn {
-  @apply rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[11px] font-medium text-gray-600 transition-colors;
-  @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700;
-  @apply dark:border-dark-600 dark:bg-dark-900 dark:text-gray-300;
-  @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
-}
-
-.aspect-btn-active {
-  @apply border-primary-500 bg-primary-50 text-primary-700;
-  @apply dark:border-primary-500 dark:bg-primary-900/30 dark:text-primary-300;
-}
-
-.aspect-btn:disabled {
-  @apply cursor-not-allowed opacity-50;
-}
-
-.balance-pill {
-  @apply inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-600;
-  @apply dark:bg-dark-700 dark:text-gray-300;
-}
-
 .send-button {
   @apply ml-auto flex h-10 flex-shrink-0 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors;
   @apply bg-primary-600 text-white hover:bg-primary-700;
@@ -1051,5 +1027,16 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 .send-button:disabled {
   @apply cursor-not-allowed opacity-40;
   @apply hover:bg-primary-600;
+}
+
+.fold-enter-active,
+.fold-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.fold-enter-from,
+.fold-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>
