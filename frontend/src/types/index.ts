@@ -1950,6 +1950,7 @@ export interface ImageStudioGeneration {
   error?: string
   cost: number
   created_at: string
+  expires_at?: string
   images?: string[]
   /** Source/reference images for image-to-image generations (absolute asset paths). */
   input_images?: string[]

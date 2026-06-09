@@ -24,7 +24,14 @@ func (r *imageStudioRepository) activeConversationQuery() *dbent.ImageConversati
 }
 
 func (r *imageStudioRepository) activeGenerationQuery() *dbent.ImageGenerationQuery {
-	return r.client.ImageGeneration.Query().Where(imagegeneration.DeletedAtIsNil())
+	return r.client.ImageGeneration.Query().Where(
+		imagegeneration.DeletedAtIsNil(),
+		imagegeneration.CreatedAtGTE(imageStudioRetentionCutoff()),
+	)
+}
+
+func imageStudioRetentionCutoff() time.Time {
+	return time.Now().Add(-service.ImageStudioRetention)
 }
 
 // CreateConversation creates a new image conversation for the given user.
@@ -232,6 +239,70 @@ func (r *imageStudioRepository) DeleteGeneration(ctx context.Context, id int64) 
 		SetDeletedAt(time.Now()).
 		Save(ctx)
 	return err
+}
+
+// PruneExpiredGenerations soft-deletes image-studio generations older than the
+// retention cutoff and returns their storage keys for best-effort file cleanup.
+func (r *imageStudioRepository) PruneExpiredGenerations(ctx context.Context, cutoff time.Time, limit int) ([]string, int, error) {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		return r.pruneExpiredGenerations(ctx, tx.Client(), cutoff, limit)
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	txCtx := dbent.NewTxContext(ctx, tx)
+	defer func() { _ = tx.Rollback() }()
+
+	keys, count, err := r.pruneExpiredGenerations(txCtx, tx.Client(), cutoff, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, 0, err
+	}
+	return keys, count, nil
+}
+
+func (r *imageStudioRepository) pruneExpiredGenerations(ctx context.Context, client *dbent.Client, cutoff time.Time, limit int) ([]string, int, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	now := time.Now()
+	gens, err := client.ImageGeneration.Query().
+		Where(
+			imagegeneration.DeletedAtIsNil(),
+			imagegeneration.CreatedAtLT(cutoff),
+		).
+		Order(dbent.Asc(imagegeneration.FieldID)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(gens) == 0 {
+		return nil, 0, nil
+	}
+
+	ids := make([]int64, 0, len(gens))
+	var keys []string
+	for _, g := range gens {
+		ids = append(ids, g.ID)
+		keys = append(keys, g.StorageKeys...)
+		keys = append(keys, g.InputStorageKeys...)
+	}
+
+	if _, err := client.ImageGeneration.Update().
+		Where(
+			imagegeneration.IDIn(ids...),
+			imagegeneration.DeletedAtIsNil(),
+		).
+		SetDeletedAt(now).
+		Save(ctx); err != nil {
+		return nil, 0, err
+	}
+	return keys, len(gens), nil
 }
 
 // CreateGeneration persists a new image generation record built by the caller.

@@ -98,6 +98,7 @@ describe('GenerationCard', () => {
     expect(wrapper.text()).toContain('$0.0800')
     expect(wrapper.text()).toContain('imageStudio.quickEdit')
     expect(wrapper.text()).toContain('imageStudio.addReference')
+    expect(wrapper.text()).toContain('imageStudio.download')
   })
 
   it('emits edit with the selected image url from the quick edit button', async () => {
@@ -131,6 +132,24 @@ describe('GenerationCard', () => {
     expect(emitted![0][0]).toMatchObject({
       generation: expect.objectContaining({ id: 1 }),
       url: '/assets/1/0',
+    })
+  })
+
+  it('emits download with the selected image url from the download button', async () => {
+    const wrapper = mountCard(makeGeneration())
+    const downloadBtn = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('imageStudio.download'))
+    expect(downloadBtn).toBeTruthy()
+
+    await downloadBtn!.trigger('click')
+
+    const emitted = wrapper.emitted('download')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0][0]).toMatchObject({
+      generation: expect.objectContaining({ id: 1 }),
+      url: '/assets/1/0',
+      index: 0,
     })
   })
 

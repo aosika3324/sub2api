@@ -11,6 +11,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -190,11 +191,17 @@ const (
 	ImageStudioModeGenerate    = "generate"
 	ImageStudioModeEdit        = "edit"
 	ImageStudioModeCompose     = "compose"
+	// ImageStudioRetention is the server-side retention window for generated and
+	// uploaded image-studio assets.
+	ImageStudioRetention       = 24 * time.Hour
 	imageStudioStatusPending   = "pending"
 	imageStudioStatusSucceeded = "succeeded"
 	imageStudioStatusFailed    = "failed"
 	imageStudioTitleMaxLen     = 80
 	imageStudioBackgroundTTL   = 15 * time.Minute
+	imageStudioPruneInterval   = time.Hour
+	imageStudioPruneTimeout    = 2 * time.Minute
+	imageStudioPruneBatchSize  = 200
 	// imageStudioMaxN caps the number of images per request, matching the OpenAI
 	// images endpoints' published limit. N is clamped (not rejected) to this.
 	imageStudioMaxN = 10
@@ -243,6 +250,7 @@ type ImageStudioService struct {
 	store         ImageStore
 	limiter       *ImageConcurrencyLimiter
 	cfg           *config.Config
+	lastPruneUnix atomic.Int64
 }
 
 type preparedImageStudioGeneration struct {
@@ -276,7 +284,7 @@ var (
 
 // NewImageStudioService builds the service from its narrow dependencies.
 func NewImageStudioService(deps ImageStudioServiceDeps) *ImageStudioService {
-	return &ImageStudioService{
+	svc := &ImageStudioService{
 		users:         deps.Users,
 		groups:        deps.Groups,
 		keyEnsurer:    deps.KeyEnsurer,
@@ -289,6 +297,76 @@ func NewImageStudioService(deps ImageStudioServiceDeps) *ImageStudioService {
 		store:         deps.Store,
 		limiter:       deps.Limiter,
 		cfg:           deps.Cfg,
+	}
+	svc.startExpiredImagePruner()
+	return svc
+}
+
+func (s *ImageStudioService) startExpiredImagePruner() {
+	if s == nil || s.repo == nil || s.store == nil {
+		return
+	}
+	s.PruneExpiredImagesThrottled()
+	go func() {
+		ticker := time.NewTicker(imageStudioPruneInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			s.PruneExpiredImagesThrottled()
+		}
+	}()
+}
+
+// PruneExpiredImagesThrottled starts a best-effort retention sweep at most once
+// per hour. It is intentionally asynchronous so user requests never wait on disk
+// cleanup.
+func (s *ImageStudioService) PruneExpiredImagesThrottled() {
+	if s == nil || s.repo == nil || s.store == nil {
+		return
+	}
+	now := time.Now()
+	last := s.lastPruneUnix.Load()
+	if last > 0 && now.Sub(time.Unix(0, last)) < imageStudioPruneInterval {
+		return
+	}
+	if !s.lastPruneUnix.CompareAndSwap(last, now.UnixNano()) {
+		return
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), imageStudioPruneTimeout)
+		defer cancel()
+		deleted, err := s.PruneExpiredImages(ctx)
+		if err != nil {
+			s.lastPruneUnix.Store(0)
+			logger.LegacyPrintf("service.image_studio", "image_studio_prune_expired_failed err=%v", err)
+			return
+		}
+		if deleted > 0 {
+			logger.LegacyPrintf("service.image_studio", "image_studio_pruned_expired_generations count=%d", deleted)
+		}
+	}()
+}
+
+// PruneExpiredImages removes server-side image data older than the retention
+// window. Database rows are soft-deleted first; storage deletion is best-effort.
+func (s *ImageStudioService) PruneExpiredImages(ctx context.Context) (int, error) {
+	if s == nil || s.repo == nil || s.store == nil {
+		return 0, nil
+	}
+	cutoff := time.Now().Add(-ImageStudioRetention)
+	total := 0
+	for {
+		keys, count, err := s.repo.PruneExpiredGenerations(ctx, cutoff, imageStudioPruneBatchSize)
+		if err != nil {
+			return total, err
+		}
+		for _, key := range keys {
+			_ = s.store.Delete(ctx, key)
+		}
+		total += count
+		if count < imageStudioPruneBatchSize {
+			return total, nil
+		}
 	}
 }
 

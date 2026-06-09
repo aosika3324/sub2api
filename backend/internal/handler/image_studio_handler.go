@@ -27,6 +27,7 @@ import (
 // imageStudioGenerator runs an in-app (JWT) image generation.
 type imageStudioGenerator interface {
 	StartGenerate(ctx context.Context, userID int64, in service.ImageStudioGenerateInput) (*service.ImageStudioStartResult, error)
+	PruneExpiredImagesThrottled()
 }
 
 // imageStudioStore reads stored image bytes back for the assets endpoint.
@@ -142,6 +143,7 @@ type generationResponse struct {
 	Height         *int     `json:"height,omitempty"`
 	Error          string   `json:"error,omitempty"`
 	CreatedAt      string   `json:"created_at"`
+	ExpiresAt      string   `json:"expires_at"`
 }
 
 type updateConversationRequest struct {
@@ -160,6 +162,7 @@ type createConversationRequest struct {
 // JSON body (text-to-image) or a multipart/form-data body carrying an "image"
 // reference file (image-to-image / edits).
 func (h *ImageStudioHandler) Generate(c *gin.Context) {
+	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -293,6 +296,7 @@ func (h *ImageStudioHandler) parseMultipartGenerate(c *gin.Context) (service.Ima
 
 // ListConversations handles GET /conversations (paginated).
 func (h *ImageStudioHandler) ListConversations(c *gin.Context) {
+	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -413,6 +417,7 @@ func (h *ImageStudioHandler) DeleteConversation(c *gin.Context) {
 
 // ListConversationGenerations handles GET /conversations/:id/generations (paginated).
 func (h *ImageStudioHandler) ListConversationGenerations(c *gin.Context) {
+	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -448,6 +453,7 @@ func (h *ImageStudioHandler) ListConversationGenerations(c *gin.Context) {
 
 // ListGenerations handles GET /generations (paginated gallery, all conversations).
 func (h *ImageStudioHandler) ListGenerations(c *gin.Context) {
+	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -465,6 +471,7 @@ func (h *ImageStudioHandler) ListGenerations(c *gin.Context) {
 
 // GetGeneration handles GET /generations/:id for progress/status polling.
 func (h *ImageStudioHandler) GetGeneration(c *gin.Context) {
+	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -554,6 +561,7 @@ func (h *ImageStudioHandler) DeleteGeneration(c *gin.Context) {
 // GetAsset handles GET /assets/:genID/:idx — streams a single stored image after
 // verifying ownership.
 func (h *ImageStudioHandler) GetAsset(c *gin.Context) {
+	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -609,6 +617,7 @@ func (h *ImageStudioHandler) GetAsset(c *gin.Context) {
 // GetInputAsset handles GET /input-assets/:genID/:idx — streams a single stored
 // user-provided reference image after verifying ownership.
 func (h *ImageStudioHandler) GetInputAsset(c *gin.Context) {
+	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -740,7 +749,17 @@ func applyStudioAssetCacheHeaders(c *gin.Context, gen *dbent.ImageGeneration, ke
 	modified = modified.UTC().Truncate(time.Second)
 	etag := fmt.Sprintf(`"studio-%d-%s"`, gen.ID, strings.ReplaceAll(key, `"`, `%22`))
 
-	c.Header("Cache-Control", "private, max-age=86400")
+	maxAge := int(service.ImageStudioRetention.Seconds())
+	if !gen.CreatedAt.IsZero() {
+		maxAge = int(time.Until(gen.CreatedAt.Add(service.ImageStudioRetention)).Seconds())
+		if maxAge < 0 {
+			maxAge = 0
+		}
+		if maxAge > int(service.ImageStudioRetention.Seconds()) {
+			maxAge = int(service.ImageStudioRetention.Seconds())
+		}
+	}
+	c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d", maxAge))
 	c.Header("ETag", etag)
 	if !modified.IsZero() {
 		c.Header("Last-Modified", modified.Format(http.TimeFormat))
@@ -757,6 +776,13 @@ func applyStudioAssetCacheHeaders(c *gin.Context, gen *dbent.ImageGeneration, ke
 		}
 	}
 	return false
+}
+
+func (h *ImageStudioHandler) pruneExpiredImagesBestEffort() {
+	if h == nil || h.studio == nil {
+		return
+	}
+	h.studio.PruneExpiredImagesThrottled()
 }
 
 func studioAssetETagMatches(raw, etag string) bool {
@@ -812,6 +838,7 @@ func toGenerationResponse(gen *dbent.ImageGeneration) generationResponse {
 		Height:         gen.Height,
 		Error:          errMsg,
 		CreatedAt:      gen.CreatedAt.UTC().Format(timeRFC3339),
+		ExpiresAt:      gen.CreatedAt.Add(service.ImageStudioRetention).UTC().Format(timeRFC3339),
 	}
 }
 

@@ -148,6 +148,16 @@
             <Icon name="plus" size="xs" :stroke-width="2" />
             <span>{{ t('imageStudio.addReference') }}</span>
           </button>
+          <button
+            type="button"
+            class="quick-download-button"
+            :title="t('imageStudio.downloadImage')"
+            :aria-label="t('imageStudio.downloadImage')"
+            @click="$emit('download', { generation, url, index: idx })"
+          >
+            <Icon name="download" size="xs" :stroke-width="2" />
+            <span>{{ t('imageStudio.download') }}</span>
+          </button>
         </div>
       </div>
 
@@ -182,6 +192,7 @@ defineEmits<{
   (e: 'open', src: string): void
   (e: 'edit', payload: { generation: ImageStudioGeneration; url: string }): void
   (e: 'reference', payload: { generation: ImageStudioGeneration; url: string }): void
+  (e: 'download', payload: { generation: ImageStudioGeneration; url: string; index: number }): void
 }>()
 
 const { t } = useI18n()
@@ -338,6 +349,11 @@ function formatElapsed(ms: number) {
   @apply hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50;
 }
 
+.quick-download-button {
+  @apply absolute right-3 top-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-full bg-black/55 px-3 text-xs font-semibold text-white shadow-sm backdrop-blur transition-colors;
+  @apply hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50;
+}
+
 @media (max-width: 640px) {
   .generation-body {
     @apply p-3;
@@ -353,6 +369,10 @@ function formatElapsed(ms: number) {
 
   .quick-reference-button {
     @apply left-2 top-10 h-7 px-2.5;
+  }
+
+  .quick-download-button {
+    @apply right-2 top-2 h-7 px-2.5;
   }
 }
 </style>

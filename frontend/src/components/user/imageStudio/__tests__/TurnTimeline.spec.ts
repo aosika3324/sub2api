@@ -30,11 +30,12 @@ const IconStub = defineComponent({ name: 'Icon', template: '<span />' })
 const GenerationCardStub = defineComponent({
   name: 'GenerationCardStub',
   props: { generation: { type: Object, required: true } },
-  emits: ['refresh', 'reference'],
+  emits: ['refresh', 'reference', 'download'],
   template: `
     <div class="gen-card" :data-id="generation.id">
       <button class="refresh" @click="$emit('refresh', generation)" />
       <button class="reference" @click="$emit('reference', { generation, url: generation.images[0] })" />
+      <button class="download" @click="$emit('download', { generation, url: generation.images[0], index: 0 })" />
     </div>
   `,
 })
@@ -162,5 +163,19 @@ describe('TurnTimeline', () => {
     const emitted = wrapper.emitted('reference')
     expect(emitted).toBeTruthy()
     expect(emitted![0][0]).toMatchObject({ url: '/assets/10/0' })
+  })
+
+  it('forwards download events', async () => {
+    const generation = makeGeneration({ id: 11, images: ['/assets/11/0'] })
+    const wrapper = mountTimeline({
+      generations: [generation],
+      loading: false,
+      generating: false,
+    })
+
+    await wrapper.find('.gen-card .download').trigger('click')
+    const emitted = wrapper.emitted('download')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0][0]).toMatchObject({ url: '/assets/11/0', index: 0 })
   })
 })

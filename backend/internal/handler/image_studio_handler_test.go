@@ -68,6 +68,8 @@ func (s *studioGeneratorStub) StartGenerate(_ context.Context, userID int64, in 
 	}, nil
 }
 
+func (s *studioGeneratorStub) PruneExpiredImagesThrottled() {}
+
 type studioRepoStub struct {
 	generation   *dbent.ImageGeneration
 	conversation *dbent.ImageConversation

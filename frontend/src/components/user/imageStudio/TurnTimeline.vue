@@ -99,6 +99,7 @@
           @open="$emit('open', $event)"
           @edit="$emit('edit', $event)"
           @reference="$emit('reference', $event)"
+          @download="$emit('download', $event)"
         />
 
         <!-- Live generating placeholder (shimmer) at the very bottom -->
@@ -153,6 +154,7 @@ defineEmits<{
   (e: 'open', src: string): void
   (e: 'edit', payload: { generation: ImageStudioGeneration; url: string }): void
   (e: 'reference', payload: { generation: ImageStudioGeneration; url: string }): void
+  (e: 'download', payload: { generation: ImageStudioGeneration; url: string; index: number }): void
   (e: 'useExample', prompt: string): void
   (e: 'loadMore'): void
 }>()

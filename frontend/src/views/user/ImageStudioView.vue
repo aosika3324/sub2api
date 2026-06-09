@@ -51,6 +51,13 @@
               <Icon name="refresh" size="sm" />
             </button>
           </div>
+          <div class="retention-banner" role="note">
+            <Icon name="exclamationTriangle" size="sm" class="retention-banner-icon" />
+            <div class="min-w-0">
+              <p class="retention-banner-title">{{ t('imageStudio.retentionNoticeTitle') }}</p>
+              <p class="retention-banner-copy">{{ t('imageStudio.retentionNoticeBody') }}</p>
+            </div>
+          </div>
           <!--
             History scroll area. Always-mounted with a stable dark surface so
             switching conversations never tears the whole subtree down (which
@@ -74,6 +81,7 @@
               @open="openLightbox"
               @edit="handleQuickEdit"
               @reference="handleAddReference"
+              @download="handleDownloadImage"
               @use-example="handleUseExample"
               @load-more="handleLoadMoreGenerations"
             />
@@ -535,6 +543,52 @@ function handleSelectHistoryReference(payload: ComposerHistoryImage) {
   appendReferenceFromUrl(payload.url)
 }
 
+async function handleDownloadImage(payload: { generation: ImageStudioGeneration; url: string; index: number }) {
+  try {
+    const blob = await imageStudioAPI.fetchAssetBlob(payload.url)
+    triggerBlobDownload(
+      blob,
+      buildImageDownloadName(payload.generation, payload.index, imageExtensionFromBlob(blob))
+    )
+    appStore.showSuccess(t('imageStudio.downloadStarted'))
+  } catch {
+    appStore.showError(t('imageStudio.downloadFailed'))
+  }
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+}
+
+function buildImageDownloadName(
+  generation: ImageStudioGeneration,
+  index: number,
+  extension: string
+) {
+  const promptPart = generation.prompt
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 42)
+  const suffix = promptPart ? `-${promptPart}` : ''
+  return `image-studio-${generation.id}-${index + 1}${suffix}.${extension}`
+}
+
+function imageExtensionFromBlob(blob: Blob) {
+  const type = (blob.type || '').toLowerCase()
+  if (type.includes('jpeg') || type.includes('jpg')) return 'jpg'
+  if (type.includes('webp')) return 'webp'
+  if (type.includes('gif')) return 'gif'
+  return 'png'
+}
+
 function confirmDeleteGeneration(generation: ImageStudioGeneration) {
   deleteGenTarget.value = generation
 }
@@ -691,6 +745,23 @@ onBeforeUnmount(() => {
 .canvas-scroll {
   @apply min-h-0 flex-1 scroll-pb-10 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40;
   @apply dark:border-dark-700/50 dark:bg-dark-900;
+}
+
+.retention-banner {
+  @apply mb-3 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 shadow-sm;
+  @apply dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-100;
+}
+
+.retention-banner-icon {
+  @apply mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-300;
+}
+
+.retention-banner-title {
+  @apply text-sm font-semibold;
+}
+
+.retention-banner-copy {
+  @apply mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-200/80;
 }
 
 @media (min-width: 1024px) and (max-width: 1279px) {

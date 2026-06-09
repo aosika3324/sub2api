@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 )
@@ -41,4 +42,7 @@ type ImageStudioRepository interface {
 	ListGenerations(ctx context.Context, userID int64, conversationID *int64, page, size int) ([]*dbent.ImageGeneration, int, error)
 	// DeleteGeneration soft-deletes a generation. Ownership scoping is the caller's responsibility.
 	DeleteGeneration(ctx context.Context, id int64) error
+	// PruneExpiredGenerations soft-deletes generations older than cutoff and returns
+	// their output + input storage keys for best-effort file cleanup.
+	PruneExpiredGenerations(ctx context.Context, cutoff time.Time, limit int) ([]string, int, error)
 }

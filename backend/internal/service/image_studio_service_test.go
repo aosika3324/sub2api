@@ -306,6 +306,10 @@ func (s *studioRepoStub) DeleteGeneration(_ context.Context, id int64) error {
 	return nil
 }
 
+func (s *studioRepoStub) PruneExpiredGenerations(_ context.Context, _ time.Time, _ int) ([]string, int, error) {
+	return nil, 0, nil
+}
+
 func (s *studioRepoStub) lastStatus() (studioStatusUpdate, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
