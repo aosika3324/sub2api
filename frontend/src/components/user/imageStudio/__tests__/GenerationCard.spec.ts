@@ -57,9 +57,9 @@ function makeGeneration(overrides: Partial<ImageStudioGeneration> = {}): ImageSt
   }
 }
 
-function mountCard(generation: ImageStudioGeneration) {
+function mountCard(generation: ImageStudioGeneration, props: Record<string, unknown> = {}) {
   return mount(GenerationCard, {
-    props: { generation },
+    props: { generation, ...props },
     global: { stubs: { Icon: IconStub, AuthedImage: AuthedImageStub } },
   })
 }
@@ -97,7 +97,7 @@ describe('GenerationCard', () => {
     // Cost chip is shown
     expect(wrapper.text()).toContain('$0.0800')
     expect(wrapper.text()).toContain('imageStudio.quickEdit')
-    expect(wrapper.text()).toContain('imageStudio.addReference')
+    expect(wrapper.text()).not.toContain('imageStudio.addReference')
     expect(wrapper.text()).toContain('imageStudio.download')
   })
 
@@ -119,7 +119,7 @@ describe('GenerationCard', () => {
   })
 
   it('emits reference with the selected image url from the add reference button', async () => {
-    const wrapper = mountCard(makeGeneration())
+    const wrapper = mountCard(makeGeneration(), { workbenchMode: 'compose' })
     const refBtn = wrapper
       .findAll('button')
       .find((button) => button.text().includes('imageStudio.addReference'))
@@ -133,6 +133,18 @@ describe('GenerationCard', () => {
       generation: expect.objectContaining({ id: 1 }),
       url: '/assets/1/0',
     })
+  })
+
+  it('hides add reference while the workbench is in edit mode', () => {
+    const wrapper = mountCard(makeGeneration(), { workbenchMode: 'edit' })
+    expect(wrapper.text()).toContain('imageStudio.quickEdit')
+    expect(wrapper.text()).not.toContain('imageStudio.addReference')
+  })
+
+  it('hides quick edit while the workbench is in compose mode', () => {
+    const wrapper = mountCard(makeGeneration(), { workbenchMode: 'compose' })
+    expect(wrapper.text()).not.toContain('imageStudio.quickEdit')
+    expect(wrapper.text()).toContain('imageStudio.addReference')
   })
 
   it('emits download with the selected image url from the download button', async () => {

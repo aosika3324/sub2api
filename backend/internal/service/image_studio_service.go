@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
@@ -1152,31 +1151,4 @@ func accountID(a *Account) int64 {
 		return 0
 	}
 	return a.ID
-}
-
-// buildOpenAIImagesJSONBody serializes the studio-built parsed request into the
-// JSON body the upstream image-generations endpoint expects.
-func buildOpenAIImagesJSONBody(req *OpenAIImagesRequest) []byte {
-	if req == nil {
-		return nil
-	}
-	payload := map[string]any{
-		"model":  req.Model,
-		"prompt": req.Prompt,
-		"n":      req.N,
-	}
-	if strings.TrimSpace(req.Size) != "" {
-		payload["size"] = req.Size
-	}
-	if strings.TrimSpace(req.Quality) != "" {
-		payload["quality"] = req.Quality
-	}
-	if strings.TrimSpace(req.ResponseFormat) != "" {
-		payload["response_format"] = req.ResponseFormat
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil
-	}
-	return body
 }

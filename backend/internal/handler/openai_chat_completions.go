@@ -85,6 +85,18 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	setOpsRequestContext(c, reqModel, reqStream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(reqStream, false)))
 
+	if parsedImages, ok, parseErr := h.gatewayService.ParseOpenAIChatImagesRequest(body); parseErr != nil {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", parseErr.Error())
+		return
+	} else if ok {
+		if parsedImages.Stream {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "streaming chat image generation is not supported; use stream=false or /v1/images/generations")
+			return
+		}
+		h.handleParsedOpenAIImages(c, &streamStarted, requestStart, apiKey, subject, reqLog, body, parsedImages, "handler.openai_gateway.chat_completions", true)
+		return
+	}
+
 	if decision := h.checkContentModeration(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIChat, reqModel, body); decision != nil && decision.Blocked {
 		h.errorResponse(c, contentModerationStatus(decision), contentModerationErrorCode(decision), decision.Message)
 		return

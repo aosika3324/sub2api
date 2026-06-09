@@ -423,6 +423,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'generate', payload: ComposerSubmitPayload): void
   (e: 'selectReference', payload: ComposerHistoryImage): void
+  (e: 'modeChange', mode: ComposerMode): void
 }>()
 
 const { t } = useI18n()
@@ -562,10 +563,8 @@ watch(model, (next) => {
 })
 
 watch(mode, (next) => {
-  if (next === 'generate' && referenceImages.value.length > 0) {
-    resetReference()
-  }
-})
+  emit('modeChange', next)
+}, { immediate: true })
 
 watch(
   imageGroups,
@@ -599,6 +598,12 @@ const referenceImages = ref<File[]>([])
 const referencePreviews = ref<Array<{ file: File; url: string }>>([])
 const referenceError = ref<string>('')
 const dragActive = ref(false)
+
+watch(mode, (next) => {
+  if (next === 'generate' && referenceImages.value.length > 0) {
+    resetReference()
+  }
+})
 
 function hasRequiredReferenceSelection(): boolean {
   if (mode.value === 'edit') return referenceImages.value.length === 1

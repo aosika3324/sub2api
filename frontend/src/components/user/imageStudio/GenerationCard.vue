@@ -129,6 +129,7 @@
             @open="$emit('open', $event)"
           />
           <button
+            v-if="showQuickEdit"
             type="button"
             class="quick-edit-button"
             :title="t('imageStudio.quickEdit')"
@@ -139,8 +140,10 @@
             <span>{{ t('imageStudio.quickEdit') }}</span>
           </button>
           <button
+            v-if="showQuickReference"
             type="button"
             class="quick-reference-button"
+            :class="{ 'quick-reference-button-primary': !showQuickEdit }"
             :title="t('imageStudio.addReference')"
             :aria-label="t('imageStudio.addReference')"
             @click="$emit('reference', { generation, url })"
@@ -183,6 +186,7 @@ import { aspectRatioFromSize } from './pricing'
 const props = defineProps<{
   generation: ImageStudioGeneration
   hideDelete?: boolean
+  workbenchMode?: 'generate' | 'edit' | 'compose'
 }>()
 
 defineEmits<{
@@ -250,6 +254,9 @@ const modeLabel = computed(() => {
   if (generationMode.value === 'edit') return t('imageStudio.modeEdit')
   return t('imageStudio.modeGenerate')
 })
+
+const showQuickEdit = computed(() => props.workbenchMode !== 'compose')
+const showQuickReference = computed(() => props.workbenchMode === 'compose')
 
 // Derive the true aspect ratio from the generation size so portrait/landscape
 // images render uncropped. `undefined` lets AuthedImage fall back to a square.
@@ -349,6 +356,10 @@ function formatElapsed(ms: number) {
   @apply hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50;
 }
 
+.quick-reference-button-primary {
+  @apply top-3;
+}
+
 .quick-download-button {
   @apply absolute right-3 top-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-full bg-black/55 px-3 text-xs font-semibold text-white shadow-sm backdrop-blur transition-colors;
   @apply hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/50;
@@ -369,6 +380,10 @@ function formatElapsed(ms: number) {
 
   .quick-reference-button {
     @apply left-2 top-10 h-7 px-2.5;
+  }
+
+  .quick-reference-button-primary {
+    @apply top-2;
   }
 
   .quick-download-button {

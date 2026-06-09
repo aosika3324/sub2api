@@ -93,6 +93,7 @@
           v-for="gen in orderedGenerations"
           :key="gen.id"
           :generation="gen"
+          :workbench-mode="workbenchMode"
           @retry="$emit('retry', $event)"
           @refresh="$emit('refresh', $event)"
           @delete="$emit('delete', $event)"
@@ -145,6 +146,7 @@ const props = defineProps<{
   pendingPrompt?: string
   hasMore?: boolean
   loadingMore?: boolean
+  workbenchMode?: 'generate' | 'edit' | 'compose'
 }>()
 
 defineEmits<{

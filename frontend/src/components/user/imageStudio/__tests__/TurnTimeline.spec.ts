@@ -29,10 +29,13 @@ const IconStub = defineComponent({ name: 'Icon', template: '<span />' })
 // AuthedImage / network concerns.
 const GenerationCardStub = defineComponent({
   name: 'GenerationCardStub',
-  props: { generation: { type: Object, required: true } },
+  props: {
+    generation: { type: Object, required: true },
+    workbenchMode: { type: String, default: 'generate' },
+  },
   emits: ['refresh', 'reference', 'download'],
   template: `
-    <div class="gen-card" :data-id="generation.id">
+    <div class="gen-card" :data-id="generation.id" :data-workbench-mode="workbenchMode">
       <button class="refresh" @click="$emit('refresh', generation)" />
       <button class="reference" @click="$emit('reference', { generation, url: generation.images[0] })" />
       <button class="download" @click="$emit('download', { generation, url: generation.images[0], index: 0 })" />
@@ -108,6 +111,17 @@ describe('TurnTimeline', () => {
     const ids = wrapper.findAll('.gen-card').map((n) => n.attributes('data-id'))
     // Rendered top→bottom should be oldest→newest.
     expect(ids).toEqual(['1', '2', '3'])
+  })
+
+  it('passes the current workbench mode to generation cards', () => {
+    const wrapper = mountTimeline({
+      generations: [makeGeneration()],
+      loading: false,
+      generating: false,
+      workbenchMode: 'compose',
+    })
+
+    expect(wrapper.find('.gen-card').attributes('data-workbench-mode')).toBe('compose')
   })
 
   it('renders the generating placeholder at the very bottom, after the last turn', () => {

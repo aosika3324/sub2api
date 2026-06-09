@@ -75,6 +75,7 @@
               :pending-prompt="pendingPrompt"
               :has-more="store.generations.length < store.generationTotal"
               :loading-more="store.loadingMoreGenerations"
+              :workbench-mode="workbenchMode"
               @retry="handleRetry"
               @refresh="handleRefreshGeneration"
               @delete="confirmDeleteGeneration"
@@ -115,6 +116,7 @@
               :balance="balance"
               :history-images="historyImages"
               @generate="handleGenerate"
+              @mode-change="handleModeChange"
               @select-reference="handleSelectHistoryReference"
             />
           </div>
@@ -227,6 +229,7 @@ const pendingPrompt = ref('')
 const clearHistoryOpen = ref(false)
 const pendingPollTimer = ref<number | null>(null)
 const historyReferenceGenerations = ref<ImageStudioGeneration[]>([])
+const workbenchMode = ref<ComposerSubmitPayload['mode']>('generate')
 
 const composerRef = ref<InstanceType<typeof ImageComposer> | null>(null)
 const scrollRef = ref<HTMLElement | null>(null)
@@ -465,6 +468,10 @@ function handleGenerate(payload: ComposerSubmitPayload) {
 
 function handleUseExample(prompt: string) {
   composerRef.value?.fillPrompt(prompt)
+}
+
+function handleModeChange(mode: ComposerSubmitPayload['mode']) {
+  workbenchMode.value = mode
 }
 
 /**
