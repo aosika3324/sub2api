@@ -39,6 +39,38 @@ func TestParseOpenAIChatImagesRequest_ImageModelGenerations(t *testing.T) {
 	}`, string(parsed.Body))
 }
 
+func TestParseOpenAIChatImagesRequest_ImagesAPIStylePromptGenerations(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	body := []byte(`{
+		"model":"gpt-image-1.5",
+		"prompt":"draw a fox in watercolor",
+		"n":2,
+		"size":"1024x1536",
+		"quality":"medium",
+		"response_format":"b64_json"
+	}`)
+
+	parsed, ok, err := svc.ParseOpenAIChatImagesRequest(body)
+
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, openAIImagesGenerationsEndpoint, parsed.Endpoint)
+	require.Equal(t, "gpt-image-1.5", parsed.Model)
+	require.Equal(t, "draw a fox in watercolor", parsed.Prompt)
+	require.Equal(t, 2, parsed.N)
+	require.Equal(t, "1024x1536", parsed.Size)
+	require.Equal(t, "medium", parsed.Quality)
+	require.Equal(t, "b64_json", parsed.ResponseFormat)
+	require.JSONEq(t, `{
+		"model":"gpt-image-1.5",
+		"prompt":"draw a fox in watercolor",
+		"n":2,
+		"size":"1024x1536",
+		"quality":"medium",
+		"response_format":"b64_json"
+	}`, string(parsed.Body))
+}
+
 func TestParseOpenAIChatImagesRequest_ImageURLBecomesEdits(t *testing.T) {
 	svc := &OpenAIGatewayService{}
 	body := []byte(`{
@@ -60,6 +92,29 @@ func TestParseOpenAIChatImagesRequest_ImageURLBecomesEdits(t *testing.T) {
 	require.Equal(t, "turn this into watercolor", parsed.Prompt)
 	require.Equal(t, []string{"data:image/png;base64,AAAA"}, parsed.InputImageURLs)
 	require.Equal(t, "data:image/png;base64,AAAA", gjson.GetBytes(parsed.Body, "images.0.image_url").String())
+}
+
+func TestParseOpenAIChatImagesRequest_ImagesAPIStylePromptAndImageBecomesEdits(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	body := []byte(`{
+		"model":"gpt-image-2",
+		"prompt":"replace the background with a sunset",
+		"image":{"image_url":"data:image/png;base64,AAAA"},
+		"mask":{"image_url":"data:image/png;base64,BBBB"},
+		"n":1
+	}`)
+
+	parsed, ok, err := svc.ParseOpenAIChatImagesRequest(body)
+
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, openAIImagesEditsEndpoint, parsed.Endpoint)
+	require.Equal(t, "replace the background with a sunset", parsed.Prompt)
+	require.Equal(t, []string{"data:image/png;base64,AAAA"}, parsed.InputImageURLs)
+	require.True(t, parsed.HasMask)
+	require.Equal(t, "data:image/png;base64,BBBB", parsed.MaskImageURL)
+	require.Equal(t, "data:image/png;base64,AAAA", gjson.GetBytes(parsed.Body, "images.0.image_url").String())
+	require.Equal(t, "data:image/png;base64,BBBB", gjson.GetBytes(parsed.Body, "mask.image_url").String())
 }
 
 func TestParseOpenAIChatImagesRequest_TopLevelImagesBecomeEdits(t *testing.T) {
