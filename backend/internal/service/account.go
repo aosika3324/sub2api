@@ -1225,6 +1225,46 @@ func (a *Account) SupportsOpenAIImageCapability(capability OpenAIImagesCapabilit
 	}
 }
 
+func (a *Account) OpenAIChatGPTPlanType() string {
+	if a == nil || !a.IsOpenAI() {
+		return ""
+	}
+	for _, key := range []string{"chatgpt_plan_type", "plan_type"} {
+		if value := strings.TrimSpace(a.GetCredential(key)); value != "" {
+			return strings.ToLower(value)
+		}
+	}
+	return ""
+}
+
+func (a *Account) SupportsCodexImageGeneration() bool {
+	switch normalizeOpenAIChatGPTPlanType(a.OpenAIChatGPTPlanType()) {
+	case "plus", "team", "pro":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeOpenAIChatGPTPlanType(planType string) string {
+	normalized := strings.ToLower(strings.TrimSpace(planType))
+	normalized = strings.ReplaceAll(normalized, "_", "-")
+	normalized = strings.TrimPrefix(normalized, "chatgpt-")
+	normalized = strings.TrimPrefix(normalized, "chatgpt ")
+	switch {
+	case normalized == "plus" || strings.Contains(normalized, "plus"):
+		return "plus"
+	case normalized == "team" || strings.Contains(normalized, "team"):
+		return "team"
+	case normalized == "pro" || strings.Contains(normalized, "pro"):
+		return "pro"
+	case normalized == "free" || strings.Contains(normalized, "free"):
+		return "free"
+	default:
+		return normalized
+	}
+}
+
 func (a *Account) GetChatGPTUserID() string {
 	if !a.IsOpenAIOAuth() {
 		return ""

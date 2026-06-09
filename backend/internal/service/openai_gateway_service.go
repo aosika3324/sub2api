@@ -1362,6 +1362,9 @@ func isOpenAIAccountEligibleForRequest(ctx context.Context, account *Account, re
 	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
 		return false
 	}
+	if !accountSupportsOpenAIRequestModel(account, requestedModel) {
+		return false
+	}
 	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {
 		return false
 	}

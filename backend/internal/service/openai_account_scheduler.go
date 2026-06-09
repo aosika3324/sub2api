@@ -1048,6 +1048,9 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatible(ctx context.C
 	if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
 		return false
 	}
+	if !accountSupportsOpenAIRequestModel(account, req.RequestedModel) {
+		return false
+	}
 	if req.GroupID != nil && s != nil && s.service != nil &&
 		s.service.needsUpstreamChannelRestrictionCheck(ctx, req.GroupID) &&
 		s.service.isUpstreamModelRestrictedByChannel(ctx, *req.GroupID, account, req.RequestedModel, req.RequireCompact) {
@@ -1239,7 +1242,8 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 				if selection == nil || selection.Account == nil {
 					return selection, decision, nil
 				}
-				if accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) {
+				if accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) &&
+					accountSupportsOpenAIRequestModel(selection.Account, requestedModel) {
 					return selection, decision, nil
 				}
 				if selection.ReleaseFunc != nil {
@@ -1265,7 +1269,8 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 				return selection, decision, nil
 			}
 			if s.isOpenAIAccountTransportCompatible(selection.Account, requiredTransport) &&
-				accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) {
+				accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) &&
+				accountSupportsOpenAIRequestModel(selection.Account, requestedModel) {
 				return selection, decision, nil
 			}
 			if selection.ReleaseFunc != nil {
@@ -1315,6 +1320,16 @@ func accountSupportsOpenAICapabilities(account *Account, requiredCapability Open
 	}
 	return account.SupportsOpenAIEndpointCapability(requiredCapability) &&
 		account.SupportsOpenAIImageCapability(requiredImageCapability)
+}
+
+func accountSupportsOpenAIRequestModel(account *Account, requestedModel string) bool {
+	if account == nil {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(requestedModel), openAICodexImageModelAlias) {
+		return account.SupportsCodexImageGeneration()
+	}
+	return true
 }
 
 func cloneExcludedAccountIDs(excludedIDs map[int64]struct{}) map[int64]struct{} {
