@@ -1939,6 +1939,7 @@ export interface ImageStudioGeneration {
   id: number
   conversation_id: number
   group_id: number
+  mode?: 'generate' | 'edit' | 'compose'
   prompt: string
   model: string
   size: string
@@ -1956,6 +1957,7 @@ export interface ImageStudioGeneration {
 export interface GenerateImageStudioRequest {
   conversation_id?: number
   group_id: number
+  mode?: 'generate' | 'edit' | 'compose'
   prompt: string
   model: string
   size: string
@@ -1974,6 +1976,7 @@ export interface GenerateImageStudioRequest {
 export interface GenerateImageStudioResponse {
   generation_id: number
   conversation_id: number
+  mode?: 'generate' | 'edit' | 'compose'
   images: string[]
   /** Persisted source images for image-to-image generations (absolute asset paths). */
   input_images?: string[]

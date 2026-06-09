@@ -108,6 +108,7 @@ describe('GenerationCard', () => {
     const wrapper = mountCard(makeGeneration())
     expect(wrapper.text()).toContain('a serene lake at dawn')
     expect(wrapper.text()).toContain('gpt-image-2')
+    expect(wrapper.text()).toContain('imageStudio.modeGenerate')
     expect(wrapper.text()).toContain('1K')
   })
 
@@ -128,6 +129,9 @@ describe('GenerationCard', () => {
     )
     // i2i chip
     expect(wrapper.text()).toContain('imageStudio.imageToImage')
+    // mode chip is inferred from the single source image when older rows do not
+    // carry an explicit mode field.
+    expect(wrapper.text()).toContain('imageStudio.modeEdit')
     // source row label
     expect(wrapper.text()).toContain('imageStudio.sourceImage')
     // The source thumbnail (via AuthedImage stub) + the output image both render.
@@ -142,5 +146,16 @@ describe('GenerationCard', () => {
     expect(wrapper.text()).not.toContain('imageStudio.sourceImage')
     const srcs = wrapper.findAll('img').map((i) => i.attributes('src'))
     expect(srcs).not.toContain('blob:/input-assets/1/0')
+  })
+
+  it('renders compose mode for multi-reference generations', () => {
+    const wrapper = mountCard(
+      makeGeneration({
+        mode: 'compose',
+        input_images: ['/input-assets/1/0', '/input-assets/1/1'],
+        images: ['/assets/1/0'],
+      })
+    )
+    expect(wrapper.text()).toContain('imageStudio.modeCompose')
   })
 })

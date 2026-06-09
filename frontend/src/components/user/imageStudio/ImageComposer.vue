@@ -100,6 +100,15 @@
                 {{ option.label }}
               </button>
             </div>
+            <div class="mode-summary">
+              <span class="mode-summary-copy">{{ modeHint }}</span>
+              <span
+                class="mode-summary-requirement"
+                :class="{ 'mode-summary-ok': hasRequiredReferenceSelection() }"
+              >
+                {{ referenceRequirement }}
+              </span>
+            </div>
           </div>
 
           <div class="control-field control-field-model">
@@ -287,6 +296,7 @@ import {
 
 export interface ComposerSubmitPayload {
   group_id: number
+  mode: 'generate' | 'edit' | 'compose'
   prompt: string
   model: string
   size: string
@@ -345,6 +355,18 @@ const modeOptions = computed(() => [
   { value: 'edit' as const, label: t('imageStudio.modeEdit') },
   { value: 'compose' as const, label: t('imageStudio.modeCompose') },
 ])
+
+const modeHint = computed(() => {
+  if (mode.value === 'edit') return t('imageStudio.modeEditHint')
+  if (mode.value === 'compose') return t('imageStudio.modeComposeHint')
+  return t('imageStudio.modeGenerateHint')
+})
+
+const referenceRequirement = computed(() => {
+  if (mode.value === 'edit') return t('imageStudio.referenceRequirementEdit')
+  if (mode.value === 'compose') return t('imageStudio.referenceRequirementCompose')
+  return t('imageStudio.referenceRequirementGenerate')
+})
 
 const qualityOptions = computed(() =>
   optionsForModel(model.value).qualities.map((q) => ({
@@ -439,7 +461,7 @@ const referenceError = ref<string>('')
 const dragActive = ref(false)
 
 function hasRequiredReferenceSelection(): boolean {
-  if (mode.value === 'edit') return referenceImages.value.length >= 1
+  if (mode.value === 'edit') return referenceImages.value.length === 1
   if (mode.value === 'compose') return referenceImages.value.length >= 2
   return true
 }
@@ -561,6 +583,7 @@ function submit() {
   if (!canGenerate.value || groupId.value === null) return
   emit('generate', {
     group_id: groupId.value,
+    mode: mode.value,
     prompt: prompt.value.trim(),
     model: model.value,
     size: submitSize.value,
@@ -723,6 +746,22 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 
 .mode-segmented .segmented-btn {
   @apply rounded-md px-2.5 py-1.5 text-xs;
+}
+
+.mode-summary {
+  @apply mt-2 flex flex-wrap items-center gap-1.5 text-[11px] leading-snug text-gray-500 dark:text-dark-300;
+}
+
+.mode-summary-copy {
+  @apply min-w-0 flex-1;
+}
+
+.mode-summary-requirement {
+  @apply rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300;
+}
+
+.mode-summary-ok {
+  @apply bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300;
 }
 
 /* Auto toggle (custom-size disabled state). */

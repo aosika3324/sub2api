@@ -77,6 +77,7 @@ describe('imageStudio API', () => {
 
     await generate({
       group_id: 1,
+      mode: 'compose',
       prompt: 'edit',
       model: 'gpt-image-2',
       size: '1024x1024',
@@ -88,6 +89,35 @@ describe('imageStudio API', () => {
     const config = adapter.mock.calls[0][0]
     expect(config.timeout).toBe(0)
     expect(config.data).toBeInstanceOf(FormData)
+    expect(config.data.get('mode')).toBe('compose')
+    expect(config.data.getAll('image')).toEqual(files)
+  })
+
+  it('infers compose mode for legacy multi-reference multipart requests', async () => {
+    adapter.mockResolvedValueOnce({
+      status: 200,
+      data: { code: 0, data: { generation_id: 1, conversation_id: 1, images: [], status: 'pending', cost: 0, balance: 0 } },
+      headers: {},
+      config: {},
+      statusText: 'OK',
+    })
+    const files = [
+      new File(['a'], 'a.png', { type: 'image/png' }),
+      new File(['b'], 'b.png', { type: 'image/png' }),
+    ]
+
+    await generate({
+      group_id: 1,
+      prompt: 'compose',
+      model: 'gpt-image-2',
+      size: '1024x1024',
+      quality: 'auto',
+      n: 1,
+      referenceImages: files,
+    })
+
+    const config = adapter.mock.calls[0][0]
+    expect(config.data.get('mode')).toBe('compose')
     expect(config.data.getAll('image')).toEqual(files)
   })
 

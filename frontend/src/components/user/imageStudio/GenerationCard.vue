@@ -25,6 +25,7 @@
           <Icon name="sparkles" size="xs" class="mr-1 opacity-70" />
           {{ generation.model }}
         </span>
+        <span class="chip chip-mode">{{ modeLabel }}</span>
         <span v-if="inputImages.length > 0" class="chip chip-i2i">{{
           t('imageStudio.imageToImage')
         }}</span>
@@ -192,6 +193,18 @@ onBeforeUnmount(stopElapsedTimer)
 // Source/reference images for image-to-image generations. When present we render
 // a small "source" row above the output grid and flag the turn with an i2i chip.
 const inputImages = computed(() => props.generation.input_images ?? [])
+const generationMode = computed(() => {
+  if (props.generation.mode) return props.generation.mode
+  if (inputImages.value.length >= 2) return 'compose'
+  if (inputImages.value.length === 1) return 'edit'
+  return 'generate'
+})
+
+const modeLabel = computed(() => {
+  if (generationMode.value === 'compose') return t('imageStudio.modeCompose')
+  if (generationMode.value === 'edit') return t('imageStudio.modeEdit')
+  return t('imageStudio.modeGenerate')
+})
 
 // Derive the true aspect ratio from the generation size so portrait/landscape
 // images render uncropped. `undefined` lets AuthedImage fall back to a square.
@@ -242,6 +255,9 @@ function formatElapsed(ms: number) {
 }
 .chip-i2i {
   @apply bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300;
+}
+.chip-mode {
+  @apply bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300;
 }
 /* Small fixed-height source thumbnails for image-to-image inputs. */
 .source-thumb {

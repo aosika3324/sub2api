@@ -456,8 +456,11 @@ async function handleRetry(generation: ImageStudioGeneration) {
       appStore.showWarning(t('imageStudio.retryReferenceFetchFailed'))
     }
   }
+  const retryMode: ComposerSubmitPayload['mode'] =
+    referenceImages.length >= 2 ? 'compose' : referenceImages.length === 1 ? 'edit' : 'generate'
   runGenerate({
     group_id: generation.group_id,
+    mode: retryMode,
     prompt: generation.prompt,
     model: generation.model,
     size: generation.size,

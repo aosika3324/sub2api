@@ -622,6 +622,75 @@ func TestImageStudioService_StartGenerate_DeletedPendingDoesNotStoreOrBill(t *te
 	require.Equal(t, 0, f.usage.calls)
 }
 
+func TestImageStudioService_Generate_ModeReferenceRules(t *testing.T) {
+	cases := []struct {
+		name string
+		in   ImageStudioGenerateInput
+	}{
+		{
+			name: "generate mode rejects references",
+			in: func() ImageStudioGenerateInput {
+				in := studioEditsInput(10)
+				in.Mode = ImageStudioModeGenerate
+				return in
+			}(),
+		},
+		{
+			name: "edit mode requires one reference",
+			in: func() ImageStudioGenerateInput {
+				in := studioInput(10)
+				in.Mode = ImageStudioModeEdit
+				return in
+			}(),
+		},
+		{
+			name: "edit mode rejects multiple references",
+			in: func() ImageStudioGenerateInput {
+				in := studioMultiEditsInput(10)
+				in.Mode = ImageStudioModeEdit
+				return in
+			}(),
+		},
+		{
+			name: "compose mode requires two references",
+			in: func() ImageStudioGenerateInput {
+				in := studioEditsInput(10)
+				in.Mode = ImageStudioModeCompose
+				return in
+			}(),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newStudioFixture(t)
+			res, err := f.svc.Generate(context.Background(), 1, tc.in)
+
+			require.Error(t, err)
+			require.Nil(t, res)
+			require.ErrorIs(t, err, ErrImageStudioInvalidMode)
+			require.Equal(t, 0, f.repo.createdConv)
+			require.Equal(t, 0, f.gen.calls)
+			require.Equal(t, 0, f.store.putCalls)
+			require.Equal(t, 0, f.usage.calls)
+		})
+	}
+}
+
+func TestNormalizeImageStudioMode_InferredForLegacyCallers(t *testing.T) {
+	mode, err := NormalizeImageStudioMode("", 0)
+	require.NoError(t, err)
+	require.Equal(t, ImageStudioModeGenerate, mode)
+
+	mode, err = NormalizeImageStudioMode("", 1)
+	require.NoError(t, err)
+	require.Equal(t, ImageStudioModeEdit, mode)
+
+	mode, err = NormalizeImageStudioMode("", 2)
+	require.NoError(t, err)
+	require.Equal(t, ImageStudioModeCompose, mode)
+}
+
 func TestImageStudioService_Generate_Success_ExistingConversation(t *testing.T) {
 	f := newStudioFixture(t)
 	convID := int64(555)
@@ -945,6 +1014,7 @@ func TestImageStudioService_Generate_ConcurrencySlotAcquireRelease(t *testing.T)
 
 func studioEditsInput(groupID int64) ImageStudioGenerateInput {
 	in := studioInput(groupID)
+	in.Mode = ImageStudioModeEdit
 	in.InputImage = &StudioInputImage{
 		Data:        []byte("\x89PNG\r\n\x1a\nreference-bytes"),
 		ContentType: "image/png",
@@ -955,6 +1025,7 @@ func studioEditsInput(groupID int64) ImageStudioGenerateInput {
 
 func studioMultiEditsInput(groupID int64) ImageStudioGenerateInput {
 	in := studioInput(groupID)
+	in.Mode = ImageStudioModeCompose
 	in.InputImages = []StudioInputImage{
 		{
 			Data:        []byte("\x89PNG\r\n\x1a\nreference-one"),

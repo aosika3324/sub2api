@@ -117,6 +117,7 @@ describe('ImageComposer', () => {
     expect(emitted).toBeTruthy()
     expect(emitted![0][0]).toEqual({
       group_id: 7,
+      mode: 'generate',
       prompt: 'a cat riding a bike',
       model: 'gpt-image-2',
       size: '1024x1024',
@@ -135,6 +136,8 @@ describe('ImageComposer', () => {
     expect(wrapper.text()).toContain('imageStudio.modeGenerate')
     expect(wrapper.text()).toContain('imageStudio.modeEdit')
     expect(wrapper.text()).toContain('imageStudio.modeCompose')
+    expect(wrapper.text()).toContain('imageStudio.modeGenerateHint')
+    expect(wrapper.text()).toContain('imageStudio.referenceRequirementGenerate')
   })
 
   it('exposes only the requested image model choices', async () => {
@@ -146,7 +149,17 @@ describe('ImageComposer', () => {
       .findAll('option')
       .map((option) => option.attributes('value'))
 
-    expect(options).toEqual(['gpt-image-2', 'codex-gpt-image-2', 'auto', 'gpt-5'])
+    expect(options).toEqual([
+      'gpt-image-2',
+      'codex-gpt-image-2',
+      'auto',
+      'gpt-5',
+      'gpt-5-1',
+      'gpt-5-2',
+      'gpt-5-3',
+      'gpt-5-3-mini',
+      'gpt-5-mini',
+    ])
   })
 
   it('clicking an aspect preset updates the submitted size', async () => {
@@ -243,6 +256,8 @@ describe('ImageComposer', () => {
     expect(editBtn).toBeTruthy()
     await editBtn!.trigger('click')
     expect(wrapper.find('.send-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('imageStudio.modeEditHint')
+    expect(wrapper.text()).toContain('imageStudio.referenceRequirementEdit')
 
     const file = new File(['x'], 'src.png', { type: 'image/png' })
     const input = wrapper.find('input[type="file"]')
@@ -256,6 +271,8 @@ describe('ImageComposer', () => {
     expect(composeBtn).toBeTruthy()
     await composeBtn!.trigger('click')
     expect(wrapper.find('.send-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('imageStudio.modeComposeHint')
+    expect(wrapper.text()).toContain('imageStudio.referenceRequirementCompose')
   })
 
   it('rejects a non-image reference file with an inline error', async () => {

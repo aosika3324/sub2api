@@ -193,6 +193,7 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
         id: resp.generation_id,
         conversation_id: resp.conversation_id,
         group_id: req.group_id,
+        mode: resp.mode || req.mode,
         prompt: req.prompt,
         model: req.model,
         size: req.size,

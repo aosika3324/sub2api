@@ -39,11 +39,13 @@ export async function generate(
         : []
 
   if (referenceImages.length > 0) {
+    const mode = req.mode ?? (referenceImages.length >= 2 ? 'compose' : 'edit')
     const fd = new FormData()
     if (req.conversation_id != null) {
       fd.append('conversation_id', String(req.conversation_id))
     }
     fd.append('group_id', String(req.group_id))
+    fd.append('mode', mode)
     fd.append('prompt', req.prompt)
     fd.append('model', req.model)
     fd.append('size', req.size)

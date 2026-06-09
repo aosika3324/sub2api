@@ -33,6 +33,7 @@ type ImageStudioGenerateInput struct {
 	// the prompt). When set, the generation is appended to that conversation.
 	ConversationID *int64
 
+	Mode    string
 	Prompt  string
 	Model   string
 	Size    string
@@ -63,6 +64,7 @@ type StudioInputImage struct {
 type ImageStudioGenerateResult struct {
 	GenerationID   int64
 	ConversationID int64
+	Mode           string
 	Images         []string // storage keys (URLs are built by the handler / T9)
 	InputImages    []string // input/reference storage keys (edits path only)
 	Cost           float64
@@ -75,6 +77,7 @@ type ImageStudioGenerateResult struct {
 type ImageStudioStartResult struct {
 	GenerationID   int64
 	ConversationID int64
+	Mode           string
 	InputImages    []string
 	Balance        float64
 }
@@ -177,10 +180,16 @@ var (
 	// handler maps it to 404 (matching the other conversation endpoints) so it
 	// never leaks the existence of another user's conversation.
 	ErrImageStudioConversationNotFound = errors.New("image studio: conversation not found")
+	// ErrImageStudioInvalidMode is returned when the selected workbench mode is
+	// inconsistent with its reference-image requirements.
+	ErrImageStudioInvalidMode = errors.New("image studio: invalid workbench mode")
 )
 
 const (
 	imageStudioInboundEndpoint = "image_studio"
+	ImageStudioModeGenerate    = "generate"
+	ImageStudioModeEdit        = "edit"
+	ImageStudioModeCompose     = "compose"
 	imageStudioStatusPending   = "pending"
 	imageStudioStatusSucceeded = "succeeded"
 	imageStudioStatusFailed    = "failed"
@@ -308,6 +317,7 @@ func (s *ImageStudioService) StartGenerate(ctx context.Context, userID int64, in
 	return &ImageStudioStartResult{
 		GenerationID:   prepared.generationID,
 		ConversationID: prepared.conversationID,
+		Mode:           prepared.input.Mode,
 		InputImages:    prepared.inputKeys,
 		Balance:        s.readBalance(ctx, userID, prepared.user.Balance),
 	}, nil
@@ -346,6 +356,13 @@ func (s *ImageStudioService) prepareGeneration(ctx context.Context, userID int64
 	if !GroupAllowsImageGeneration(group) {
 		return nil, ErrImageStudioImageGenerationDisabled
 	}
+
+	inputImages := normalizeStudioInputImages(in)
+	mode, err := NormalizeImageStudioMode(in.Mode, len(inputImages))
+	if err != nil {
+		return nil, err
+	}
+	in.Mode = mode
 
 	// --- Step 2: billing eligibility pre-flight (balance/quota). ---
 	// The synthetic key models the (user, group) identity the image path bills
@@ -409,7 +426,6 @@ func (s *ImageStudioService) prepareGeneration(ctx context.Context, userID int64
 	// --- Step 4b: persist the user-provided reference image (edits path). ---
 	// Stored BEFORE generation so the input survives even if generation fails,
 	// matching the spec contract. A storage failure here aborts before billing.
-	inputImages := normalizeStudioInputImages(in)
 	var inputKeys []string
 	if len(inputImages) > 0 {
 		inputKeys = make([]string, 0, len(inputImages))
@@ -592,6 +608,7 @@ func (s *ImageStudioService) finishPreparedGeneration(ctx context.Context, prepa
 	return &ImageStudioGenerateResult{
 		GenerationID:   genID,
 		ConversationID: conversationID,
+		Mode:           in.Mode,
 		Images:         keys,
 		InputImages:    inputKeys,
 		Cost:           cost,
@@ -796,6 +813,41 @@ func normalizeStudioInputImages(in ImageStudioGenerateInput) []StudioInputImage 
 		return []StudioInputImage{*in.InputImage}
 	}
 	return nil
+}
+
+// NormalizeImageStudioMode returns the accepted workbench mode and enforces the
+// reference-image requirements for edit/compose. An empty mode preserves legacy
+// callers by inferring the mode from the number of reference images.
+func NormalizeImageStudioMode(mode string, referenceCount int) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(mode))
+	if normalized == "" {
+		switch {
+		case referenceCount >= 2:
+			return ImageStudioModeCompose, nil
+		case referenceCount == 1:
+			return ImageStudioModeEdit, nil
+		default:
+			return ImageStudioModeGenerate, nil
+		}
+	}
+
+	switch normalized {
+	case ImageStudioModeGenerate:
+		if referenceCount > 0 {
+			return "", fmt.Errorf("%w: generate mode does not accept reference images", ErrImageStudioInvalidMode)
+		}
+	case ImageStudioModeEdit:
+		if referenceCount != 1 {
+			return "", fmt.Errorf("%w: edit mode requires exactly one reference image", ErrImageStudioInvalidMode)
+		}
+	case ImageStudioModeCompose:
+		if referenceCount < 2 {
+			return "", fmt.Errorf("%w: compose mode requires at least two reference images", ErrImageStudioInvalidMode)
+		}
+	default:
+		return "", fmt.Errorf("%w: %s", ErrImageStudioInvalidMode, normalized)
+	}
+	return normalized, nil
 }
 
 func normalizeStudioPipelineModel(model string) (string, bool) {

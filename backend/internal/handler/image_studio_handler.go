@@ -96,6 +96,7 @@ const (
 type GenerateImageRequest struct {
 	ConversationID *int64 `json:"conversation_id"`
 	GroupID        int64  `json:"group_id" binding:"required"`
+	Mode           string `json:"mode"`
 	Prompt         string `json:"prompt" binding:"required"`
 	Model          string `json:"model"`
 	Size           string `json:"size"`
@@ -106,6 +107,7 @@ type GenerateImageRequest struct {
 type generateImageResponse struct {
 	GenerationID   int64    `json:"generation_id"`
 	ConversationID int64    `json:"conversation_id"`
+	Mode           string   `json:"mode,omitempty"`
 	Images         []string `json:"images"`
 	InputImages    []string `json:"input_images,omitempty"`
 	Status         string   `json:"status"`
@@ -124,6 +126,7 @@ type generationResponse struct {
 	ID             int64    `json:"id"`
 	ConversationID int64    `json:"conversation_id"`
 	GroupID        int64    `json:"group_id"`
+	Mode           string   `json:"mode,omitempty"`
 	Prompt         string   `json:"prompt"`
 	Model          string   `json:"model"`
 	Size           string   `json:"size"`
@@ -180,6 +183,7 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 		in = service.ImageStudioGenerateInput{
 			GroupID:        req.GroupID,
 			ConversationID: req.ConversationID,
+			Mode:           req.Mode,
 			Prompt:         req.Prompt,
 			Model:          req.Model,
 			Size:           req.Size,
@@ -207,6 +211,7 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	response.Success(c, generateImageResponse{
 		GenerationID:   result.GenerationID,
 		ConversationID: result.ConversationID,
+		Mode:           result.Mode,
 		Images:         []string{},
 		InputImages:    buildInputAssetURLs(result.GenerationID, len(result.InputImages)),
 		Status:         "pending",
@@ -235,6 +240,7 @@ func (h *ImageStudioHandler) parseMultipartGenerate(c *gin.Context) (service.Ima
 	}
 
 	in.Prompt = c.PostForm("prompt")
+	in.Mode = c.PostForm("mode")
 	in.Model = c.PostForm("model")
 	in.Size = c.PostForm("size")
 	in.Quality = c.PostForm("quality")
@@ -674,6 +680,8 @@ func (h *ImageStudioHandler) respondGenerateError(c *gin.Context, err error) {
 		response.NotFound(c, "Conversation not found")
 	case errors.Is(err, service.ErrImageStudioBusy):
 		response.Error(c, http.StatusTooManyRequests, err.Error())
+	case errors.Is(err, service.ErrImageStudioInvalidMode):
+		response.BadRequest(c, err.Error())
 	case errors.Is(err, service.ErrImageStudioNoImages),
 		errors.Is(err, service.ErrImageStudioNoAccount):
 		response.InternalError(c, "image generation produced no result")
@@ -736,6 +744,7 @@ func toGenerationResponse(gen *dbent.ImageGeneration) generationResponse {
 		ID:             gen.ID,
 		ConversationID: gen.ConversationID,
 		GroupID:        gen.GroupID,
+		Mode:           inferredGenerationMode(gen),
 		Prompt:         gen.Prompt,
 		Model:          gen.Model,
 		Size:           gen.Size,
@@ -754,3 +763,14 @@ func toGenerationResponse(gen *dbent.ImageGeneration) generationResponse {
 }
 
 const timeRFC3339 = "2006-01-02T15:04:05Z07:00"
+
+func inferredGenerationMode(gen *dbent.ImageGeneration) string {
+	if gen == nil {
+		return service.ImageStudioModeGenerate
+	}
+	mode, err := service.NormalizeImageStudioMode("", len(gen.InputStorageKeys))
+	if err != nil {
+		return service.ImageStudioModeGenerate
+	}
+	return mode
+}

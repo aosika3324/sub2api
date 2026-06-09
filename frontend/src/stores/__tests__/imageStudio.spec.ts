@@ -49,6 +49,7 @@ const fakeConversation2 = {
 
 const fakeGenerateReq = {
   group_id: 10,
+  mode: 'generate' as const,
   prompt: 'A sunset over the mountains',
   model: 'gpt-image-2',
   size: '1K',
@@ -59,6 +60,7 @@ const fakeGenerateReq = {
 const fakeGenerateResp = {
   generation_id: 42,
   conversation_id: 1,
+  mode: 'generate' as const,
   images: ['https://cdn.example.com/img1.png'],
   cost: 0.04,
   balance: 9.96,
@@ -68,6 +70,7 @@ const fakeGeneration = {
   id: 42,
   conversation_id: 1,
   group_id: 10,
+  mode: 'generate',
   prompt: 'A sunset over the mountains',
   model: 'gpt-image-2',
   size: '1K',

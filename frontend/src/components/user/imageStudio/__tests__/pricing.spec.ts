@@ -116,6 +116,11 @@ describe('model option matrices', () => {
       'codex-gpt-image-2',
       'auto',
       'gpt-5',
+      'gpt-5-1',
+      'gpt-5-2',
+      'gpt-5-3',
+      'gpt-5-3-mini',
+      'gpt-5-mini',
     ])
   })
 

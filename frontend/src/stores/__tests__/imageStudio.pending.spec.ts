@@ -29,6 +29,7 @@ describe('useImageStudioStore pending generations', () => {
     mockGenerate.mockResolvedValue({
       generation_id: 43,
       conversation_id: 7,
+      mode: 'edit',
       images: [],
       input_images: ['/api/v1/user/image-studio/input-assets/43/0'],
       status: 'pending',
@@ -39,6 +40,7 @@ describe('useImageStudioStore pending generations', () => {
     const store = useImageStudioStore()
     await store.generate({
       group_id: 10,
+      mode: 'edit',
       prompt: 'edit this image',
       model: 'gpt-image-2',
       size: '1024x1024',
@@ -50,6 +52,7 @@ describe('useImageStudioStore pending generations', () => {
     expect(store.generations[0]).toMatchObject({
       id: 43,
       conversation_id: 7,
+      mode: 'edit',
       status: 'pending',
       image_count: 0,
       images: [],
