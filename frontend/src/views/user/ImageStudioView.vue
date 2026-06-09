@@ -5,15 +5,15 @@
       (bg-gray-50 dark:bg-dark-950 + teal mesh-gradient); the serif hero carries
       the visual identity, so the bulky page header is dropped (sr-only h1 kept).
     -->
-    <div class="mx-auto max-w-[1600px]">
+    <div class="mx-auto max-w-[1760px]">
       <!-- Accessible title only; the serif hero carries the visual identity. -->
       <h1 class="sr-only">{{ t('imageStudio.title') }}</h1>
 
       <!-- Workbench grid -->
-      <div class="grid grid-cols-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-[240px_minmax(0,1fr)_400px]">
         <!-- Left: conversations (flat / borderless) -->
         <aside
-          class="order-2 h-fit min-h-0 lg:order-1 lg:h-[calc(100vh-8rem)]"
+          class="order-3 h-fit min-h-0 xl:order-1 xl:h-[calc(100vh-8rem)]"
         >
           <ConversationList
             :conversations="store.conversations"
@@ -30,7 +30,7 @@
 
         <!-- Main column: chat-style — history (scrolls) on top, composer pinned bottom -->
         <section
-          class="order-1 flex min-h-[60vh] min-w-0 flex-col gap-3 lg:order-2 lg:h-[calc(100vh-7rem)]"
+          class="order-2 flex min-h-[56vh] min-w-0 flex-col xl:order-2 xl:h-[calc(100vh-7rem)]"
         >
           <!--
             History scroll area. Always-mounted with a stable dark surface so
@@ -59,32 +59,35 @@
           </div>
 
           <!-- Inline error banner (e.g. 403 group not enabled) — sits above the composer -->
-          <div
-            v-if="inlineError"
-            class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300"
-          >
-            <Icon name="exclamationTriangle" size="sm" class="mt-0.5 flex-shrink-0" />
-            <span class="flex-1">{{ inlineError }}</span>
-            <button
-              type="button"
-              class="flex-shrink-0 rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30"
-              @click="inlineError = ''"
-            >
-              <Icon name="x" size="xs" />
-            </button>
-          </div>
-
-          <!-- Prompt console pinned at the bottom -->
-          <ImageComposer
-            ref="composerRef"
-            class="flex-shrink-0"
-            :groups="groups"
-            :loading-groups="loadingGroups"
-            :generating="store.generating"
-            :balance="balance"
-            @generate="handleGenerate"
-          />
         </section>
+
+        <aside class="order-1 min-w-0 xl:order-3 xl:h-[calc(100vh-7rem)] xl:overflow-y-auto">
+          <div class="flex min-h-0 flex-col gap-3">
+            <div
+              v-if="inlineError"
+              class="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/10 dark:text-red-300"
+            >
+              <Icon name="exclamationTriangle" size="sm" class="mt-0.5 flex-shrink-0" />
+              <span class="flex-1">{{ inlineError }}</span>
+              <button
+                type="button"
+                class="flex-shrink-0 rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30"
+                @click="inlineError = ''"
+              >
+                <Icon name="x" size="xs" />
+              </button>
+            </div>
+
+            <ImageComposer
+              ref="composerRef"
+              :groups="groups"
+              :loading-groups="loadingGroups"
+              :generating="store.generating"
+              :balance="balance"
+              @generate="handleGenerate"
+            />
+          </div>
+        </aside>
       </div>
     </div>
 

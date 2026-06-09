@@ -1344,6 +1344,7 @@ export default {
   // Image Studio
   imageStudio: {
     title: '作图工作台',
+    workbenchTitle: '在线画图工作台',
     subtitle: '使用 AI 生成图片',
     conversations: '会话列表',
     newConversation: '新建会话',

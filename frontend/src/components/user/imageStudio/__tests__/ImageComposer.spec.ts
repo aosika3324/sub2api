@@ -133,6 +133,8 @@ describe('ImageComposer', () => {
     await flushPromises()
 
     expect(wrapper.find('.workbench-panel').exists()).toBe(true)
+    expect(wrapper.find('.studio-panel-header').exists()).toBe(true)
+    expect(wrapper.text()).toContain('imageStudio.workbenchTitle')
     expect(wrapper.text()).toContain('imageStudio.modeGenerate')
     expect(wrapper.text()).toContain('imageStudio.modeEdit')
     expect(wrapper.text()).toContain('imageStudio.modeCompose')
@@ -251,8 +253,8 @@ describe('ImageComposer', () => {
     await wrapper.find('textarea').setValue('edit this')
 
     const editBtn = wrapper
-      .findAll('.segmented-btn')
-      .find((b) => b.text() === 'imageStudio.modeEdit')
+      .findAll('.mode-card')
+      .find((b) => b.text().includes('imageStudio.modeEdit'))
     expect(editBtn).toBeTruthy()
     await editBtn!.trigger('click')
     expect(wrapper.find('.send-button').attributes('disabled')).toBeDefined()
@@ -266,8 +268,8 @@ describe('ImageComposer', () => {
     expect(wrapper.find('.send-button').attributes('disabled')).toBeUndefined()
 
     const composeBtn = wrapper
-      .findAll('.segmented-btn')
-      .find((b) => b.text() === 'imageStudio.modeCompose')
+      .findAll('.mode-card')
+      .find((b) => b.text().includes('imageStudio.modeCompose'))
     expect(composeBtn).toBeTruthy()
     await composeBtn!.trigger('click')
     expect(wrapper.find('.send-button').attributes('disabled')).toBeDefined()

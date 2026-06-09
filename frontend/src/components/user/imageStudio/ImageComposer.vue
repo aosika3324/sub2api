@@ -1,5 +1,25 @@
 <template>
   <div class="composer">
+    <div class="studio-panel-header">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="studio-kicker">{{ t('imageStudio.title') }}</p>
+          <h2 class="studio-title">{{ t('imageStudio.workbenchTitle') }}</h2>
+        </div>
+        <span class="balance-pill" :title="t('common.balance')">
+          <Icon name="dollar" size="xs" class="flex-shrink-0 text-green-500" />
+          <span class="text-gray-400 dark:text-dark-500">{{ t('imageStudio.balanceShort') }}</span>
+          <span class="font-medium text-gray-900 dark:text-white">${{ balance.toFixed(2) }}</span>
+        </span>
+      </div>
+      <div class="studio-mode-summary">
+        <span>{{ activeModeLabel }}</span>
+        <span>{{ model }}</span>
+        <span>{{ submitSize }}</span>
+        <span>{{ t('imageStudio.countShort', { count: n }) }}</span>
+      </div>
+    </div>
+
     <!-- No usable group hint (subtle muted inline notice) -->
     <div
       v-if="!loadingGroups && imageGroups.length === 0"
@@ -12,7 +32,7 @@
     <!-- Unified pill: textarea on top, compact controls + send below.
          Doubles as a drag-and-drop target for reference images. -->
     <div
-      class="composer-shell relative rounded-2xl border border-gray-100 bg-white shadow-sm transition-colors focus-within:border-primary-400 dark:border-dark-700/50 dark:bg-dark-800/70 dark:focus-within:border-primary-500"
+      class="composer-shell"
       @dragover.prevent="onDragOver"
       @dragleave.prevent="onDragLeave"
       @drop.prevent="onDrop"
@@ -55,20 +75,6 @@
         <p v-if="referenceError" class="mt-1 text-xs text-red-500">{{ referenceError }}</p>
       </div>
 
-      <!-- Prompt -->
-      <textarea
-        ref="promptRef"
-        v-model="prompt"
-        rows="1"
-        :disabled="disabled"
-        class="composer-prompt"
-        :placeholder="t('imageStudio.promptPlaceholder')"
-        @input="autoGrow"
-        @paste="onPaste"
-        @keydown.ctrl.enter.prevent="submit"
-        @keydown.meta.enter.prevent="submit"
-      ></textarea>
-
       <!-- Visible workbench controls -->
       <div class="workbench-panel">
         <div class="workbench-row">
@@ -86,18 +92,19 @@
 
           <div class="control-field control-field-mode">
             <span class="control-label">{{ t('imageStudio.mode') }}</span>
-            <div class="segmented mode-segmented" role="group" :aria-label="t('imageStudio.mode')">
+            <div class="mode-card-grid" role="group" :aria-label="t('imageStudio.mode')">
               <button
                 v-for="option in modeOptions"
                 :key="option.value"
                 type="button"
-                class="segmented-btn"
-                :class="{ 'segmented-btn-active': mode === option.value }"
+                class="mode-card"
+                :class="{ 'mode-card-active': mode === option.value }"
                 :disabled="disabled"
                 :aria-pressed="mode === option.value"
                 @click="mode = option.value"
               >
-                {{ option.label }}
+                <span class="mode-card-title">{{ option.label }}</span>
+                <span class="mode-card-copy">{{ modeHintFor(option.value) }}</span>
               </button>
             </div>
             <div class="mode-summary">
@@ -208,22 +215,39 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          class="reference-dropzone"
-          :class="{ 'reference-dropzone-empty': referencePreviews.length === 0 }"
-          :disabled="disabled"
-          @click="triggerFilePicker"
-        >
-          <Icon name="image" size="sm" class="text-primary-500" />
-          <span class="reference-dropzone-text">
-            {{ referencePreviews.length > 0 ? t('imageStudio.referenceImage') : t('imageStudio.upload') }}
-          </span>
-          <span class="reference-dropzone-count">
-            {{ referencePreviews.length }}/{{ MAX_REFERENCE_IMAGES }}
-          </span>
-        </button>
+        <div class="reference-workbench">
+          <button
+            type="button"
+            class="reference-dropzone"
+            :class="{ 'reference-dropzone-empty': referencePreviews.length === 0 }"
+            :disabled="disabled"
+            @click="triggerFilePicker"
+          >
+            <Icon name="upload" size="sm" class="text-primary-500" />
+            <span class="reference-dropzone-text">
+              {{ referencePreviews.length > 0 ? t('imageStudio.referenceImage') : t('imageStudio.upload') }}
+            </span>
+            <span class="reference-dropzone-count">
+              {{ referencePreviews.length }}/{{ MAX_REFERENCE_IMAGES }}
+            </span>
+          </button>
+          <p class="reference-workbench-hint">{{ referenceRequirement }}</p>
+        </div>
       </div>
+
+      <!-- Prompt -->
+      <textarea
+        ref="promptRef"
+        v-model="prompt"
+        rows="1"
+        :disabled="disabled"
+        class="composer-prompt"
+        :placeholder="t('imageStudio.promptPlaceholder')"
+        @input="autoGrow"
+        @paste="onPaste"
+        @keydown.ctrl.enter.prevent="submit"
+        @keydown.meta.enter.prevent="submit"
+      ></textarea>
 
       <!-- Action bar -->
       <div class="composer-controls action-bar">
@@ -247,12 +271,6 @@
           @change="onFileChange"
         />
 
-        <span class="balance-pill" :title="t('common.balance')">
-          <Icon name="dollar" size="xs" class="flex-shrink-0 text-green-500" />
-          <span class="text-gray-400 dark:text-dark-500">{{ t('imageStudio.balanceShort') }}</span>
-          <span class="font-medium text-gray-900 dark:text-white">${{ balance.toFixed(2) }}</span>
-        </span>
-
         <span v-if="costEstimate != null" class="text-xs text-gray-400 dark:text-dark-500">
           ~= {{ costEstimate.toFixed(2) }}
         </span>
@@ -268,7 +286,10 @@
             v-if="generating"
             class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
           ></span>
-          <Icon v-else name="arrowUp" size="sm" :stroke-width="2" />
+          <template v-else>
+            <Icon name="arrowUp" size="sm" :stroke-width="2" />
+            <span>{{ t('imageStudio.sendAria') }}</span>
+          </template>
         </button>
       </div>
     </div>
@@ -361,6 +382,18 @@ const modeHint = computed(() => {
   if (mode.value === 'compose') return t('imageStudio.modeComposeHint')
   return t('imageStudio.modeGenerateHint')
 })
+
+const activeModeLabel = computed(() => {
+  if (mode.value === 'edit') return t('imageStudio.modeEdit')
+  if (mode.value === 'compose') return t('imageStudio.modeCompose')
+  return t('imageStudio.modeGenerate')
+})
+
+function modeHintFor(value: 'generate' | 'edit' | 'compose'): string {
+  if (value === 'edit') return t('imageStudio.modeEditHint')
+  if (value === 'compose') return t('imageStudio.modeComposeHint')
+  return t('imageStudio.modeGenerateHint')
+}
 
 const referenceRequirement = computed(() => {
   if (mode.value === 'edit') return t('imageStudio.referenceRequirementEdit')
@@ -621,38 +654,65 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 </script>
 
 <style scoped>
+.composer {
+  @apply rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-dark-700/50 dark:bg-dark-800/70;
+}
+
+.studio-panel-header {
+  @apply border-b border-gray-100 px-4 py-4 dark:border-dark-700/60;
+}
+
+.studio-kicker {
+  @apply text-[11px] font-semibold uppercase tracking-normal text-primary-600 dark:text-primary-300;
+}
+
+.studio-title {
+  @apply mt-1 truncate text-lg font-semibold text-gray-900 dark:text-white;
+}
+
+.studio-mode-summary {
+  @apply mt-3 flex flex-wrap gap-1.5;
+}
+
+.studio-mode-summary span {
+  @apply rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300;
+}
+
+.composer-shell {
+  @apply relative bg-transparent transition-colors focus-within:border-primary-400 dark:focus-within:border-primary-500;
+}
+
 .composer-prompt {
-  @apply w-full resize-none border-0 bg-transparent px-5 pb-3 pt-4 text-base leading-relaxed;
+  @apply w-full resize-none border-0 bg-transparent px-4 pb-3 pt-3 text-base leading-relaxed;
   @apply text-gray-900 dark:text-white;
   @apply placeholder:text-gray-400 dark:placeholder:text-dark-500;
   @apply focus:outline-none focus:ring-0;
-  min-height: 60px;
+  min-height: 140px;
 }
 
 .workbench-panel {
-  @apply mx-3 mb-3 rounded-xl border border-gray-100 bg-gray-50/90 p-4;
+  @apply m-3 rounded-xl border border-gray-100 bg-gray-50/90 p-3;
   @apply dark:border-dark-700/70 dark:bg-dark-900/60;
 }
 
 .workbench-row {
   @apply grid gap-3;
-  grid-template-columns: minmax(10rem, 1fr) minmax(15rem, 1.25fr) minmax(15rem, 1.2fr) minmax(6rem, 0.55fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .workbench-row-secondary {
-  @apply mt-4;
-  grid-template-columns: minmax(15rem, 1fr) minmax(20rem, 1.6fr) minmax(13rem, 0.9fr);
+  @apply mt-3;
+  grid-template-columns: minmax(0, 1fr);
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1279px) {
   .workbench-row,
   .workbench-row-secondary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
-  .workbench-row,
+@media (min-width: 1680px) {
   .workbench-row-secondary {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -681,8 +741,16 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
   @apply opacity-60;
 }
 
+.reference-workbench {
+  @apply mt-3 rounded-xl border border-dashed border-gray-200 bg-white/75 p-2 dark:border-dark-600 dark:bg-dark-800/60;
+}
+
+.reference-workbench-hint {
+  @apply mt-2 px-1 text-xs text-gray-500 dark:text-dark-400;
+}
+
 .reference-dropzone {
-  @apply mt-4 flex w-full items-center gap-2 rounded-lg border border-dashed border-primary-300 bg-primary-50/70 px-3 py-2.5 text-left text-sm text-primary-700 transition-colors;
+  @apply flex w-full items-center gap-2 rounded-lg border border-dashed border-primary-300 bg-primary-50/70 px-3 py-2.5 text-left text-sm text-primary-700 transition-colors;
   @apply hover:bg-primary-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
   @apply dark:border-primary-700/60 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30;
 }
@@ -752,6 +820,33 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
   @apply mt-2 flex flex-wrap items-center gap-1.5 text-[11px] leading-snug text-gray-500 dark:text-dark-300;
 }
 
+.mode-card-grid {
+  @apply grid gap-2;
+}
+
+.mode-card {
+  @apply rounded-lg border border-gray-200 bg-white px-3 py-2 text-left transition-colors;
+  @apply hover:border-primary-300 hover:bg-primary-50;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
+  @apply dark:border-dark-600 dark:bg-dark-800 dark:hover:border-primary-700 dark:hover:bg-primary-900/20;
+}
+
+.mode-card-active {
+  @apply border-primary-500 bg-primary-50 ring-1 ring-primary-500/30 dark:border-primary-500 dark:bg-primary-900/30;
+}
+
+.mode-card:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+.mode-card-title {
+  @apply block text-sm font-semibold text-gray-900 dark:text-white;
+}
+
+.mode-card-copy {
+  @apply mt-1 block text-xs leading-snug text-gray-500 dark:text-dark-300;
+}
+
 .mode-summary-copy {
   @apply min-w-0 flex-1;
 }
@@ -808,7 +903,7 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 }
 
 .send-button {
-  @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors;
+  @apply ml-auto flex h-10 flex-shrink-0 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors;
   @apply bg-primary-600 text-white hover:bg-primary-700;
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40;
 }

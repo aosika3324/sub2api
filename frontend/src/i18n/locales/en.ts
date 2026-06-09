@@ -1340,6 +1340,7 @@ export default {
   // Image Studio
   imageStudio: {
     title: 'Image Studio',
+    workbenchTitle: 'Online drawing workbench',
     subtitle: 'Generate images with AI',
     conversations: 'Conversations',
     newConversation: 'New Conversation',
