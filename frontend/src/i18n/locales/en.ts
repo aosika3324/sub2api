@@ -1391,6 +1391,8 @@ export default {
     errorGroupNotEnabled: 'Image generation is not enabled for this group.',
     continueWaitingHint: 'This job is saved in history. You can leave and come back; the studio will keep polling it.',
     waitingElapsed: 'Waiting {elapsed}',
+    loadEarlier: 'Load earlier images',
+    loadingEarlier: 'Loading…',
     refreshStatus: 'Refresh status',
     statusRefreshed: 'Generation status refreshed',
     imageSettings: 'Image settings',

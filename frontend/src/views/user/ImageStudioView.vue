@@ -47,11 +47,14 @@
               :loading="store.loading && !store.hasLoadedGenerations"
               :generating="store.generating"
               :pending-prompt="pendingPrompt"
+              :has-more="store.generations.length < store.generationTotal"
+              :loading-more="store.loadingMoreGenerations"
               @retry="handleRetry"
               @refresh="handleRefreshGeneration"
               @delete="confirmDeleteGeneration"
               @open="openLightbox"
               @use-example="handleUseExample"
+              @load-more="handleLoadMoreGenerations"
             />
           </div>
 
@@ -467,6 +470,25 @@ async function handleRetry(generation: ImageStudioGeneration) {
 
 function confirmDeleteGeneration(generation: ImageStudioGeneration) {
   deleteGenTarget.value = generation
+}
+
+async function handleLoadMoreGenerations() {
+  const el = scrollRef.value
+  const previousHeight = el?.scrollHeight ?? 0
+  const previousTop = el?.scrollTop ?? 0
+  try {
+    await store.loadMoreGenerations()
+    await nextTick()
+    if (el) {
+      el.scrollTo({
+        top: previousTop + (el.scrollHeight - previousHeight),
+        behavior: 'auto',
+      })
+      rememberScroll()
+    }
+  } catch (err) {
+    appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
+  }
 }
 
 async function handleRefreshGeneration(generation: ImageStudioGeneration) {

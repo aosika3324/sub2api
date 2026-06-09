@@ -223,12 +223,14 @@ describe('useImageStudioStore', () => {
       mockGenerate.mockResolvedValue(fakeGenerateResp)
 
       const store = useImageStudioStore()
+      store.generationTotal = 20
       expect(store.activeConversationId).toBeNull()
 
       await store.generate(fakeGenerateReq)
 
       expect(store.activeConversationId).toBe(1)
       expect(store.conversations.some((c) => c.id === 1)).toBe(true)
+      expect(store.generationTotal).toBe(1)
     })
 
     it('M6: 传入 conversation_id 时不改变 active, 不新增会话', async () => {
@@ -393,7 +395,9 @@ describe('useImageStudioStore', () => {
       await store.loadGenerations()
 
       expect(mockListGenerations).toHaveBeenCalledTimes(1)
+      expect(mockListGenerations).toHaveBeenCalledWith(1, 20)
       expect(mockListConversationGenerations).not.toHaveBeenCalled()
+      expect(store.generationTotal).toBe(0)
     })
 
     it('传入 conversationId: 调用对话级别接口', async () => {
@@ -408,8 +412,64 @@ describe('useImageStudioStore', () => {
       const store = useImageStudioStore()
       await store.loadGenerations(1)
 
-      expect(mockListConversationGenerations).toHaveBeenCalledWith(1)
+      expect(mockListConversationGenerations).toHaveBeenCalledWith(1, 1, 20)
       expect(mockListGenerations).not.toHaveBeenCalled()
+    })
+
+    it('loadMoreGenerations: 加载下一页并追加更早图片', async () => {
+      const newest = { ...fakeGeneration, id: 42 }
+      const older = { ...fakeGeneration, id: 41, prompt: 'older' }
+      mockListGenerations
+        .mockResolvedValueOnce({
+          items: [newest],
+          total: 2,
+          page: 1,
+          page_size: 1,
+          pages: 2,
+        })
+        .mockResolvedValueOnce({
+          items: [older],
+          total: 2,
+          page: 2,
+          page_size: 1,
+          pages: 2,
+        })
+
+      const store = useImageStudioStore()
+      await store.loadGenerations(undefined, 1, 1)
+      await store.loadMoreGenerations()
+
+      expect(mockListGenerations).toHaveBeenNthCalledWith(2, 2, 1)
+      expect(store.generations.map((g) => g.id)).toEqual([42, 41])
+      expect(store.generationPage).toBe(2)
+      expect(store.generationTotal).toBe(2)
+      expect(store.loadingMoreGenerations).toBe(false)
+    })
+
+    it('loadMoreGenerations: 当前会话中请求下一页', async () => {
+      mockListConversationGenerations
+        .mockResolvedValueOnce({
+          items: [{ ...fakeGeneration, id: 5, conversation_id: 9 }],
+          total: 2,
+          page: 1,
+          page_size: 1,
+          pages: 2,
+        })
+        .mockResolvedValueOnce({
+          items: [{ ...fakeGeneration, id: 4, conversation_id: 9 }],
+          total: 2,
+          page: 2,
+          page_size: 1,
+          pages: 2,
+        })
+
+      const store = useImageStudioStore()
+      store.selectConversation(9)
+      await store.loadGenerations(9, 1, 1)
+      await store.loadMoreGenerations()
+
+      expect(mockListConversationGenerations).toHaveBeenNthCalledWith(2, 9, 2, 1)
+      expect(store.generations.map((g) => g.id)).toEqual([5, 4])
     })
 
     it('hasLoadedGenerations: 初始为 false, 首次加载后变 true (用于门控骨架屏只在首屏显示)', async () => {

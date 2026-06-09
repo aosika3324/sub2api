@@ -62,6 +62,22 @@
 
     <!-- Results gallery (oldest → newest, newest nearest the composer) -->
     <div v-else class="p-4">
+      <div v-if="hasMore" class="mb-4 flex justify-center">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          :disabled="loadingMore"
+          @click="$emit('loadMore')"
+        >
+          <span
+            v-if="loadingMore"
+            class="mr-1.5 h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+          ></span>
+          <Icon v-else name="refresh" size="sm" class="mr-1.5" />
+          {{ t(loadingMore ? 'imageStudio.loadingEarlier' : 'imageStudio.loadEarlier') }}
+        </button>
+      </div>
+
       <TransitionGroup tag="div" name="reveal" class="space-y-4">
         <GenerationCard
           v-for="gen in orderedGenerations"
@@ -108,6 +124,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ImageStudioGeneration } from '@/types'
+import Icon from '@/components/icons/Icon.vue'
 import GenerationCard from './GenerationCard.vue'
 
 const props = defineProps<{
@@ -115,6 +132,8 @@ const props = defineProps<{
   loading?: boolean
   generating?: boolean
   pendingPrompt?: string
+  hasMore?: boolean
+  loadingMore?: boolean
 }>()
 
 defineEmits<{
@@ -123,6 +142,7 @@ defineEmits<{
   (e: 'delete', generation: ImageStudioGeneration): void
   (e: 'open', src: string): void
   (e: 'useExample', prompt: string): void
+  (e: 'loadMore'): void
 }>()
 
 const { t } = useI18n()

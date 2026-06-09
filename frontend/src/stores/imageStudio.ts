@@ -22,6 +22,10 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
   const loading = ref(false)
   const generating = ref(false)
   const error = ref<unknown>(null)
+  const generationPage = ref(1)
+  const generationPageSize = ref(20)
+  const generationTotal = ref(0)
+  const loadingMoreGenerations = ref(false)
 
   // True once the first generation load has resolved. The canvas skeleton is
   // gated on this so it only appears on the very first load — never on a
@@ -94,15 +98,22 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
    * If conversationId is provided, loads that conversation's generations;
    * otherwise loads the global generation list.
    */
-  async function loadGenerations(conversationId?: number): Promise<void> {
+  async function loadGenerations(
+    conversationId?: number,
+    page = 1,
+    pageSize = generationPageSize.value
+  ): Promise<void> {
     loading.value = true
     error.value = null
     try {
       const resp =
         conversationId !== undefined
-          ? await imageStudioAPI.listConversationGenerations(conversationId)
-          : await imageStudioAPI.listGenerations()
+          ? await imageStudioAPI.listConversationGenerations(conversationId, page, pageSize)
+          : await imageStudioAPI.listGenerations(page, pageSize)
       generations.value = resp.items
+      generationPage.value = resp.page ?? page
+      generationPageSize.value = resp.page_size ?? pageSize
+      generationTotal.value = resp.total ?? resp.items.length
     } catch (err) {
       error.value = err
       throw err
@@ -119,7 +130,40 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
    */
   function resetGenerations(): void {
     generations.value = []
+    generationPage.value = 1
+    generationTotal.value = 0
     hasLoadedGenerations.value = true
+  }
+
+  async function loadMoreGenerations(): Promise<void> {
+    if (loadingMoreGenerations.value) return
+    if (generations.value.length >= generationTotal.value) return
+
+    loadingMoreGenerations.value = true
+    error.value = null
+    const nextPage = generationPage.value + 1
+    const conversationId = activeConversationId.value ?? undefined
+    try {
+      const resp =
+        conversationId !== undefined
+          ? await imageStudioAPI.listConversationGenerations(
+              conversationId,
+              nextPage,
+              generationPageSize.value
+            )
+          : await imageStudioAPI.listGenerations(nextPage, generationPageSize.value)
+      const seen = new Set(generations.value.map((g) => g.id))
+      const older = resp.items.filter((g) => !seen.has(g.id))
+      generations.value = [...generations.value, ...older]
+      generationPage.value = resp.page ?? nextPage
+      generationPageSize.value = resp.page_size ?? generationPageSize.value
+      generationTotal.value = resp.total ?? generations.value.length
+    } catch (err) {
+      error.value = err
+      throw err
+    } finally {
+      loadingMoreGenerations.value = false
+    }
   }
 
   /**
@@ -163,6 +207,12 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
       }
 
       generations.value = createdNewConversation ? [newGen] : [newGen, ...generations.value]
+      if (createdNewConversation) {
+        generationPage.value = 1
+        generationTotal.value = 1
+      } else {
+        generationTotal.value += 1
+      }
 
       // Adopt the auto-created conversation as active and surface it in the
       // sidebar immediately, so subsequent turns reuse it instead of spawning
@@ -200,6 +250,7 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
   async function deleteGeneration(id: number): Promise<void> {
     await imageStudioAPI.deleteGeneration(id)
     generations.value = generations.value.filter((g) => g.id !== id)
+    generationTotal.value = Math.max(0, generationTotal.value - 1)
   }
 
   async function refreshGeneration(id: number): Promise<ImageStudioGeneration | null> {
@@ -244,6 +295,8 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     conversations.value = []
     generations.value = []
     activeConversationId.value = null
+    generationPage.value = 1
+    generationTotal.value = 0
     hasLoadedGenerations.value = true
   }
 
@@ -258,6 +311,10 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     generating,
     error,
     hasLoadedGenerations,
+    generationPage,
+    generationPageSize,
+    generationTotal,
+    loadingMoreGenerations,
 
     // Actions
     loadConversations,
@@ -266,6 +323,7 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     deleteConversation,
     selectConversation,
     loadGenerations,
+    loadMoreGenerations,
     resetGenerations,
     generate,
     deleteGeneration,

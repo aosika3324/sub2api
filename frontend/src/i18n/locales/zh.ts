@@ -1395,6 +1395,8 @@ export default {
     errorGroupNotEnabled: '当前分组未开启图片生成功能。',
     continueWaitingHint: '任务已保存在历史中，可以离开后回来继续等待，工作台会持续轮询状态。',
     waitingElapsed: '已等待 {elapsed}',
+    loadEarlier: '加载更早图片',
+    loadingEarlier: '加载中…',
     refreshStatus: '刷新状态',
     statusRefreshed: '生成状态已刷新',
     imageSettings: '图像设置',
