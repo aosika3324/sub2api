@@ -22,6 +22,7 @@ func (s *OpenAIGatewayService) ParseOpenAIChatImagesRequest(body []byte) (*OpenA
 	if !isOpenAIChatImagesIntent(body, model) {
 		return nil, false, nil
 	}
+	imageTool := firstOpenAIChatImageGenerationTool(body)
 
 	stream := false
 	if streamResult := gjson.GetBytes(body, "stream"); streamResult.Exists() {
@@ -32,7 +33,7 @@ func (s *OpenAIGatewayService) ParseOpenAIChatImagesRequest(body []byte) (*OpenA
 	}
 
 	n := 1
-	if nResult := gjson.GetBytes(body, "n"); nResult.Exists() {
+	if nResult := openAIChatImagesOptionResult(body, imageTool, "n"); nResult.Exists() {
 		if nResult.Type != gjson.Number {
 			return nil, true, fmt.Errorf("invalid n field type")
 		}
@@ -44,7 +45,10 @@ func (s *OpenAIGatewayService) ParseOpenAIChatImagesRequest(body []byte) (*OpenA
 
 	explicitImageModel := isOpenAIImageGenerationModel(model)
 	if !explicitImageModel {
-		model = firstOpenAIChatImagesToolModel(body)
+		model = strings.TrimSpace(imageTool.Get("model").String())
+		if !isOpenAIImageGenerationModel(model) {
+			model = ""
+		}
 		explicitImageModel = strings.TrimSpace(model) != ""
 	}
 	if strings.TrimSpace(model) == "" {
@@ -70,26 +74,26 @@ func (s *OpenAIGatewayService) ParseOpenAIChatImagesRequest(body []byte) (*OpenA
 		Prompt:         prompt,
 		Stream:         stream,
 		N:              n,
-		Size:           strings.TrimSpace(gjson.GetBytes(body, "size").String()),
-		ResponseFormat: strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "response_format").String())),
-		Quality:        strings.TrimSpace(gjson.GetBytes(body, "quality").String()),
-		Background:     strings.TrimSpace(gjson.GetBytes(body, "background").String()),
-		OutputFormat:   strings.TrimSpace(gjson.GetBytes(body, "output_format").String()),
-		Moderation:     strings.TrimSpace(gjson.GetBytes(body, "moderation").String()),
-		InputFidelity:  strings.TrimSpace(gjson.GetBytes(body, "input_fidelity").String()),
-		Style:          strings.TrimSpace(gjson.GetBytes(body, "style").String()),
+		Size:           openAIChatImagesStringOption(body, imageTool, "size"),
+		ResponseFormat: strings.ToLower(openAIChatImagesStringOption(body, imageTool, "response_format")),
+		Quality:        openAIChatImagesStringOption(body, imageTool, "quality"),
+		Background:     openAIChatImagesStringOption(body, imageTool, "background"),
+		OutputFormat:   openAIChatImagesStringOption(body, imageTool, "output_format"),
+		Moderation:     openAIChatImagesStringOption(body, imageTool, "moderation"),
+		InputFidelity:  openAIChatImagesStringOption(body, imageTool, "input_fidelity"),
+		Style:          openAIChatImagesStringOption(body, imageTool, "style"),
 		InputImageURLs: imageURLs,
 	}
 	req.ExplicitSize = req.Size != ""
 
-	if outputCompression := gjson.GetBytes(body, "output_compression"); outputCompression.Exists() {
+	if outputCompression := openAIChatImagesOptionResult(body, imageTool, "output_compression"); outputCompression.Exists() {
 		if outputCompression.Type != gjson.Number {
 			return nil, true, fmt.Errorf("invalid output_compression field type")
 		}
 		v := int(outputCompression.Int())
 		req.OutputCompression = &v
 	}
-	if partialImages := gjson.GetBytes(body, "partial_images"); partialImages.Exists() {
+	if partialImages := openAIChatImagesOptionResult(body, imageTool, "partial_images"); partialImages.Exists() {
 		if partialImages.Type != gjson.Number {
 			return nil, true, fmt.Errorf("invalid partial_images field type")
 		}
@@ -101,7 +105,7 @@ func (s *OpenAIGatewayService) ParseOpenAIChatImagesRequest(body []byte) (*OpenA
 		req.HasMask = true
 	}
 	req.HasNativeOptions = hasOpenAINativeImageOptions(func(path string) bool {
-		return gjson.GetBytes(body, path).Exists()
+		return openAIChatImagesOptionResult(body, imageTool, path).Exists()
 	})
 
 	applyOpenAIImagesDefaults(req)
@@ -144,21 +148,38 @@ func openAIChatHasImageGenerationTool(body []byte) bool {
 	return false
 }
 
-func firstOpenAIChatImagesToolModel(body []byte) string {
+func firstOpenAIChatImageGenerationTool(body []byte) gjson.Result {
 	tools := gjson.GetBytes(body, "tools")
 	if !tools.IsArray() {
-		return ""
+		return gjson.Result{}
 	}
 	for _, item := range tools.Array() {
 		if !strings.EqualFold(strings.TrimSpace(item.Get("type").String()), "image_generation") {
 			continue
 		}
-		model := strings.TrimSpace(item.Get("model").String())
-		if isOpenAIImageGenerationModel(model) {
-			return model
+		return item
+	}
+	return gjson.Result{}
+}
+
+func openAIChatImagesOptionResult(body []byte, imageTool gjson.Result, path string) gjson.Result {
+	if result := gjson.GetBytes(body, path); result.Exists() {
+		return result
+	}
+	if imageTool.Exists() {
+		if result := imageTool.Get(path); result.Exists() {
+			return result
 		}
 	}
-	return ""
+	return gjson.Result{}
+}
+
+func openAIChatImagesStringOption(body []byte, imageTool gjson.Result, path string) string {
+	result := openAIChatImagesOptionResult(body, imageTool, path)
+	if !result.Exists() {
+		return ""
+	}
+	return strings.TrimSpace(result.String())
 }
 
 func extractOpenAIChatImagesPromptAndURLs(body []byte) (string, []string) {

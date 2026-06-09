@@ -97,6 +97,71 @@ func TestParseOpenAIChatImagesRequest_ImageGenerationToolDefaultsModel(t *testin
 	require.Equal(t, "draw a city skyline", parsed.Prompt)
 }
 
+func TestParseOpenAIChatImagesRequest_ImageGenerationToolOptions(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	body := []byte(`{
+		"model":"gpt-5",
+		"messages":[{"role":"user","content":"draw a city skyline"}],
+		"tools":[{
+			"type":"image_generation",
+			"model":"gpt-image-1.5",
+			"n":3,
+			"size":"2048x1152",
+			"quality":"medium",
+			"output_format":"webp",
+			"partial_images":2
+		}],
+		"tool_choice":{"type":"image_generation"}
+	}`)
+
+	parsed, ok, err := svc.ParseOpenAIChatImagesRequest(body)
+
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, openAIImagesGenerationsEndpoint, parsed.Endpoint)
+	require.Equal(t, "gpt-image-1.5", parsed.Model)
+	require.Equal(t, 3, parsed.N)
+	require.Equal(t, "2048x1152", parsed.Size)
+	require.Equal(t, "medium", parsed.Quality)
+	require.Equal(t, "webp", parsed.OutputFormat)
+	require.NotNil(t, parsed.PartialImages)
+	require.Equal(t, 2, *parsed.PartialImages)
+	require.Equal(t, "gpt-image-1.5", gjson.GetBytes(parsed.Body, "model").String())
+	require.Equal(t, int64(3), gjson.GetBytes(parsed.Body, "n").Int())
+	require.Equal(t, "2048x1152", gjson.GetBytes(parsed.Body, "size").String())
+	require.Equal(t, "webp", gjson.GetBytes(parsed.Body, "output_format").String())
+}
+
+func TestParseOpenAIChatImagesRequest_TopLevelOptionsOverrideToolOptions(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	body := []byte(`{
+		"model":"gpt-5",
+		"messages":[{"role":"user","content":"draw a city skyline"}],
+		"n":1,
+		"size":"1024x1024",
+		"quality":"high",
+		"tools":[{
+			"type":"image_generation",
+			"model":"gpt-image-2",
+			"n":4,
+			"size":"2048x1152",
+			"quality":"low"
+		}],
+		"tool_choice":{"type":"image_generation"}
+	}`)
+
+	parsed, ok, err := svc.ParseOpenAIChatImagesRequest(body)
+
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, 1, parsed.N)
+	require.Equal(t, "1024x1024", parsed.Size)
+	require.Equal(t, "high", parsed.Quality)
+	require.Equal(t, int64(1), gjson.GetBytes(parsed.Body, "n").Int())
+	require.Equal(t, "1024x1024", gjson.GetBytes(parsed.Body, "size").String())
+	require.Equal(t, "high", gjson.GetBytes(parsed.Body, "quality").String())
+}
+
 func TestParseOpenAIChatImagesRequest_CodexAliasPreserved(t *testing.T) {
 	svc := &OpenAIGatewayService{}
 	body := []byte(`{
