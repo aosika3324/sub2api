@@ -676,6 +676,232 @@ func normalizeOpenAIResponsesImageGenerationTools(reqBody map[string]any) bool {
 	return modified
 }
 
+func normalizeOpenAIResponsesImagesAPICompat(reqBody map[string]any) bool {
+	if len(reqBody) == 0 || isCodexSparkModel(firstNonEmptyString(reqBody["model"])) {
+		return false
+	}
+
+	hasCompatFields := openAIResponsesImagesAPIFieldsIndicateImageMap(reqBody)
+	toolChoiceImage := openAIAnyToolChoiceSelectsImageGeneration(reqBody["tool_choice"])
+	if !hasCompatFields && !toolChoiceImage && !hasOpenAIImageGenerationTool(reqBody) {
+		return false
+	}
+
+	modified := false
+	if !hasOpenAIImageGenerationTool(reqBody) && (hasCompatFields || toolChoiceImage) {
+		if ensureOpenAIResponsesImageGenerationTool(reqBody) {
+			modified = true
+		}
+	}
+
+	toolMap, ok := firstOpenAIResponsesImageGenerationTool(reqBody)
+	if !ok {
+		return modified
+	}
+	if strings.TrimSpace(firstNonEmptyString(toolMap["model"])) == "" {
+		if imageModel := openAIResponsesCompatImageToolModel(reqBody); imageModel != "" {
+			toolMap["model"] = imageModel
+			modified = true
+		}
+	}
+	if moveOpenAIResponsesImageToolOptions(reqBody, toolMap) {
+		modified = true
+	}
+
+	inputImages := collectOpenAIResponsesCompatImageURLs(reqBody["image"])
+	inputImages = append(inputImages, collectOpenAIResponsesCompatImageURLs(reqBody["images"])...)
+	inputImages = append(inputImages, collectOpenAIResponsesCompatImageURLs(reqBody["input_image"])...)
+	inputImages = dedupeTrimmedStrings(inputImages)
+	maskImages := collectOpenAIResponsesCompatImageURLs(reqBody["mask"])
+	prompt := strings.TrimSpace(firstNonEmptyString(reqBody["prompt"]))
+	if prompt != "" || len(inputImages) > 0 {
+		if applyOpenAIResponsesCompatInput(reqBody, prompt, inputImages) {
+			modified = true
+		}
+		if _, exists := reqBody["prompt"]; exists {
+			delete(reqBody, "prompt")
+			modified = true
+		}
+		for _, key := range []string{"image", "images", "input_image"} {
+			if _, exists := reqBody[key]; exists {
+				delete(reqBody, key)
+				modified = true
+			}
+		}
+		if _, hasAction := toolMap["action"]; !hasAction {
+			if len(inputImages) > 0 || len(maskImages) > 0 {
+				toolMap["action"] = "edit"
+			} else {
+				toolMap["action"] = "generate"
+			}
+			modified = true
+		}
+	}
+
+	if len(maskImages) > 0 {
+		if _, exists := toolMap["input_image_mask"]; !exists {
+			toolMap["input_image_mask"] = map[string]any{"image_url": maskImages[0]}
+			modified = true
+		}
+		if _, hasAction := toolMap["action"]; !hasAction {
+			toolMap["action"] = "edit"
+			modified = true
+		}
+	}
+	if _, exists := reqBody["mask"]; exists {
+		delete(reqBody, "mask")
+		modified = true
+	}
+
+	if _, exists := reqBody["tool_choice"]; !exists && (hasCompatFields || toolChoiceImage) {
+		reqBody["tool_choice"] = map[string]any{"type": "image_generation"}
+		modified = true
+	}
+	return modified
+}
+
+func firstOpenAIResponsesImageGenerationTool(reqBody map[string]any) (map[string]any, bool) {
+	rawTools, ok := reqBody["tools"]
+	if !ok || rawTools == nil {
+		return nil, false
+	}
+	tools, ok := rawTools.([]any)
+	if !ok {
+		return nil, false
+	}
+	for _, rawTool := range tools {
+		toolMap, ok := rawTool.(map[string]any)
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(firstNonEmptyString(toolMap["type"])) == "image_generation" {
+			return toolMap, true
+		}
+	}
+	return nil, false
+}
+
+func openAIResponsesCompatImageToolModel(reqBody map[string]any) string {
+	model := strings.TrimSpace(firstNonEmptyString(reqBody["model"]))
+	if isOpenAIImageGenerationModel(model) {
+		return openAIImageGenerationUpstreamModel(model)
+	}
+	return "gpt-image-2"
+}
+
+func moveOpenAIResponsesImageToolOptions(reqBody map[string]any, toolMap map[string]any) bool {
+	if reqBody == nil || toolMap == nil {
+		return false
+	}
+	modified := false
+	for _, key := range openAIResponsesTopLevelImageToolOptionKeys() {
+		value, exists := reqBody[key]
+		if !exists || value == nil {
+			continue
+		}
+		if _, toolHas := toolMap[key]; !toolHas {
+			if key != "n" || openAIResponsesShouldPassN(value) {
+				toolMap[key] = value
+			}
+		}
+		delete(reqBody, key)
+		modified = true
+	}
+	return modified
+}
+
+func openAIResponsesShouldPassN(value any) bool {
+	switch v := value.(type) {
+	case int:
+		return v > 1
+	case int64:
+		return v > 1
+	case float64:
+		return v > 1
+	case json.Number:
+		n, err := v.Int64()
+		return err == nil && n > 1
+	default:
+		return true
+	}
+}
+
+func collectOpenAIResponsesCompatImageURLs(value any) []string {
+	switch v := value.(type) {
+	case string:
+		if trimmed := strings.TrimSpace(v); trimmed != "" {
+			return []string{trimmed}
+		}
+	case []any:
+		var out []string
+		for _, item := range v {
+			out = append(out, collectOpenAIResponsesCompatImageURLs(item)...)
+		}
+		return out
+	case map[string]any:
+		var out []string
+		for _, key := range []string{"url", "image_url"} {
+			if raw, ok := v[key]; ok {
+				out = append(out, collectOpenAIResponsesCompatImageURLs(raw)...)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+func applyOpenAIResponsesCompatInput(reqBody map[string]any, prompt string, imageURLs []string) bool {
+	if reqBody == nil {
+		return false
+	}
+	content := openAIResponsesCompatInputContent(prompt, imageURLs)
+	if len(content) == 0 {
+		return false
+	}
+	message := map[string]any{
+		"type":    "message",
+		"role":    "user",
+		"content": content,
+	}
+	rawInput, hasInput := reqBody["input"]
+	if !hasInput || rawInput == nil {
+		reqBody["input"] = []any{message}
+		return true
+	}
+	switch input := rawInput.(type) {
+	case string:
+		existing := strings.TrimSpace(input)
+		if existing != "" {
+			combined := existing
+			if prompt != "" {
+				combined += "\n" + prompt
+			}
+			message["content"] = openAIResponsesCompatInputContent(combined, imageURLs)
+		}
+		reqBody["input"] = []any{message}
+		return true
+	case []any:
+		reqBody["input"] = append(input, message)
+		return true
+	default:
+		reqBody["input"] = []any{input, message}
+		return true
+	}
+}
+
+func openAIResponsesCompatInputContent(prompt string, imageURLs []string) []any {
+	var content []any
+	if trimmed := strings.TrimSpace(prompt); trimmed != "" {
+		content = append(content, map[string]any{"type": "input_text", "text": trimmed})
+	}
+	for _, imageURL := range imageURLs {
+		if trimmed := strings.TrimSpace(imageURL); trimmed != "" {
+			content = append(content, map[string]any{"type": "input_image", "image_url": trimmed})
+		}
+	}
+	return content
+}
+
 func ensureOpenAIResponsesImageGenerationTool(reqBody map[string]any) bool {
 	if len(reqBody) == 0 {
 		return false

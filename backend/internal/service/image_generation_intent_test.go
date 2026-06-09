@@ -42,6 +42,27 @@ func TestIsImageGenerationIntent(t *testing.T) {
 			want:     true,
 		},
 		{
+			name:     "responses images api style prompt and n",
+			endpoint: "/v1/responses",
+			model:    "gpt-5.4",
+			body:     []byte(`{"model":"gpt-5.4","prompt":"draw a cat","n":2}`),
+			want:     true,
+		},
+		{
+			name:     "responses images api style image reference",
+			endpoint: "/v1/responses",
+			model:    "gpt-5.4",
+			body:     []byte(`{"model":"gpt-5.4","prompt":"edit this","images":[{"image_url":"data:image/png;base64,AAAA"}]}`),
+			want:     true,
+		},
+		{
+			name:     "images api style fields ignored outside responses",
+			endpoint: "/v1/chat/completions",
+			model:    "gpt-5.4",
+			body:     []byte(`{"model":"gpt-5.4","prompt":"draw a cat","n":2}`),
+			want:     false,
+		},
+		{
 			name:     "required tool choice alone is text",
 			endpoint: "/v1/responses",
 			model:    "gpt-5.4",

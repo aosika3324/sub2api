@@ -36,6 +36,9 @@ func IsImageGenerationIntent(endpoint string, requestedModel string, body []byte
 	if model := strings.TrimSpace(gjson.GetBytes(body, "model").String()); isOpenAIImageGenerationModel(model) {
 		return true
 	}
+	if isOpenAIResponsesEndpoint(endpoint) && openAIResponsesImagesAPIFieldsIndicateImage(body) {
+		return true
+	}
 	if openAIJSONToolsContainImageGeneration(gjson.GetBytes(body, "tools")) {
 		return true
 	}
@@ -54,6 +57,9 @@ func IsImageGenerationIntentMap(endpoint string, requestedModel string, reqBody 
 		return false
 	}
 	if isOpenAIImageGenerationModel(firstNonEmptyString(reqBody["model"])) {
+		return true
+	}
+	if isOpenAIResponsesEndpoint(endpoint) && openAIResponsesImagesAPIFieldsIndicateImageMap(reqBody) {
 		return true
 	}
 	if hasOpenAIImageGenerationTool(reqBody) {
@@ -82,6 +88,15 @@ func normalizeImageGenerationEndpoint(endpoint string) string {
 		endpoint = endpoint[:idx]
 	}
 	return strings.TrimRight(endpoint, "/")
+}
+
+func isOpenAIResponsesEndpoint(endpoint string) bool {
+	switch normalizeImageGenerationEndpoint(endpoint) {
+	case openAIResponsesEndpoint, openAIResponsesCompactEndpoint:
+		return true
+	default:
+		return false
+	}
 }
 
 func openAIJSONToolsContainImageGeneration(tools gjson.Result) bool {
@@ -127,6 +142,88 @@ func openAIRequestBodyImageGenerationToolNeedsNormalization(body []byte) bool {
 		return true
 	})
 	return needsNormalization
+}
+
+func openAIRequestBodyResponsesImageCompatNeedsNormalization(body []byte) bool {
+	if len(body) == 0 || !gjson.ValidBytes(body) {
+		return false
+	}
+	if openAIResponsesImagesAPIFieldsIndicateImage(body) {
+		return true
+	}
+	if openAIJSONToolChoiceSelectsImageGeneration(gjson.GetBytes(body, "tool_choice")) && !openAIJSONToolsContainImageGeneration(gjson.GetBytes(body, "tools")) {
+		return true
+	}
+	if openAIJSONToolsContainImageGeneration(gjson.GetBytes(body, "tools")) && openAIResponsesTopLevelImageToolOptionExists(body) {
+		return true
+	}
+	return false
+}
+
+func openAIResponsesImagesAPIFieldsIndicateImage(body []byte) bool {
+	if len(body) == 0 || !gjson.ValidBytes(body) {
+		return false
+	}
+	for _, path := range []string{"image", "images", "input_image", "mask", "mask.image_url"} {
+		if gjson.GetBytes(body, path).Exists() {
+			return true
+		}
+	}
+	if strings.TrimSpace(gjson.GetBytes(body, "prompt").String()) == "" {
+		return false
+	}
+	return openAIResponsesTopLevelImageToolOptionExists(body)
+}
+
+func openAIResponsesImagesAPIFieldsIndicateImageMap(reqBody map[string]any) bool {
+	if reqBody == nil {
+		return false
+	}
+	for _, key := range []string{"image", "images", "input_image", "mask"} {
+		if value, ok := reqBody[key]; ok && value != nil {
+			return true
+		}
+	}
+	if strings.TrimSpace(firstNonEmptyString(reqBody["prompt"])) == "" {
+		return false
+	}
+	return openAIResponsesTopLevelImageToolOptionExistsMap(reqBody)
+}
+
+func openAIResponsesTopLevelImageToolOptionExists(body []byte) bool {
+	for _, path := range openAIResponsesTopLevelImageToolOptionKeys() {
+		if gjson.GetBytes(body, path).Exists() {
+			return true
+		}
+	}
+	return false
+}
+
+func openAIResponsesTopLevelImageToolOptionExistsMap(reqBody map[string]any) bool {
+	if reqBody == nil {
+		return false
+	}
+	for _, key := range openAIResponsesTopLevelImageToolOptionKeys() {
+		if value, ok := reqBody[key]; ok && value != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func openAIResponsesTopLevelImageToolOptionKeys() []string {
+	return []string{
+		"n",
+		"size",
+		"quality",
+		"background",
+		"output_format",
+		"output_compression",
+		"moderation",
+		"style",
+		"partial_images",
+		"input_fidelity",
+	}
 }
 
 func openAIJSONToolChoiceSelectsImageGeneration(choice gjson.Result) bool {

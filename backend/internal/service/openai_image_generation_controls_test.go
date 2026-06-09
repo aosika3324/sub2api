@@ -147,6 +147,79 @@ func TestOpenAIGatewayServiceForward_ExplicitImageToolWorksWithBridgeDisabled(t 
 	require.NotContains(t, instructions, "image_generation")
 }
 
+func TestOpenAIGatewayServiceForward_ResponsesToolChoiceOnlyAddsImageTool(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	upstream := &httpUpstreamRecorder{
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_tool_choice_image","model":"gpt-5.4","usage":{"input_tokens":2,"output_tokens":1}}`)),
+		},
+	}
+	svc := newOpenAIImageGenerationControlTestService(upstream)
+	c, _ := newOpenAIImageGenerationControlTestContext(true, "unit-test-agent/1.0")
+	account := newOpenAIImageGenerationControlTestAccount()
+	body := []byte(`{"model":"gpt-5.4","input":"draw","stream":false,"tool_choice":{"type":"image_generation"},"n":2}`)
+
+	result, err := svc.Forward(context.Background(), c, account, body)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "image_generation", gjson.GetBytes(upstream.lastBody, "tools.0.type").String())
+	require.Equal(t, "gpt-image-2", gjson.GetBytes(upstream.lastBody, "tools.0.model").String())
+	require.Equal(t, int64(2), gjson.GetBytes(upstream.lastBody, "tools.0.n").Int())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "n").Exists())
+	require.Equal(t, "image_generation", gjson.GetBytes(upstream.lastBody, "tool_choice.type").String())
+}
+
+func TestOpenAIGatewayServiceForward_ResponsesImagesAPIStylePayloadBecomesImageTool(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	upstream := &httpUpstreamRecorder{
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"id":"resp_images_compat","model":"gpt-5.4","usage":{"input_tokens":2,"output_tokens":1}}`)),
+		},
+	}
+	svc := newOpenAIImageGenerationControlTestService(upstream)
+	c, _ := newOpenAIImageGenerationControlTestContext(true, "unit-test-agent/1.0")
+	account := newOpenAIImageGenerationControlTestAccount()
+	body := []byte(`{
+		"model":"gpt-5.4",
+		"prompt":"turn this into watercolor",
+		"images":[{"image_url":"data:image/png;base64,AAAA"}],
+		"mask":{"image_url":"data:image/png;base64,BBBB"},
+		"size":"1024x1024",
+		"quality":"high",
+		"n":2,
+		"stream":false
+	}`)
+
+	result, err := svc.Forward(context.Background(), c, account, body)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "gpt-5.4", gjson.GetBytes(upstream.lastBody, "model").String())
+	require.Equal(t, "image_generation", gjson.GetBytes(upstream.lastBody, "tools.0.type").String())
+	require.Equal(t, "edit", gjson.GetBytes(upstream.lastBody, "tools.0.action").String())
+	require.Equal(t, "gpt-image-2", gjson.GetBytes(upstream.lastBody, "tools.0.model").String())
+	require.Equal(t, int64(2), gjson.GetBytes(upstream.lastBody, "tools.0.n").Int())
+	require.Equal(t, "1024x1024", gjson.GetBytes(upstream.lastBody, "tools.0.size").String())
+	require.Equal(t, "high", gjson.GetBytes(upstream.lastBody, "tools.0.quality").String())
+	require.Equal(t, "data:image/png;base64,BBBB", gjson.GetBytes(upstream.lastBody, "tools.0.input_image_mask.image_url").String())
+	require.Equal(t, "turn this into watercolor", gjson.GetBytes(upstream.lastBody, "input.0.content.0.text").String())
+	require.Equal(t, "input_image", gjson.GetBytes(upstream.lastBody, "input.0.content.1.type").String())
+	require.Equal(t, "data:image/png;base64,AAAA", gjson.GetBytes(upstream.lastBody, "input.0.content.1.image_url").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "prompt").Exists())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "images").Exists())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "mask").Exists())
+	require.Equal(t, "image_generation", gjson.GetBytes(upstream.lastBody, "tool_choice.type").String())
+}
+
 func TestOpenAIGatewayServiceForward_ChannelBridgeOverrideEnablesCodexInjection(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
