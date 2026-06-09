@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -43,6 +44,7 @@ type imageStudioRepo interface {
 	UpdateConversationTitle(ctx context.Context, id int64, title string) error
 	DeleteConversation(ctx context.Context, id int64) error
 	DeleteConversationCascade(ctx context.Context, id int64) ([]string, error)
+	ClearUserHistory(ctx context.Context, userID int64) ([]string, error)
 	GetGeneration(ctx context.Context, id int64) (*dbent.ImageGeneration, error)
 	ListGenerations(ctx context.Context, userID int64, conversationID *int64, page, size int) ([]*dbent.ImageGeneration, int, error)
 	DeleteGeneration(ctx context.Context, id int64) error
@@ -81,6 +83,8 @@ const (
 	// maxStudioInputImageBytes caps the reference image upload size (20MB), matching
 	// the upstream per-part upload limit used by the images pipeline.
 	maxStudioInputImageBytes = 20 << 20
+	maxStudioInputImages     = 8
+	imageStudioGenerateTTL   = 15 * time.Minute
 )
 
 // ---------------------------------------------------------------------------
@@ -190,7 +194,10 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	in.UserAgent = c.GetHeader("User-Agent")
 	in.IPAddress = c.ClientIP()
 
-	result, err := h.studio.Generate(c.Request.Context(), subject.UserID, in)
+	generateCtx, cancel := context.WithTimeout(context.Background(), imageStudioGenerateTTL)
+	defer cancel()
+
+	result, err := h.studio.Generate(generateCtx, subject.UserID, in)
 	if err != nil {
 		h.respondGenerateError(c, err)
 		return
@@ -237,30 +244,40 @@ func (h *ImageStudioHandler) parseMultipartGenerate(c *gin.Context) (service.Ima
 		in.N = n
 	}
 
-	fileHeader, err := c.FormFile("image")
+	form, err := c.MultipartForm()
 	if err != nil {
 		return in, errors.New("image file is required")
 	}
-	if fileHeader.Size > maxStudioInputImageBytes {
-		return in, errors.New("image file is too large")
+	fileHeaders := form.File["image"]
+	if len(fileHeaders) == 0 {
+		return in, errors.New("image file is required")
 	}
-	file, err := fileHeader.Open()
-	if err != nil {
-		return in, errors.New("failed to read image file")
-	}
-	defer func() { _ = file.Close() }()
-	data, err := io.ReadAll(io.LimitReader(file, maxStudioInputImageBytes))
-	if err != nil {
-		return in, errors.New("failed to read image file")
-	}
-	if len(data) == 0 {
-		return in, errors.New("image file is empty")
+	if len(fileHeaders) > maxStudioInputImages {
+		return in, errors.New("too many image files")
 	}
 
-	in.InputImage = &service.StudioInputImage{
-		Data:        data,
-		ContentType: fileHeader.Header.Get("Content-Type"),
-		FileName:    fileHeader.Filename,
+	in.InputImages = make([]service.StudioInputImage, 0, len(fileHeaders))
+	for _, fileHeader := range fileHeaders {
+		if fileHeader.Size > maxStudioInputImageBytes {
+			return in, errors.New("image file is too large")
+		}
+		file, err := fileHeader.Open()
+		if err != nil {
+			return in, errors.New("failed to read image file")
+		}
+		data, readErr := io.ReadAll(io.LimitReader(file, maxStudioInputImageBytes))
+		_ = file.Close()
+		if readErr != nil {
+			return in, errors.New("failed to read image file")
+		}
+		if len(data) == 0 {
+			return in, errors.New("image file is empty")
+		}
+		in.InputImages = append(in.InputImages, service.StudioInputImage{
+			Data:        data,
+			ContentType: fileHeader.Header.Get("Content-Type"),
+			FileName:    fileHeader.Filename,
+		})
 	}
 	return in, nil
 }
@@ -435,6 +452,52 @@ func (h *ImageStudioHandler) ListGenerations(c *gin.Context) {
 		return
 	}
 	h.respondGenerations(c, items, total, page, pageSize)
+}
+
+// GetGeneration handles GET /generations/:id for progress/status polling.
+func (h *ImageStudioHandler) GetGeneration(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid generation ID")
+		return
+	}
+
+	gen, err := h.repo.GetGeneration(c.Request.Context(), id)
+	if err != nil {
+		h.respondNotFoundOr(c, err, "Generation not found")
+		return
+	}
+	if gen.UserID != subject.UserID {
+		response.NotFound(c, "Generation not found")
+		return
+	}
+
+	response.Success(c, toGenerationResponse(gen))
+}
+
+// ClearHistory handles DELETE /history for all image-studio conversations and generations.
+func (h *ImageStudioHandler) ClearHistory(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	keys, err := h.repo.ClearUserHistory(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	for _, key := range keys {
+		_ = h.store.Delete(c.Request.Context(), key)
+	}
+	response.Success(c, gin.H{"message": "history cleared"})
 }
 
 // DeleteGeneration handles DELETE /generations/:id (ownership-checked; also

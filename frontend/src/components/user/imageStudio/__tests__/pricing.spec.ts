@@ -12,15 +12,8 @@ import {
 } from '../pricing'
 
 describe('estimateCost', () => {
-  // Client-side estimation is disabled: no authoritative price tables for
-  // gpt-image-1.5 / gpt-image-2, so every combination returns null and the
-  // server computes the real charge.
-  it('returns null for gpt-image-1.5 across all size/quality combos', () => {
-    expect(estimateCost('gpt-image-1.5', '1K', 'auto', 1)).toBeNull()
-    expect(estimateCost('gpt-image-1.5', '1K', 'high', 1)).toBeNull()
-    expect(estimateCost('gpt-image-1.5', '2K', 'low', 2)).toBeNull()
-    expect(estimateCost('gpt-image-1.5', '4K', 'medium', 4)).toBeNull()
-  })
+  // Client-side estimation is disabled: no authoritative price tables, so every
+  // combination returns null and the server computes the real charge.
 
   it('returns null for gpt-image-2 across all size/quality combos', () => {
     expect(estimateCost('gpt-image-2', '1K', 'auto', 1)).toBeNull()
@@ -116,14 +109,12 @@ describe('size helpers', () => {
 })
 
 describe('model option matrices', () => {
-  it('both models share the gpt-image sizes and qualities', () => {
-    const v15 = optionsForModel('gpt-image-1.5')
-    expect(v15.sizes.map((s) => s.value)).toEqual(['1K', '2K', '4K'])
-    expect(v15.qualities.map((q) => q.value)).toEqual(['auto', 'low', 'medium', 'high'])
-
+  it('workbench models share the gpt-image sizes and qualities', () => {
     const v2 = optionsForModel('gpt-image-2')
-    expect(v2.sizes.map((s) => s.value)).toEqual(v15.sizes.map((s) => s.value))
+    expect(v2.sizes.map((s) => s.value)).toEqual(['1K', '2K', '4K'])
     expect(v2.qualities.map((q) => q.value)).toEqual(['auto', 'low', 'medium', 'high'])
+    expect(optionsForModel('gpt-5-3').sizes).toEqual(v2.sizes)
+    expect(optionsForModel('codex-gpt-image-2').qualities).toEqual(v2.qualities)
   })
 
   it('falls back to the gpt-image matrix for unknown models', () => {
@@ -131,7 +122,7 @@ describe('model option matrices', () => {
   })
 
   it('provides valid defaults per model', () => {
-    expect(defaultsForModel('gpt-image-1.5')).toEqual({ size: '1K', quality: 'auto' })
     expect(defaultsForModel('gpt-image-2')).toEqual({ size: '1K', quality: 'auto' })
+    expect(defaultsForModel('auto')).toEqual({ size: '1K', quality: 'auto' })
   })
 })

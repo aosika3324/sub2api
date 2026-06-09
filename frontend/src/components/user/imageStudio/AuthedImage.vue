@@ -1,11 +1,12 @@
 <template>
   <div
+    ref="containerRef"
     class="group relative overflow-hidden rounded-xl bg-gray-100 ring-1 ring-black/5 dark:bg-dark-700/60 dark:ring-white/10"
     :style="containerStyle"
   >
     <!-- Loading -->
     <div
-      v-if="loading"
+      v-if="!visible || loading"
       class="absolute inset-0 flex items-center justify-center"
     >
       <div
@@ -38,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { toRef, computed } from 'vue'
+import { toRef, computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthedImage } from '@/composables/useAuthedImage'
 import Icon from '@/components/icons/Icon.vue'
@@ -60,7 +61,36 @@ defineEmits<{
 const { t } = useI18n()
 
 // Reactively follow `url` so the image re-fetches if the prop changes.
-const { src, loading, error } = useAuthedImage(toRef(props, 'url'))
+const containerRef = ref<HTMLElement | null>(null)
+const visible = ref(typeof window === 'undefined' || !('IntersectionObserver' in window))
+const { src, loading, error } = useAuthedImage(toRef(props, 'url'), visible)
+
+let observer: IntersectionObserver | null = null
+
+onMounted(() => {
+  if (!('IntersectionObserver' in window)) {
+    visible.value = true
+    return
+  }
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        visible.value = true
+        observer?.disconnect()
+        observer = null
+      }
+    },
+    { rootMargin: '500px 0px' }
+  )
+  if (containerRef.value) {
+    observer.observe(containerRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  observer = null
+})
 
 const containerStyle = computed(() => ({
   aspectRatio:

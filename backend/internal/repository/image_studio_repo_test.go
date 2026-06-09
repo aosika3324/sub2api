@@ -276,3 +276,42 @@ func (s *ImageStudioRepoSuite) TestListGenerations_Pagination() {
 	s.Require().Equal(5, total)
 	s.Require().Len(items, 2)
 }
+
+func (s *ImageStudioRepoSuite) TestClearUserHistory_SoftDeletesOwnedRowsAndReturnsKeys() {
+	u1 := s.mustCreateUser("clear-history-u1@test.com")
+	u2 := s.mustCreateUser("clear-history-u2@test.com")
+	g := s.mustCreateGroup("clear-history-group")
+	conv1, err := s.repo.CreateConversation(s.ctx, u1.ID, "u1")
+	s.Require().NoError(err)
+	conv2, err := s.repo.CreateConversation(s.ctx, u2.ID, "u2")
+	s.Require().NoError(err)
+
+	gen1 := s.newTestGeneration(u1.ID, conv1.ID, g.ID)
+	gen1.StorageKeys = []string{"u1/out.png"}
+	gen1.InputStorageKeys = []string{"u1/input.png"}
+	_, err = s.repo.CreateGeneration(s.ctx, gen1)
+	s.Require().NoError(err)
+
+	gen2 := s.newTestGeneration(u2.ID, conv2.ID, g.ID)
+	gen2.StorageKeys = []string{"u2/out.png"}
+	_, err = s.repo.CreateGeneration(s.ctx, gen2)
+	s.Require().NoError(err)
+
+	keys, err := s.repo.ClearUserHistory(s.ctx, u1.ID)
+	s.Require().NoError(err)
+	s.Require().ElementsMatch([]string{"u1/out.png", "u1/input.png"}, keys)
+
+	convs, total, err := s.repo.ListConversations(s.ctx, u1.ID, 1, 10)
+	s.Require().NoError(err)
+	s.Require().Equal(0, total)
+	s.Require().Empty(convs)
+	gens, total, err := s.repo.ListGenerations(s.ctx, u1.ID, nil, 1, 10)
+	s.Require().NoError(err)
+	s.Require().Equal(0, total)
+	s.Require().Empty(gens)
+
+	gens, total, err = s.repo.ListGenerations(s.ctx, u2.ID, nil, 1, 10)
+	s.Require().NoError(err)
+	s.Require().Equal(1, total)
+	s.Require().Len(gens, 1)
+}

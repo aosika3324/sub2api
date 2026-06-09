@@ -11,10 +11,13 @@ vi.mock('@/i18n', () => ({
 // "/api/v1/api/v1/..." → every studio image 404'd. The previous specs missed
 // this because they mocked fetchAssetBlob / useAuthedImage; this test drives the
 // real axios adapter and asserts the final request carries exactly one prefix.
-describe('fetchAssetBlob URL prefixing (C1)', () => {
+describe('imageStudio API', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let adapter: any
   let fetchAssetBlob: (url: string) => Promise<Blob>
+  let generate: typeof import('@/api/imageStudio').generate
+  let getGeneration: typeof import('@/api/imageStudio').getGeneration
+  let clearHistory: typeof import('@/api/imageStudio').clearHistory
 
   beforeEach(async () => {
     localStorage.clear()
@@ -22,6 +25,9 @@ describe('fetchAssetBlob URL prefixing (C1)', () => {
     const client = await import('@/api/client')
     const api = await import('@/api/imageStudio')
     fetchAssetBlob = api.fetchAssetBlob
+    generate = api.generate
+    getGeneration = api.getGeneration
+    clearHistory = api.clearHistory
     adapter = vi.fn().mockResolvedValue({
       status: 200,
       data: new Blob(['img']),
@@ -54,5 +60,51 @@ describe('fetchAssetBlob URL prefixing (C1)', () => {
     await fetchAssetBlob('/user/image-studio/assets/9/1')
 
     expect(fullURL()).toBe('/api/v1/user/image-studio/assets/9/1')
+  })
+
+  it('sends multiple reference images as multipart image fields with no timeout', async () => {
+    adapter.mockResolvedValueOnce({
+      status: 200,
+      data: { code: 0, data: { generation_id: 1, conversation_id: 1, images: [], cost: 0, balance: 0 } },
+      headers: {},
+      config: {},
+      statusText: 'OK',
+    })
+    const files = [
+      new File(['a'], 'a.png', { type: 'image/png' }),
+      new File(['b'], 'b.png', { type: 'image/png' }),
+    ]
+
+    await generate({
+      group_id: 1,
+      prompt: 'edit',
+      model: 'gpt-image-2',
+      size: '1024x1024',
+      quality: 'auto',
+      n: 1,
+      referenceImages: files,
+    })
+
+    const config = adapter.mock.calls[0][0]
+    expect(config.timeout).toBe(0)
+    expect(config.data).toBeInstanceOf(FormData)
+    expect(config.data.getAll('image')).toEqual(files)
+  })
+
+  it('exposes generation status and clear history endpoints', async () => {
+    adapter.mockResolvedValue({
+      status: 200,
+      data: { code: 0, data: {} },
+      headers: {},
+      config: {},
+      statusText: 'OK',
+    })
+
+    await getGeneration(42)
+    expect(fullURL()).toBe('/api/v1/user/image-studio/generations/42')
+
+    adapter.mockClear()
+    await clearHistory()
+    expect(fullURL()).toBe('/api/v1/user/image-studio/history')
   })
 })

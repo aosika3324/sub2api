@@ -12,7 +12,9 @@ const mockRenameConversation = vi.fn()
 const mockDeleteConversation = vi.fn()
 const mockListConversationGenerations = vi.fn()
 const mockListGenerations = vi.fn()
+const mockGetGeneration = vi.fn()
 const mockDeleteGeneration = vi.fn()
+const mockClearHistory = vi.fn()
 
 vi.mock('@/api/imageStudio', () => ({
   default: {
@@ -23,7 +25,9 @@ vi.mock('@/api/imageStudio', () => ({
     deleteConversation: (...args: any[]) => mockDeleteConversation(...args),
     listConversationGenerations: (...args: any[]) => mockListConversationGenerations(...args),
     listGenerations: (...args: any[]) => mockListGenerations(...args),
+    getGeneration: (...args: any[]) => mockGetGeneration(...args),
     deleteGeneration: (...args: any[]) => mockDeleteGeneration(...args),
+    clearHistory: (...args: any[]) => mockClearHistory(...args),
   },
 }))
 
@@ -70,7 +74,7 @@ const fakeGeneration = {
   quality: 'high',
   n: 1,
   image_count: 1,
-  status: 'completed',
+  status: 'succeeded',
   cost: 0.04,
   created_at: expect.any(String),
   images: ['https://cdn.example.com/img1.png'],
@@ -179,6 +183,25 @@ describe('useImageStudioStore', () => {
       await store.generate(fakeGenerateReq)
 
       expect(store.generations[0].input_images).toBeUndefined()
+
+      const files = [
+        new File(['x'], 'src.png', { type: 'image/png' }),
+        new File(['y'], 'src-2.png', { type: 'image/png' }),
+      ]
+      mockGenerate.mockResolvedValue({
+        ...fakeGenerateResp,
+        input_images: ['/input-assets/42/0', '/input-assets/42/1'],
+      })
+
+      await store.generate({ ...fakeGenerateReq, referenceImages: files })
+
+      expect(mockGenerate).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceImages: files })
+      )
+      expect(store.generations[0].input_images).toEqual([
+        '/input-assets/42/0',
+        '/input-assets/42/1',
+      ])
     })
 
     it('generate 失败: error 被设置, generations 不变', async () => {
@@ -470,6 +493,61 @@ describe('useImageStudioStore', () => {
 
       expect(store.generations).toHaveLength(0)
       expect(mockDeleteGeneration).toHaveBeenCalledWith(42)
+    })
+  })
+
+  describe('refreshPendingGenerations', () => {
+    it('updates pending rows from the status endpoint', async () => {
+      const store = useImageStudioStore()
+      store.generations = [
+        {
+          id: 42,
+          conversation_id: 1,
+          group_id: 10,
+          prompt: 'test',
+          model: 'gpt-image-2',
+          size: '1K',
+          quality: 'high',
+          n: 1,
+          image_count: 0,
+          status: 'pending',
+          cost: 0,
+          created_at: '2026-06-07T00:00:00Z',
+        },
+      ]
+      mockGetGeneration.mockResolvedValue({
+        ...store.generations[0],
+        status: 'succeeded',
+        image_count: 1,
+        images: ['/assets/42/0'],
+      })
+
+      await store.refreshPendingGenerations()
+
+      expect(mockGetGeneration).toHaveBeenCalledWith(42)
+      expect(store.generations[0]).toMatchObject({
+        status: 'succeeded',
+        image_count: 1,
+        images: ['/assets/42/0'],
+      })
+    })
+  })
+
+  describe('clearHistory', () => {
+    it('clears conversations, generations and active conversation', async () => {
+      mockClearHistory.mockResolvedValue(undefined)
+      const store = useImageStudioStore()
+      store.conversations = [fakeConversation]
+      store.generations = [fakeGeneration]
+      store.activeConversationId = 1
+
+      await store.clearHistory()
+
+      expect(mockClearHistory).toHaveBeenCalledTimes(1)
+      expect(store.conversations).toEqual([])
+      expect(store.generations).toEqual([])
+      expect(store.activeConversationId).toBeNull()
+      expect(store.hasLoadedGenerations).toBe(true)
     })
   })
 })

@@ -152,7 +152,7 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
         quality: req.quality,
         n: req.n,
         image_count: resp.images.length,
-        status: 'completed',
+        status: 'succeeded',
         cost: resp.cost,
         created_at: new Date().toISOString(),
         images: resp.images,
@@ -199,6 +199,41 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     generations.value = generations.value.filter((g) => g.id !== id)
   }
 
+  async function refreshGeneration(id: number): Promise<ImageStudioGeneration | null> {
+    const updated = await imageStudioAPI.getGeneration(id)
+    const idx = generations.value.findIndex((g) => g.id === id)
+    if (idx !== -1) {
+      generations.value[idx] = updated
+    }
+    return updated
+  }
+
+  async function refreshPendingGenerations(): Promise<void> {
+    const pending = generations.value.filter(
+      (g) => g.status === 'pending' || g.status === 'generating'
+    )
+    if (pending.length === 0) return
+
+    const updates = await Promise.allSettled(
+      pending.map((g) => imageStudioAPI.getGeneration(g.id))
+    )
+    for (const update of updates) {
+      if (update.status !== 'fulfilled') continue
+      const idx = generations.value.findIndex((g) => g.id === update.value.id)
+      if (idx !== -1) {
+        generations.value[idx] = update.value
+      }
+    }
+  }
+
+  async function clearHistory(): Promise<void> {
+    await imageStudioAPI.clearHistory()
+    conversations.value = []
+    generations.value = []
+    activeConversationId.value = null
+    hasLoadedGenerations.value = true
+  }
+
   // ==================== Return Store API ====================
 
   return {
@@ -221,5 +256,8 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     resetGenerations,
     generate,
     deleteGeneration,
+    refreshGeneration,
+    refreshPendingGenerations,
+    clearHistory,
   }
 })

@@ -34,12 +34,15 @@ function deferred<T>(): Deferred<T> {
 }
 
 // Mount the composable inside a real component so onUnmounted works.
-function mountComposable(url: ReturnType<typeof ref<string | undefined | null>>) {
+function mountComposable(
+  url: ReturnType<typeof ref<string | undefined | null>>,
+  enabled?: ReturnType<typeof ref<boolean>>
+) {
   let api!: ReturnType<typeof useAuthedImage>
   const wrapper = mount(
     defineComponent({
       setup() {
-        api = useAuthedImage(url)
+        api = enabled ? useAuthedImage(url, enabled) : useAuthedImage(url)
         return () => h('div')
       },
     })
@@ -83,6 +86,26 @@ describe('useAuthedImage', () => {
     expect(api.src.value).toBe('blob:mock-1')
     expect(api.loading.value).toBe(false)
     expect(api.error.value).toBeNull()
+  })
+
+  it('does not fetch until enabled becomes true', async () => {
+    const blob = new Blob(['x'])
+    mockFetchAssetBlob.mockResolvedValue(blob)
+
+    const url = ref<string | undefined | null>('/assets/1/0')
+    const enabled = ref(false)
+    const { api } = mountComposable(url, enabled)
+
+    await nextTick()
+    expect(mockFetchAssetBlob).not.toHaveBeenCalled()
+    expect(api.src.value).toBeUndefined()
+
+    enabled.value = true
+    await nextTick()
+    await Promise.resolve()
+
+    expect(mockFetchAssetBlob).toHaveBeenCalledWith('/assets/1/0')
+    expect(api.src.value).toBe('blob:mock-1')
   })
 
   it('URL 快速切换: 被取代的在途请求撤销自己创建的 object URL（不泄漏）', async () => {

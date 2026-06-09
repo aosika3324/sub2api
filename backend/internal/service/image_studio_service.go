@@ -42,6 +42,9 @@ type ImageStudioGenerateInput struct {
 	// InputImage, when non-nil, switches the generation to the image-to-image
 	// (OpenAI /v1/images/edits) path with the provided reference image.
 	InputImage *StudioInputImage
+	// InputImages, when non-empty, switches the generation to the image-to-image
+	// path with one or more reference images. InputImage remains for older callers.
+	InputImages []StudioInputImage
 
 	// Optional request metadata, recorded on the usage log when available.
 	UserAgent string
@@ -346,14 +349,19 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	// --- Step 4b: persist the user-provided reference image (edits path). ---
 	// Stored BEFORE generation so the input survives even if generation fails,
 	// matching the spec contract. A storage failure here aborts before billing.
+	inputImages := normalizeStudioInputImages(in)
 	var inputKeys []string
-	if in.InputImage != nil {
-		key, putErr := s.store.PutInput(ctx, userID, genID, 0, in.InputImage.ContentType, in.InputImage.Data)
-		if putErr != nil {
-			s.markFailed(ctx, genID, putErr, reqLog)
-			return nil, fmt.Errorf("image studio: store input image: %w", putErr)
+	if len(inputImages) > 0 {
+		inputKeys = make([]string, 0, len(inputImages))
+		for idx, inputImage := range inputImages {
+			key, putErr := s.store.PutInput(ctx, userID, genID, idx, inputImage.ContentType, inputImage.Data)
+			if putErr != nil {
+				s.cleanupStoredImages(ctx, inputKeys, reqLog)
+				s.markFailed(ctx, genID, putErr, reqLog)
+				return nil, fmt.Errorf("image studio: store input image %d: %w", idx, putErr)
+			}
+			inputKeys = append(inputKeys, key)
 		}
-		inputKeys = []string{key}
 		// Persisting the input key is non-fatal: the file already exists and the
 		// generation can proceed even if this write fails.
 		if err := s.repo.SetInputStorageKeys(ctx, genID, inputKeys); err != nil {
@@ -368,8 +376,8 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	// An input image routes through /v1/images/edits (multipart); otherwise the
 	// JSON /v1/images/generations path is used.
 	var parsed *OpenAIImagesRequest
-	if in.InputImage != nil {
-		editsParsed, buildErr := s.buildEditsRequest(in, n)
+	if len(inputImages) > 0 {
+		editsParsed, buildErr := s.buildEditsRequest(in, n, inputImages)
 		if buildErr != nil {
 			s.markFailed(ctx, genID, buildErr, reqLog)
 			return nil, buildErr
@@ -524,7 +532,7 @@ func (s *ImageStudioService) resolveConversation(ctx context.Context, userID int
 // endpoint=/v1/images/generations, b64_json response format, native size tier
 // classification, and a JSON body forwarded upstream.
 func (s *ImageStudioService) buildParsedRequest(in ImageStudioGenerateInput, n int) *OpenAIImagesRequest {
-	model := strings.TrimSpace(in.Model)
+	model, explicitModel := normalizeStudioPipelineModel(in.Model)
 	size := strings.TrimSpace(in.Size)
 	quality := strings.TrimSpace(in.Quality)
 
@@ -532,7 +540,7 @@ func (s *ImageStudioService) buildParsedRequest(in ImageStudioGenerateInput, n i
 		Endpoint:       openAIImagesGenerationsEndpoint,
 		ContentType:    "application/json",
 		Model:          model,
-		ExplicitModel:  model != "",
+		ExplicitModel:  explicitModel,
 		Prompt:         strings.TrimSpace(in.Prompt),
 		N:              n,
 		Size:           size,
@@ -553,36 +561,45 @@ func (s *ImageStudioService) buildParsedRequest(in ImageStudioGenerateInput, n i
 // user-provided reference image. The SAME multipart.Writer produces both Body
 // and ContentType so the boundary in ContentType matches the bytes in Body —
 // ForwardImages re-parses Body against ContentType downstream.
-func (s *ImageStudioService) buildEditsRequest(in ImageStudioGenerateInput, n int) (*OpenAIImagesRequest, error) {
-	if in.InputImage == nil {
+func (s *ImageStudioService) buildEditsRequest(in ImageStudioGenerateInput, n int, inputImages []StudioInputImage) (*OpenAIImagesRequest, error) {
+	if len(inputImages) == 0 {
 		return nil, fmt.Errorf("image studio: edits request requires an input image")
 	}
-	model := strings.TrimSpace(in.Model)
+	model, explicitModel := normalizeStudioPipelineModel(in.Model)
 	size := strings.TrimSpace(in.Size)
 	quality := strings.TrimSpace(in.Quality)
 	prompt := strings.TrimSpace(in.Prompt)
 
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
+	uploads := make([]OpenAIImagesUpload, 0, len(inputImages))
 
-	fileName := sanitizeEditsFileName(in.InputImage.FileName)
-	contentType := strings.TrimSpace(in.InputImage.ContentType)
-	if contentType == "" {
-		contentType = http.DetectContentType(in.InputImage.Data)
+	for idx, inputImage := range inputImages {
+		fileName := sanitizeEditsFileName(inputImage.FileName, idx)
+		contentType := strings.TrimSpace(inputImage.ContentType)
+		if contentType == "" {
+			contentType = http.DetectContentType(inputImage.Data)
+		}
+
+		partHeader := textproto.MIMEHeader{}
+		partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename=%q`, fileName))
+		partHeader.Set("Content-Type", contentType)
+		part, err := w.CreatePart(partHeader)
+		if err != nil {
+			return nil, fmt.Errorf("image studio: create multipart image part %d: %w", idx, err)
+		}
+		if _, err := part.Write(inputImage.Data); err != nil {
+			return nil, fmt.Errorf("image studio: write multipart image part %d: %w", idx, err)
+		}
+		uploads = append(uploads, OpenAIImagesUpload{
+			FieldName:   "image",
+			FileName:    fileName,
+			ContentType: contentType,
+			Data:        inputImage.Data,
+		})
 	}
 
-	partHeader := textproto.MIMEHeader{}
-	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename=%q`, fileName))
-	partHeader.Set("Content-Type", contentType)
-	part, err := w.CreatePart(partHeader)
-	if err != nil {
-		return nil, fmt.Errorf("image studio: create multipart image part: %w", err)
-	}
-	if _, err := part.Write(in.InputImage.Data); err != nil {
-		return nil, fmt.Errorf("image studio: write multipart image part: %w", err)
-	}
-
-	if model != "" {
+	if explicitModel {
 		if err := w.WriteField("model", model); err != nil {
 			return nil, fmt.Errorf("image studio: write multipart model: %w", err)
 		}
@@ -615,13 +632,14 @@ func (s *ImageStudioService) buildEditsRequest(in ImageStudioGenerateInput, n in
 		ContentType:    w.FormDataContentType(),
 		Multipart:      true,
 		Model:          model,
-		ExplicitModel:  model != "",
+		ExplicitModel:  explicitModel,
 		Prompt:         prompt,
 		N:              n,
 		Size:           size,
 		ExplicitSize:   size != "",
 		Quality:        quality,
 		ResponseFormat: "b64_json",
+		Uploads:        uploads,
 		Body:           buf.Bytes(),
 	}
 	applyOpenAIImagesDefaults(req)
@@ -633,7 +651,7 @@ func (s *ImageStudioService) buildEditsRequest(in ImageStudioGenerateInput, n in
 
 // sanitizeEditsFileName returns a safe, non-empty filename for the multipart
 // image part. It strips any path components and falls back to "reference.png".
-func sanitizeEditsFileName(name string) string {
+func sanitizeEditsFileName(name string, index int) string {
 	name = strings.TrimSpace(name)
 	// Strip path separators (defense against header injection / traversal).
 	if idx := strings.LastIndexAny(name, `/\`); idx >= 0 {
@@ -648,9 +666,42 @@ func sanitizeEditsFileName(name string) string {
 		return r
 	}, name)
 	if name == "" {
-		return "reference.png"
+		return fmt.Sprintf("reference-%d.png", index+1)
 	}
 	return name
+}
+
+func normalizeStudioInputImages(in ImageStudioGenerateInput) []StudioInputImage {
+	if len(in.InputImages) > 0 {
+		out := make([]StudioInputImage, 0, len(in.InputImages))
+		for _, img := range in.InputImages {
+			if len(img.Data) > 0 {
+				out = append(out, img)
+			}
+		}
+		return out
+	}
+	if in.InputImage != nil && len(in.InputImage.Data) > 0 {
+		return []StudioInputImage{*in.InputImage}
+	}
+	return nil
+}
+
+func normalizeStudioPipelineModel(model string) (string, bool) {
+	trimmed := strings.TrimSpace(model)
+	lower := strings.ToLower(trimmed)
+	switch {
+	case lower == "", lower == "auto":
+		return "gpt-image-2", false
+	case lower == "codex-gpt-image-2":
+		return "gpt-image-2-codex", true
+	case isOpenAIImageGenerationModel(lower):
+		return trimmed, true
+	case strings.HasPrefix(lower, "gpt-5"):
+		return "gpt-image-2", false
+	default:
+		return trimmed, trimmed != ""
+	}
 }
 
 // markFailed records a failed generation; storage/usage are intentionally not

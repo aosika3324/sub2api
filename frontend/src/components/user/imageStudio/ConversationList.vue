@@ -35,6 +35,16 @@
       <span class="truncate">{{ t('imageStudio.allGenerations') }}</span>
     </button>
 
+    <button
+      type="button"
+      class="mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+      :disabled="loading || conversations.length === 0"
+      @click="$emit('clear')"
+    >
+      <Icon name="trash" size="sm" class="flex-shrink-0 opacity-70" />
+      <span class="truncate">{{ t('imageStudio.clearHistory') }}</span>
+    </button>
+
     <!-- List -->
     <div class="-mx-1 min-h-0 flex-1 space-y-1 overflow-y-auto px-1">
       <!-- Loading -->
@@ -138,6 +148,7 @@ const emit = defineEmits<{
   (e: 'select', id: number | null): void
   (e: 'rename', payload: { id: number; title: string }): void
   (e: 'delete', conversation: ImageStudioConversation): void
+  (e: 'clear'): void
 }>()
 
 const { t } = useI18n()

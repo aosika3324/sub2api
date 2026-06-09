@@ -28,26 +28,29 @@
         </span>
       </div>
 
-      <!-- Reference image thumbnail + error -->
-      <div v-if="referenceUrl || referenceError" class="px-5 pt-4">
-        <div
-          v-if="referenceUrl"
-          class="relative inline-block overflow-hidden rounded-xl border border-gray-200 dark:border-dark-600"
-        >
-          <img
-            :src="referenceUrl"
-            :alt="t('imageStudio.referenceImage')"
-            class="h-16 w-16 object-cover"
-          />
-          <button
-            type="button"
-            class="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/75"
-            :title="t('imageStudio.removeReference')"
-            :aria-label="t('imageStudio.removeReference')"
-            @click="resetReference"
+      <!-- Reference image thumbnails + error -->
+      <div v-if="referencePreviews.length > 0 || referenceError" class="px-5 pt-4">
+        <div v-if="referencePreviews.length > 0" class="flex flex-wrap gap-2">
+          <div
+            v-for="(item, idx) in referencePreviews"
+            :key="`${idx}-${item.url}`"
+            class="relative overflow-hidden rounded-xl border border-gray-200 dark:border-dark-600"
           >
-            <Icon name="x" size="xs" :stroke-width="2.5" />
-          </button>
+            <img
+              :src="item.url"
+              :alt="t('imageStudio.referenceImage')"
+              class="h-16 w-16 object-cover"
+            />
+            <button
+              type="button"
+              class="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/75"
+              :title="t('imageStudio.removeReference')"
+              :aria-label="t('imageStudio.removeReference')"
+              @click="removeReference(idx)"
+            >
+              <Icon name="x" size="xs" :stroke-width="2.5" />
+            </button>
+          </div>
         </div>
         <p v-if="referenceError" class="mt-1 text-xs text-red-500">{{ referenceError }}</p>
       </div>
@@ -78,6 +81,22 @@
           :title="t('imageStudio.group')"
           :aria-label="t('imageStudio.group')"
         />
+
+        <!-- Mode -->
+        <div class="segmented mode-segmented" role="group" :aria-label="t('imageStudio.mode')">
+          <button
+            v-for="option in modeOptions"
+            :key="option.value"
+            type="button"
+            class="segmented-btn"
+            :class="{ 'segmented-btn-active': mode === option.value }"
+            :disabled="disabled"
+            :aria-pressed="mode === option.value"
+            @click="mode = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
 
         <!-- Settings summary pill (toggles the popover) -->
         <div ref="settingsWrapRef" class="relative">
@@ -227,6 +246,7 @@
           ref="fileInputRef"
           type="file"
           accept="image/*"
+          multiple
           class="hidden"
           @change="onFileChange"
         />
@@ -295,6 +315,7 @@ export interface ComposerSubmitPayload {
   quality: string
   n: number
   referenceImage?: File | null
+  referenceImages?: File[]
 }
 
 const props = defineProps<{
@@ -311,6 +332,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const MAX_REFERENCE_BYTES = 20 * 1024 * 1024
+const MAX_REFERENCE_IMAGES = 8
 
 // Only groups that allow image generation are usable.
 const imageGroups = computed(() =>
@@ -321,6 +343,7 @@ const promptRef = ref<HTMLTextAreaElement | null>(null)
 const prompt = ref('')
 const groupId = ref<number | null>(null)
 const model = ref<ModelId>('gpt-image-2')
+const mode = ref<'generate' | 'edit' | 'compose'>('generate')
 const quality = ref('auto')
 const n = ref(1)
 
@@ -339,6 +362,11 @@ const groupOptions = computed(() =>
 // ---- Settings options ----
 const modelOptions = MODEL_OPTIONS
 const aspectPresets = ASPECT_PRESETS
+const modeOptions = computed(() => [
+  { value: 'generate' as const, label: t('imageStudio.modeGenerate') },
+  { value: 'edit' as const, label: t('imageStudio.modeEdit') },
+  { value: 'compose' as const, label: t('imageStudio.modeCompose') },
+])
 
 const qualityOptions = computed(() =>
   optionsForModel(model.value).qualities.map((q) => ({
@@ -447,6 +475,12 @@ watch(model, (next) => {
   sizeAuto.value = false
 })
 
+watch(mode, (next) => {
+  if (next === 'generate' && referenceImages.value.length > 0) {
+    resetReference()
+  }
+})
+
 // Default the group selection to the first usable group.
 watch(
   imageGroups,
@@ -480,30 +514,63 @@ const costEstimate = computed(() =>
 // ==================== Reference image (image-to-image) ====================
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
-const referenceImage = ref<File | null>(null)
-const referenceUrl = ref<string>('')
+const referenceImages = ref<File[]>([])
+const referencePreviews = ref<Array<{ file: File; url: string }>>([])
 const referenceError = ref<string>('')
 const dragActive = ref(false)
 
-function setReference(file: File) {
+function addReferences(files: File[]) {
   referenceError.value = ''
-  if (!file.type.startsWith('image/')) {
-    referenceError.value = t('imageStudio.imageTypeError')
+  const nextFiles: File[] = []
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) {
+      referenceError.value = t('imageStudio.imageTypeError')
+      continue
+    }
+    if (file.size > MAX_REFERENCE_BYTES) {
+      referenceError.value = t('imageStudio.imageTooLarge')
+      continue
+    }
+    nextFiles.push(file)
+  }
+  if (nextFiles.length === 0) {
     return
   }
-  if (file.size > MAX_REFERENCE_BYTES) {
-    referenceError.value = t('imageStudio.imageTooLarge')
-    return
+  const capacity = Math.max(0, MAX_REFERENCE_IMAGES - referenceImages.value.length)
+  const accepted = nextFiles.slice(0, capacity)
+  if (accepted.length < nextFiles.length) {
+    referenceError.value = t('imageStudio.tooManyReferences', { count: MAX_REFERENCE_IMAGES })
   }
-  revokeReferenceUrl()
-  referenceImage.value = file
-  referenceUrl.value = URL.createObjectURL(file)
+  referenceImages.value = [...referenceImages.value, ...accepted]
+  referencePreviews.value = [
+    ...referencePreviews.value,
+    ...accepted.map((file) => ({ file, url: URL.createObjectURL(file) })),
+  ]
+  if (referenceImages.value.length === 1 && mode.value === 'generate') {
+    mode.value = 'edit'
+  } else if (referenceImages.value.length > 1) {
+    mode.value = 'compose'
+  }
 }
 
-function revokeReferenceUrl() {
-  if (referenceUrl.value) {
-    URL.revokeObjectURL(referenceUrl.value)
-    referenceUrl.value = ''
+function revokeReferenceUrls() {
+  for (const item of referencePreviews.value) {
+    URL.revokeObjectURL(item.url)
+  }
+  referencePreviews.value = []
+}
+
+function removeReference(index: number) {
+  const item = referencePreviews.value[index]
+  if (item) {
+    URL.revokeObjectURL(item.url)
+  }
+  referencePreviews.value = referencePreviews.value.filter((_, idx) => idx !== index)
+  referenceImages.value = referenceImages.value.filter((_, idx) => idx !== index)
+  if (referenceImages.value.length === 0 && mode.value !== 'generate') {
+    mode.value = 'generate'
+  } else if (referenceImages.value.length === 1 && mode.value === 'compose') {
+    mode.value = 'edit'
   }
 }
 
@@ -514,17 +581,18 @@ function triggerFilePicker() {
 
 function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) setReference(file)
+  const files = input.files ? Array.from(input.files) : []
+  if (files.length > 0) addReferences(files)
   // Reset so selecting the same file again re-triggers change.
   input.value = ''
 }
 
 function onPaste(e: ClipboardEvent) {
-  const file = e.clipboardData?.files?.[0]
-  if (file && file.type.startsWith('image/')) {
+  const files = e.clipboardData?.files ? Array.from(e.clipboardData.files) : []
+  const images = files.filter((file) => file.type.startsWith('image/'))
+  if (images.length > 0) {
     e.preventDefault()
-    setReference(file)
+    addReferences(images)
   }
 }
 
@@ -542,16 +610,19 @@ function onDrop(e: DragEvent) {
   if (disabled.value) return
   const files = e.dataTransfer?.files
   if (!files || files.length === 0) return
-  const file = Array.from(files).find((f) => f.type.startsWith('image/'))
-  if (file) setReference(file)
+  const images = Array.from(files).filter((f) => f.type.startsWith('image/'))
+  if (images.length > 0) addReferences(images)
 }
 
 // Clears the reference file + revokes its object URL. Exposed for the parent so
 // it can drop the source image after a successful generate.
 function resetReference() {
-  revokeReferenceUrl()
-  referenceImage.value = null
+  revokeReferenceUrls()
+  referenceImages.value = []
   referenceError.value = ''
+  if (mode.value !== 'generate') {
+    mode.value = 'generate'
+  }
 }
 
 function autoGrow() {
@@ -570,7 +641,8 @@ function submit() {
     size: submitSize.value,
     quality: quality.value,
     n: n.value,
-    referenceImage: referenceImage.value,
+    referenceImage: referenceImages.value[0] ?? null,
+    referenceImages: [...referenceImages.value],
   })
 }
 
@@ -594,7 +666,7 @@ function fillPrompt(value: string) {
 onMounted(autoGrow)
 
 onBeforeUnmount(() => {
-  revokeReferenceUrl()
+  revokeReferenceUrls()
   document.removeEventListener('mousedown', onSettingsOutside)
   document.removeEventListener('keydown', onSettingsKeydown)
 })
@@ -724,6 +796,14 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 
 .segmented-btn:disabled {
   @apply cursor-not-allowed opacity-50;
+}
+
+.mode-segmented {
+  @apply rounded-full p-0.5;
+}
+
+.mode-segmented .segmented-btn {
+  @apply rounded-full px-2.5 py-1 text-[11px];
 }
 
 /* Auto toggle (custom-size disabled state). */

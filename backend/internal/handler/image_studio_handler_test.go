@@ -53,6 +53,10 @@ type studioRepoStub struct {
 	cascadeKeys  []string
 	cascadeErr   error
 	cascadeCall  int
+	clearKeys    []string
+	clearErr     error
+	clearUserID  int64
+	clearCall    int
 }
 
 func (s *studioRepoStub) CreateConversation(_ context.Context, _ int64, _ string) (*dbent.ImageConversation, error) {
@@ -71,6 +75,11 @@ func (s *studioRepoStub) DeleteConversation(_ context.Context, _ int64) error { 
 func (s *studioRepoStub) DeleteConversationCascade(_ context.Context, _ int64) ([]string, error) {
 	s.cascadeCall++
 	return s.cascadeKeys, s.cascadeErr
+}
+func (s *studioRepoStub) ClearUserHistory(_ context.Context, userID int64) ([]string, error) {
+	s.clearCall++
+	s.clearUserID = userID
+	return s.clearKeys, s.clearErr
 }
 func (s *studioRepoStub) GetGeneration(_ context.Context, _ int64) (*dbent.ImageGeneration, error) {
 	return s.generation, s.getGenErr
@@ -218,7 +227,7 @@ func TestImageStudioGenerate_MultipartRoutesInputImage(t *testing.T) {
 			GenerationID:   42,
 			ConversationID: 9,
 			Images:         []string{"user_7/42/0.png"},
-			InputImages:    []string{"user_7/42/input/0.png"},
+			InputImages:    []string{"user_7/42/input/0.png", "user_7/42/input/1.png"},
 			Cost:           0.05,
 			Balance:        4.95,
 		},
@@ -237,6 +246,10 @@ func TestImageStudioGenerate_MultipartRoutesInputImage(t *testing.T) {
 	part, err := mw.CreateFormFile("image", "ref.png")
 	require.NoError(t, err)
 	_, err = part.Write([]byte("\x89PNG\r\n\x1a\nref-bytes"))
+	require.NoError(t, err)
+	part, err = mw.CreateFormFile("image", "ref-2.jpg")
+	require.NoError(t, err)
+	_, err = part.Write([]byte("\xff\xd8\xffref-two"))
 	require.NoError(t, err)
 	require.NoError(t, mw.Close())
 
@@ -261,16 +274,19 @@ func TestImageStudioGenerate_MultipartRoutesInputImage(t *testing.T) {
 	require.Equal(t, "1024x1024", gen.gotInput.Size)
 	require.Equal(t, "high", gen.gotInput.Quality)
 	require.Equal(t, 1, gen.gotInput.N)
-	require.NotNil(t, gen.gotInput.InputImage)
-	require.Equal(t, []byte("\x89PNG\r\n\x1a\nref-bytes"), gen.gotInput.InputImage.Data)
-	require.Equal(t, "ref.png", gen.gotInput.InputImage.FileName)
+	require.Nil(t, gen.gotInput.InputImage)
+	require.Len(t, gen.gotInput.InputImages, 2)
+	require.Equal(t, []byte("\x89PNG\r\n\x1a\nref-bytes"), gen.gotInput.InputImages[0].Data)
+	require.Equal(t, "ref.png", gen.gotInput.InputImages[0].FileName)
+	require.Equal(t, []byte("\xff\xd8\xffref-two"), gen.gotInput.InputImages[1].Data)
+	require.Equal(t, "ref-2.jpg", gen.gotInput.InputImages[1].FileName)
 
 	var env struct {
 		Data generateImageResponse `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &env))
 	require.Equal(t, []string{"/api/v1/user/image-studio/assets/42/0"}, env.Data.Images)
-	require.Equal(t, []string{"/api/v1/user/image-studio/input-assets/42/0"}, env.Data.InputImages)
+	require.Equal(t, []string{"/api/v1/user/image-studio/input-assets/42/0", "/api/v1/user/image-studio/input-assets/42/1"}, env.Data.InputImages)
 }
 
 // ---------------------------------------------------------------------------
@@ -471,4 +487,20 @@ func TestImageStudioDeleteConversation_OwnerCascadesAndDeletesFiles(t *testing.T
 	require.Equal(t, 1, repo.cascadeCall)
 	// The conversation's generation files (output + input) are all removed.
 	require.ElementsMatch(t, []string{"a", "b", "input_a"}, store.deletedKeys)
+}
+
+func TestImageStudioClearHistory_DeletesReturnedFiles(t *testing.T) {
+	repo := &studioRepoStub{clearKeys: []string{"out_a", "out_b", "input_a"}}
+	store := &studioStoreStub{}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodDelete, "/history", "")
+	setStudioAuth(c, 7)
+
+	h.ClearHistory(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, 1, repo.clearCall)
+	require.Equal(t, int64(7), repo.clearUserID)
+	require.ElementsMatch(t, []string{"out_a", "out_b", "input_a"}, store.deletedKeys)
 }

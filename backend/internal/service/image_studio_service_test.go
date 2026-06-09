@@ -277,6 +277,10 @@ func (s *studioRepoStub) DeleteConversationCascade(_ context.Context, _ int64) (
 	return nil, nil
 }
 
+func (s *studioRepoStub) ClearUserHistory(_ context.Context, _ int64) ([]string, error) {
+	return nil, nil
+}
+
 func (s *studioRepoStub) DeleteGeneration(_ context.Context, _ int64) error {
 	return nil
 }
@@ -855,20 +859,38 @@ func studioEditsInput(groupID int64) ImageStudioGenerateInput {
 	return in
 }
 
+func studioMultiEditsInput(groupID int64) ImageStudioGenerateInput {
+	in := studioInput(groupID)
+	in.InputImages = []StudioInputImage{
+		{
+			Data:        []byte("\x89PNG\r\n\x1a\nreference-one"),
+			ContentType: "image/png",
+			FileName:    "ref-1.png",
+		},
+		{
+			Data:        []byte("\xff\xd8\xffreference-two"),
+			ContentType: "image/jpeg",
+			FileName:    "ref-2.jpg",
+		},
+	}
+	return in
+}
+
 // Critical round-trip: buildEditsRequest must produce a Body+ContentType pair
 // that the existing multipart parser (used by ForwardImages downstream) parses
-// back into the same model/prompt/size/n, exactly one "image" upload, and an
+// back into the same model/prompt/size/n, multiple "image" uploads, and an
 // edits request.
 func TestBuildEditsRequest_RoundTripsThroughMultipartParser(t *testing.T) {
 	f := newStudioFixture(t)
-	in := studioEditsInput(10)
+	in := studioMultiEditsInput(10)
 
-	req, err := f.svc.buildEditsRequest(in, 2)
+	req, err := f.svc.buildEditsRequest(in, 2, in.InputImages)
 	require.NoError(t, err)
 	require.NotNil(t, req)
 	require.Equal(t, openAIImagesEditsEndpoint, req.Endpoint)
 	require.True(t, req.Multipart)
 	require.NotEmpty(t, req.Body)
+	require.Len(t, req.Uploads, 2)
 
 	parsed := &OpenAIImagesRequest{Endpoint: openAIImagesEditsEndpoint}
 	require.NoError(t, parseOpenAIImagesMultipartRequest(req.Body, req.ContentType, parsed))
@@ -878,9 +900,39 @@ func TestBuildEditsRequest_RoundTripsThroughMultipartParser(t *testing.T) {
 	require.Equal(t, "1024x1024", parsed.Size)
 	require.Equal(t, 2, parsed.N)
 	require.True(t, parsed.IsEdits())
-	require.Len(t, parsed.Uploads, 1)
+	require.Len(t, parsed.Uploads, 2)
 	require.Equal(t, "image", parsed.Uploads[0].FieldName)
-	require.Equal(t, in.InputImage.Data, parsed.Uploads[0].Data)
+	require.Equal(t, in.InputImages[0].Data, parsed.Uploads[0].Data)
+	require.Equal(t, "image", parsed.Uploads[1].FieldName)
+	require.Equal(t, in.InputImages[1].Data, parsed.Uploads[1].Data)
+}
+
+func TestBuildParsedRequest_NormalizesWorkbenchModelAliases(t *testing.T) {
+	f := newStudioFixture(t)
+
+	autoReq := f.svc.buildParsedRequest(ImageStudioGenerateInput{
+		Prompt: "draw",
+		Model:  "auto",
+		Size:   "1024x1024",
+	}, 1)
+	require.Equal(t, "gpt-image-2", autoReq.Model)
+	require.False(t, autoReq.ExplicitModel)
+
+	gpt5Req := f.svc.buildParsedRequest(ImageStudioGenerateInput{
+		Prompt: "draw",
+		Model:  "gpt-5-3",
+		Size:   "1024x1024",
+	}, 1)
+	require.Equal(t, "gpt-image-2", gpt5Req.Model)
+	require.False(t, gpt5Req.ExplicitModel)
+
+	codexReq := f.svc.buildParsedRequest(ImageStudioGenerateInput{
+		Prompt: "draw",
+		Model:  "codex-gpt-image-2",
+		Size:   "1024x1024",
+	}, 1)
+	require.Equal(t, "gpt-image-2-codex", codexReq.Model)
+	require.True(t, codexReq.ExplicitModel)
 }
 
 // An input image routes Generate through the edits endpoint, stores the input
@@ -910,6 +962,25 @@ func TestGenerate_WithInputImage_RoutesToEdits_PersistsInput(t *testing.T) {
 
 	// Billed exactly once (happy path).
 	require.Equal(t, 1, f.usage.calls)
+}
+
+func TestGenerate_WithMultipleInputImages_RoutesToEdits_PersistsInputs(t *testing.T) {
+	f := newStudioFixture(t)
+
+	res, err := f.svc.Generate(context.Background(), 1, studioMultiEditsInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	require.Equal(t, 1, f.gen.calls)
+	require.NotNil(t, f.gen.last.Parsed)
+	require.Equal(t, openAIImagesEditsEndpoint, f.gen.last.Parsed.Endpoint)
+	require.Len(t, f.gen.last.Parsed.Uploads, 2)
+
+	require.Equal(t, 2, f.store.putInputCalls)
+	require.Equal(t, 1, f.repo.setInputCalls)
+	require.Len(t, f.repo.lastInputKeys, 2)
+	require.Equal(t, f.repo.lastInputKeys, res.InputImages)
 }
 
 // The reference image must be persisted even when generation later fails, and

@@ -64,7 +64,9 @@ func RegisterUserRoutes(
 				imageStudio.DELETE("/conversations/:id", h.ImageStudio.DeleteConversation)
 				imageStudio.GET("/conversations/:id/generations", h.ImageStudio.ListConversationGenerations)
 				imageStudio.GET("/generations", h.ImageStudio.ListGenerations)
+				imageStudio.GET("/generations/:id", h.ImageStudio.GetGeneration)
 				imageStudio.DELETE("/generations/:id", h.ImageStudio.DeleteGeneration)
+				imageStudio.DELETE("/history", h.ImageStudio.ClearHistory)
 				imageStudio.GET("/assets/:genID/:idx", h.ImageStudio.GetAsset)
 				imageStudio.GET("/input-assets/:genID/:idx", h.ImageStudio.GetInputAsset)
 			}

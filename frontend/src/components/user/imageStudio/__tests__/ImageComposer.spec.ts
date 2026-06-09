@@ -129,6 +129,7 @@ describe('ImageComposer', () => {
       quality: 'auto',
       n: 1,
       referenceImage: null,
+      referenceImages: [],
     })
   })
 
@@ -215,24 +216,25 @@ describe('ImageComposer', () => {
     expect(emitted![0][0]).toMatchObject({ n: 3 })
   })
 
-  it('selecting a reference file shows a thumbnail and sets payload.referenceImage', async () => {
+  it('selecting reference files shows thumbnails and sets payload.referenceImages', async () => {
     const wrapper = mountComposer([makeGroup({ id: 7 })])
     await flushPromises()
     await wrapper.find('textarea').setValue('image to image')
 
     const file = new File(['x'], 'src.png', { type: 'image/png' })
+    const file2 = new File(['y'], 'src-2.png', { type: 'image/png' })
     const input = wrapper.find('input[type="file"]')
     // Drive the change handler with a faux file list.
-    Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
+    Object.defineProperty(input.element, 'files', { value: [file, file2], configurable: true })
     await input.trigger('change')
 
     // Thumbnail preview appears.
-    const thumb = wrapper.find('img[src="blob:reference"]')
-    expect(thumb.exists()).toBe(true)
+    const thumbs = wrapper.findAll('img[src="blob:reference"]')
+    expect(thumbs).toHaveLength(2)
 
     await wrapper.find('.send-button').trigger('click')
     const emitted = wrapper.emitted('generate')
-    expect(emitted![0][0]).toMatchObject({ referenceImage: file })
+    expect(emitted![0][0]).toMatchObject({ referenceImage: file, referenceImages: [file, file2] })
   })
 
   it('rejects a non-image reference file with an inline error', async () => {
@@ -282,13 +284,13 @@ describe('ImageComposer', () => {
 
     // Switch the model — the watcher snaps size/quality back to defaults.
     const modelSelect = wrapper.findAll('select')[1] // group, model, count
-    await modelSelect.setValue('gpt-image-1.5')
+    await modelSelect.setValue('gpt-5-3')
     await flushPromises()
 
     await wrapper.find('.send-button').trigger('click')
     const emitted = wrapper.emitted('generate')
     expect(emitted![0][0]).toMatchObject({
-      model: 'gpt-image-1.5',
+      model: 'gpt-5-3',
       size: '1024x1024',
       quality: 'auto',
     })

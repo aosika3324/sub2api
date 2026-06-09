@@ -24,6 +24,7 @@
             @select="handleSelectConversation"
             @rename="handleRenameConversation"
             @delete="confirmDeleteConversation"
+            @clear="confirmClearHistory"
           />
         </aside>
 
@@ -39,6 +40,7 @@
           <div
             ref="scrollRef"
             class="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40 dark:border-dark-700/50 dark:bg-dark-900"
+            @scroll="rememberScroll"
           >
             <TurnTimeline
               :generations="store.generations"
@@ -106,6 +108,18 @@
       @cancel="deleteGenTarget = null"
     />
 
+    <!-- Clear history confirm -->
+    <ConfirmDialog
+      :show="clearHistoryOpen"
+      :title="t('imageStudio.clearHistoryTitle')"
+      :message="t('imageStudio.clearHistoryMessage')"
+      :confirm-text="t('imageStudio.clearHistory')"
+      :cancel-text="t('common.cancel')"
+      :danger="true"
+      @confirm="handleClearHistory"
+      @cancel="clearHistoryOpen = false"
+    />
+
     <!-- Lightbox -->
     <Teleport to="body">
       <Transition name="fade">
@@ -133,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useImageStudioStore } from '@/stores/imageStudio'
 import imageStudioAPI from '@/api/imageStudio'
@@ -164,6 +178,8 @@ const creating = ref(false)
 const inlineError = ref('')
 const lightboxSrc = ref('')
 const pendingPrompt = ref('')
+const clearHistoryOpen = ref(false)
+const pendingPollTimer = ref<number | null>(null)
 
 const composerRef = ref<InstanceType<typeof ImageComposer> | null>(null)
 const scrollRef = ref<HTMLElement | null>(null)
@@ -173,6 +189,36 @@ const deleteGenTarget = ref<ImageStudioGeneration | null>(null)
 const balance = computed(() => authStore.user?.balance ?? 0)
 
 // ==================== Auto-scroll (chat: newest at the bottom) ====================
+
+const scrollPositions = new Map<string, number>()
+
+const scrollKey = computed(() =>
+  store.activeConversationId === null ? 'all' : `conversation:${store.activeConversationId}`
+)
+
+function isNearBottom() {
+  const el = scrollRef.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 120
+}
+
+function rememberScroll() {
+  const el = scrollRef.value
+  if (!el) return
+  scrollPositions.set(scrollKey.value, el.scrollTop)
+}
+
+async function restoreScroll(key = scrollKey.value) {
+  await nextTick()
+  const el = scrollRef.value
+  if (!el) return
+  const top = scrollPositions.get(key)
+  if (top == null) {
+    el.scrollTo({ top: el.scrollHeight, behavior: 'auto' })
+    return
+  }
+  el.scrollTo({ top, behavior: 'auto' })
+}
 
 async function scrollToBottom(smooth = true) {
   await nextTick()
@@ -187,8 +233,25 @@ async function scrollToBottom(smooth = true) {
 watch(
   () => [store.generations.length, store.generating] as const,
   () => {
-    scrollToBottom()
+    if (store.generating || isNearBottom()) {
+      scrollToBottom()
+    }
   }
+)
+
+watch(
+  () => store.generations.some((g) => g.status === 'pending' || g.status === 'generating'),
+  (hasPending) => {
+    if (hasPending && pendingPollTimer.value == null) {
+      pendingPollTimer.value = window.setInterval(() => {
+        store.refreshPendingGenerations().catch(() => {})
+      }, 5000)
+    } else if (!hasPending && pendingPollTimer.value != null) {
+      window.clearInterval(pendingPollTimer.value)
+      pendingPollTimer.value = null
+    }
+  },
+  { immediate: true }
 )
 
 // ==================== Error helpers ====================
@@ -237,6 +300,7 @@ async function loadGroups() {
 async function handleCreateConversation() {
   creating.value = true
   inlineError.value = ''
+  rememberScroll()
   try {
     const conv = await store.createConversation()
     // A brand-new conversation is empty by definition. Switch to it and show
@@ -254,13 +318,11 @@ async function handleCreateConversation() {
 
 async function handleSelectConversation(id: number | null) {
   inlineError.value = ''
+  rememberScroll()
   store.selectConversation(id)
   try {
     await store.loadGenerations(id ?? undefined)
-    // Jump (no smooth) to the latest turn after the conversation's history loads.
-    // Covers the case where the new list has the same length as the old one and
-    // the length watcher would not fire.
-    await scrollToBottom(false)
+    await restoreScroll()
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
   }
@@ -308,6 +370,10 @@ async function runGenerate(payload: ComposerSubmitPayload) {
     composerRef.value?.resetReference?.()
   } catch (err) {
     surfaceGenerateError(err)
+    Promise.all([
+      store.loadConversations(),
+      store.loadGenerations(store.activeConversationId ?? undefined),
+    ]).catch(() => {})
   } finally {
     pendingPrompt.value = ''
   }
@@ -338,11 +404,14 @@ async function fetchInputAsFile(url: string): Promise<File | null> {
 }
 
 async function handleRetry(generation: ImageStudioGeneration) {
-  let referenceImage: File | null = null
-  const source = generation.input_images?.[0]
-  if (source) {
-    referenceImage = await fetchInputAsFile(source)
-    if (!referenceImage) {
+  const referenceImages: File[] = []
+  const sources = generation.input_images ?? []
+  if (sources.length > 0) {
+    const fetched = await Promise.all(sources.map((source) => fetchInputAsFile(source)))
+    for (const file of fetched) {
+      if (file) referenceImages.push(file)
+    }
+    if (referenceImages.length !== sources.length) {
       // The reference image could not be re-fetched. Warn instead of silently
       // degrading an image-to-image retry into a text-to-image one.
       appStore.showWarning(t('imageStudio.retryReferenceFetchFailed'))
@@ -355,7 +424,8 @@ async function handleRetry(generation: ImageStudioGeneration) {
     size: generation.size,
     quality: generation.quality,
     n: generation.n,
-    referenceImage,
+    referenceImage: referenceImages[0] ?? null,
+    referenceImages,
   })
 }
 
@@ -370,6 +440,21 @@ async function handleDeleteGeneration() {
   try {
     await store.deleteGeneration(target.id)
     appStore.showSuccess(t('imageStudio.generationDeleted'))
+  } catch (err) {
+    appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
+  }
+}
+
+function confirmClearHistory() {
+  clearHistoryOpen.value = true
+}
+
+async function handleClearHistory() {
+  clearHistoryOpen.value = false
+  try {
+    await store.clearHistory()
+    scrollPositions.clear()
+    appStore.showSuccess(t('imageStudio.historyCleared'))
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
   }
@@ -390,6 +475,13 @@ onMounted(async () => {
     await scrollToBottom(false)
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
+  }
+})
+
+onBeforeUnmount(() => {
+  if (pendingPollTimer.value != null) {
+    window.clearInterval(pendingPollTimer.value)
+    pendingPollTimer.value = null
   }
 })
 </script>

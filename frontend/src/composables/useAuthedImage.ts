@@ -13,7 +13,10 @@
 import { ref, watch, onUnmounted, isRef, type Ref } from 'vue'
 import { fetchAssetBlob } from '@/api/imageStudio'
 
-export function useAuthedImage(assetUrl: Ref<string | undefined | null> | string | undefined | null) {
+export function useAuthedImage(
+  assetUrl: Ref<string | undefined | null> | string | undefined | null,
+  enabled: Ref<boolean> | boolean = true
+) {
   const src = ref<string | undefined>(undefined)
   const loading = ref(false)
   const error = ref<unknown>(null)
@@ -22,6 +25,7 @@ export function useAuthedImage(assetUrl: Ref<string | undefined | null> | string
   const urlRef: Ref<string | undefined | null> = isRef(assetUrl)
     ? assetUrl
     : ref(assetUrl)
+  const enabledRef: Ref<boolean> = isRef(enabled) ? enabled : ref(enabled)
 
   let currentObjectUrl: string | undefined
 
@@ -65,7 +69,8 @@ export function useAuthedImage(assetUrl: Ref<string | undefined | null> | string
   }
 
   // Watch for URL changes
-  watch(urlRef, (newUrl) => {
+  watch([urlRef, enabledRef], ([newUrl, isEnabled]) => {
+    if (!isEnabled) return
     load(newUrl)
   }, { immediate: true })
 

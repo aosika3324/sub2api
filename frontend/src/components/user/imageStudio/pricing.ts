@@ -3,12 +3,21 @@
  *
  * The backend is the source of truth for billing. Client-side price estimates
  * are currently DISABLED: we do not have authoritative per-image prices for the
- * supported models (gpt-image-1.5 / gpt-image-2), so `estimateCost` always
+ * supported models, so `estimateCost` always
  * returns `null` and the server computes the real charge. The composer keeps the
  * "≈$x.xx" markup so it reappears automatically if price tables are wired later.
  */
 
-export type ModelId = 'gpt-image-1.5' | 'gpt-image-2'
+export type ModelId =
+  | 'gpt-image-2'
+  | 'codex-gpt-image-2'
+  | 'auto'
+  | 'gpt-5'
+  | 'gpt-5-1'
+  | 'gpt-5-2'
+  | 'gpt-5-3'
+  | 'gpt-5-3-mini'
+  | 'gpt-5-mini'
 
 export interface SizeOption {
   value: string
@@ -29,8 +38,15 @@ interface ModelMatrix {
 }
 
 export const MODEL_OPTIONS: Array<{ value: ModelId; label: string }> = [
-  { value: 'gpt-image-1.5', label: 'gpt-image-1.5' },
   { value: 'gpt-image-2', label: 'gpt-image-2' },
+  { value: 'codex-gpt-image-2', label: 'codex-gpt-image-2' },
+  { value: 'auto', label: 'auto' },
+  { value: 'gpt-5', label: 'gpt-5' },
+  { value: 'gpt-5-1', label: 'gpt-5-1' },
+  { value: 'gpt-5-2', label: 'gpt-5-2' },
+  { value: 'gpt-5-3', label: 'gpt-5-3' },
+  { value: 'gpt-5-3-mini', label: 'gpt-5-3-mini' },
+  { value: 'gpt-5-mini', label: 'gpt-5-mini' },
 ]
 
 /**
@@ -81,8 +97,15 @@ const GPT_IMAGE_MATRIX: ModelMatrix = {
 }
 
 const MATRICES: Record<ModelId, ModelMatrix> = {
-  'gpt-image-1.5': GPT_IMAGE_MATRIX,
   'gpt-image-2': GPT_IMAGE_MATRIX,
+  'codex-gpt-image-2': GPT_IMAGE_MATRIX,
+  auto: GPT_IMAGE_MATRIX,
+  'gpt-5': GPT_IMAGE_MATRIX,
+  'gpt-5-1': GPT_IMAGE_MATRIX,
+  'gpt-5-2': GPT_IMAGE_MATRIX,
+  'gpt-5-3': GPT_IMAGE_MATRIX,
+  'gpt-5-3-mini': GPT_IMAGE_MATRIX,
+  'gpt-5-mini': GPT_IMAGE_MATRIX,
 }
 
 export function optionsForModel(model: string): ModelMatrix {
@@ -98,7 +121,7 @@ export function defaultsForModel(model: string): { size: string; quality: string
  * Per-generation cost estimate.
  *
  * Client-side estimation is currently disabled: we have no authoritative
- * per-image price tables for the supported models (gpt-image-1.5 / gpt-image-2),
+ * per-image price tables for the supported models,
  * so this always returns `null` and the server is the source of truth for the
  * real charge. The signature is kept stable so price tables can be wired back in
  * later without touching callers. Params are intentionally unused for now.

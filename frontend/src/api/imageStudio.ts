@@ -17,22 +17,28 @@ import type {
 /**
  * Generate images synchronously — awaits the result.
  *
- * When `req.referenceImage` is present the request is sent as
- * `multipart/form-data` (image-to-image): the file is appended as the `image`
- * form field and the scalar params as string fields.
+ * When reference images are present the request is sent as multipart/form-data:
+ * each file is appended as the `image` form field and scalar params as strings.
  *
  * NOTE: the shared apiClient defaults `Content-Type` to `application/json`. With
  * that default, axios's transformRequest JSON-stringifies any FormData payload
  * (dropping the file). We therefore null out `Content-Type` for this one request
  * so the browser sets the real `multipart/form-data; boundary=…` header itself.
  *
- * Otherwise the request is the plain JSON post (the client-only `referenceImage`
- * key is omitted from the body).
+ * Otherwise the request is the plain JSON post (client-only reference image
+ * keys are omitted from the body).
  */
 export async function generate(
   req: GenerateImageStudioRequest
 ): Promise<GenerateImageStudioResponse> {
-  if (req.referenceImage) {
+  const referenceImages =
+    req.referenceImages && req.referenceImages.length > 0
+      ? req.referenceImages
+      : req.referenceImage
+        ? [req.referenceImage]
+        : []
+
+  if (referenceImages.length > 0) {
     const fd = new FormData()
     if (req.conversation_id != null) {
       fd.append('conversation_id', String(req.conversation_id))
@@ -43,7 +49,7 @@ export async function generate(
     fd.append('size', req.size)
     fd.append('quality', req.quality)
     fd.append('n', String(req.n))
-    fd.append('image', req.referenceImage)
+    referenceImages.forEach((file) => fd.append('image', file))
 
     const { data } = await apiClient.post<GenerateImageStudioResponse>(
       '/user/image-studio/generate',
@@ -52,16 +58,17 @@ export async function generate(
       // apiClient `application/json` default for this one request, so the browser
       // generates the real `multipart/form-data; boundary=…` header. Omitting it
       // would let axios JSON-stringify the FormData and silently drop the file.
-      { headers: { 'Content-Type': null } }
+      { headers: { 'Content-Type': null }, timeout: 0 }
     )
     return data
   }
 
-  // Strip the client-only referenceImage key from the JSON body.
-  const { referenceImage: _referenceImage, ...jsonBody } = req
+  // Strip the client-only reference image keys from the JSON body.
+  const { referenceImage: _referenceImage, referenceImages: _referenceImages, ...jsonBody } = req
   const { data } = await apiClient.post<GenerateImageStudioResponse>(
     '/user/image-studio/generate',
-    jsonBody
+    jsonBody,
+    { timeout: 0 }
   )
   return data
 }
@@ -146,10 +153,27 @@ export async function listGenerations(
 }
 
 /**
+ * Fetch one generation by ID for progress/status polling.
+ */
+export async function getGeneration(id: number): Promise<ImageStudioGeneration> {
+  const { data } = await apiClient.get<ImageStudioGeneration>(
+    `/user/image-studio/generations/${id}`
+  )
+  return data
+}
+
+/**
  * Delete a generation by ID.
  */
 export async function deleteGeneration(id: number): Promise<void> {
   await apiClient.delete(`/user/image-studio/generations/${id}`)
+}
+
+/**
+ * Clear all image studio conversations and generations for the current user.
+ */
+export async function clearHistory(): Promise<void> {
+  await apiClient.delete('/user/image-studio/history')
 }
 
 // ==================== Assets ====================
@@ -180,7 +204,9 @@ export const imageStudioAPI = {
   deleteConversation,
   listConversationGenerations,
   listGenerations,
+  getGeneration,
   deleteGeneration,
+  clearHistory,
   fetchAssetBlob,
 }
 

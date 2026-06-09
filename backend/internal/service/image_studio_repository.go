@@ -24,6 +24,9 @@ type ImageStudioRepository interface {
 	// of those generations so the caller can delete the underlying files. Ownership
 	// scoping is the caller's responsibility.
 	DeleteConversationCascade(ctx context.Context, id int64) ([]string, error)
+	// ClearUserHistory soft-deletes all image-studio conversations and generations
+	// owned by userID and returns storage keys for best-effort file deletion.
+	ClearUserHistory(ctx context.Context, userID int64) ([]string, error)
 	// CreateGeneration persists a new image generation record built by the caller.
 	CreateGeneration(ctx context.Context, g *dbent.ImageGeneration) (*dbent.ImageGeneration, error)
 	// UpdateGenerationStatus updates result fields after a generation completes or fails.

@@ -1967,6 +1967,8 @@ export interface GenerateImageStudioRequest {
    * serialised into the JSON body.
    */
   referenceImage?: File | null
+  /** Client-only: multiple reference images for edit/composition mode. */
+  referenceImages?: File[]
 }
 
 export interface GenerateImageStudioResponse {

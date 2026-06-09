@@ -160,6 +160,70 @@ func (r *imageStudioRepository) deleteConversationCascade(ctx context.Context, c
 	return keys, nil
 }
 
+// ClearUserHistory soft-deletes all image studio conversations and generations
+// owned by userID, returning storage keys for best-effort file deletion.
+func (r *imageStudioRepository) ClearUserHistory(ctx context.Context, userID int64) ([]string, error) {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		return r.clearUserHistory(ctx, tx.Client(), userID)
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	txCtx := dbent.NewTxContext(ctx, tx)
+	defer func() { _ = tx.Rollback() }()
+
+	keys, err := r.clearUserHistory(txCtx, tx.Client(), userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
+func (r *imageStudioRepository) clearUserHistory(ctx context.Context, client *dbent.Client, userID int64) ([]string, error) {
+	now := time.Now()
+	gens, err := client.ImageGeneration.Query().
+		Where(
+			imagegeneration.UserIDEQ(userID),
+			imagegeneration.DeletedAtIsNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var keys []string
+	for _, g := range gens {
+		keys = append(keys, g.StorageKeys...)
+		keys = append(keys, g.InputStorageKeys...)
+	}
+
+	if _, err := client.ImageGeneration.Update().
+		Where(
+			imagegeneration.UserIDEQ(userID),
+			imagegeneration.DeletedAtIsNil(),
+		).
+		SetDeletedAt(now).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+
+	if _, err := client.ImageConversation.Update().
+		Where(
+			imageconversation.UserIDEQ(userID),
+			imageconversation.DeletedAtIsNil(),
+		).
+		SetDeletedAt(now).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+
+	return keys, nil
+}
+
 // DeleteGeneration soft-deletes a generation by stamping deleted_at.
 func (r *imageStudioRepository) DeleteGeneration(ctx context.Context, id int64) error {
 	client := clientFromContext(ctx, r.client)
@@ -190,6 +254,9 @@ func (r *imageStudioRepository) CreateGeneration(ctx context.Context, g *dbent.I
 
 	if len(g.StorageKeys) > 0 {
 		b = b.SetStorageKeys(g.StorageKeys)
+	}
+	if len(g.InputStorageKeys) > 0 {
+		b = b.SetInputStorageKeys(g.InputStorageKeys)
 	}
 	if g.Width != nil {
 		b = b.SetWidth(*g.Width)
