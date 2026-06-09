@@ -89,10 +89,6 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", parseErr.Error())
 		return
 	} else if ok {
-		if parsedImages.Stream {
-			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "streaming chat image generation is not supported; use stream=false or /v1/images/generations")
-			return
-		}
 		h.handleParsedOpenAIImages(c, &streamStarted, requestStart, apiKey, subject, reqLog, body, parsedImages, "handler.openai_gateway.chat_completions", true)
 		return
 	}

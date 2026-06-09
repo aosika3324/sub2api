@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 )
 
@@ -104,12 +107,18 @@ func (h *OpenAIGatewayHandler) handleParsedOpenAIImages(
 	requestCtx := service.WithOpenAIImageGenerationIntent(c.Request.Context())
 	originalWriter := c.Writer
 	var captureWriter *openAIImagesResponseCapture
-	if chatCompletionsEnvelope && !parsed.Stream {
-		captureWriter = &openAIImagesResponseCapture{
-			ResponseWriter: originalWriter,
-			header:         make(http.Header),
+	var chatStreamWriter *openAIChatImagesStreamWriter
+	if chatCompletionsEnvelope {
+		if parsed.Stream {
+			chatStreamWriter = newOpenAIChatImagesStreamWriter(originalWriter, requestModel)
+			c.Writer = chatStreamWriter
+		} else {
+			captureWriter = &openAIImagesResponseCapture{
+				ResponseWriter: originalWriter,
+				header:         make(http.Header),
+			}
+			c.Writer = captureWriter
 		}
-		c.Writer = captureWriter
 	}
 
 	genResult, genErr := h.gatewayService.GenerateImages(requestCtx, service.ImageGenInput{
@@ -172,11 +181,19 @@ func (h *OpenAIGatewayHandler) handleParsedOpenAIImages(
 			c.Writer = originalWriter
 			captureWriter.flushTo(originalWriter)
 		}
+		if chatStreamWriter != nil {
+			c.Writer = originalWriter
+			chatStreamWriter.finish()
+		}
 		return
 	}
 	if captureWriter != nil {
 		c.Writer = originalWriter
 		h.writeOpenAIChatImagesCompletionEnvelope(c, parsed, captureWriter.body.Bytes())
+	}
+	if chatStreamWriter != nil {
+		c.Writer = originalWriter
+		chatStreamWriter.finish()
 	}
 
 	result := genResult.Result
@@ -344,4 +361,274 @@ func openAIChatImagesMarkdownContent(imagesBody []byte) string {
 		return "Image generation completed."
 	}
 	return strings.Join(parts, "\n\n")
+}
+
+type openAIChatImagesStreamWriter struct {
+	gin.ResponseWriter
+	model        string
+	id           string
+	created      int64
+	lineBuffer   string
+	eventName    string
+	dataLines    []string
+	sentRole     bool
+	finished     bool
+	errorWritten bool
+	passthrough  bool
+}
+
+func newOpenAIChatImagesStreamWriter(dst gin.ResponseWriter, model string) *openAIChatImagesStreamWriter {
+	return &openAIChatImagesStreamWriter{
+		ResponseWriter: dst,
+		model:          strings.TrimSpace(model),
+		id:             "chatcmpl-" + uuid.NewString(),
+		created:        time.Now().Unix(),
+	}
+}
+
+func (w *openAIChatImagesStreamWriter) Header() http.Header {
+	return w.ResponseWriter.Header()
+}
+
+func (w *openAIChatImagesStreamWriter) Write(data []byte) (int, error) {
+	w.processStreamBytes(data)
+	return len(data), nil
+}
+
+func (w *openAIChatImagesStreamWriter) WriteString(s string) (int, error) {
+	w.processStreamBytes([]byte(s))
+	return len(s), nil
+}
+
+func (w *openAIChatImagesStreamWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (w *openAIChatImagesStreamWriter) processStreamBytes(data []byte) {
+	if w == nil || w.finished || len(data) == 0 {
+		return
+	}
+	if w.passthrough {
+		_, _ = w.ResponseWriter.Write(data)
+		w.Flush()
+		return
+	}
+	if w.lineBuffer == "" && len(w.dataLines) == 0 && w.eventName == "" && !openAIChatImagesLooksLikeSSELine(string(data)) {
+		if w.processNonSSEPayload(data) {
+			return
+		}
+		w.passthrough = true
+		_, _ = w.ResponseWriter.Write(data)
+		w.Flush()
+		return
+	}
+	w.lineBuffer += string(data)
+	for {
+		idx := strings.IndexByte(w.lineBuffer, '\n')
+		if idx < 0 {
+			return
+		}
+		line := w.lineBuffer[:idx+1]
+		w.lineBuffer = w.lineBuffer[idx+1:]
+		w.processSSELine(strings.TrimRight(line, "\r\n"))
+	}
+}
+
+func (w *openAIChatImagesStreamWriter) processNonSSEPayload(data []byte) bool {
+	if w == nil || len(data) == 0 || !gjson.ValidBytes(data) {
+		return false
+	}
+	if gjson.GetBytes(data, "error").Exists() {
+		return false
+	}
+	if content := openAIChatImagesStreamContent(data); content != "" {
+		w.writeChunk(map[string]any{"content": content}, nil)
+		return true
+	}
+	return false
+}
+
+func (w *openAIChatImagesStreamWriter) processSSELine(line string) {
+	if strings.TrimSpace(line) == "" {
+		w.flushSSEEvent()
+		return
+	}
+	if strings.HasPrefix(line, ":") {
+		_, _ = io.WriteString(w.ResponseWriter, line+"\n\n")
+		w.Flush()
+		return
+	}
+	if strings.HasPrefix(line, "event:") {
+		w.eventName = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+		return
+	}
+	if strings.HasPrefix(line, "data:") {
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			w.finish()
+			return
+		}
+		w.dataLines = append(w.dataLines, data)
+	}
+}
+
+func (w *openAIChatImagesStreamWriter) flushSSEEvent() {
+	if w == nil || w.finished || len(w.dataLines) == 0 {
+		w.eventName = ""
+		w.dataLines = nil
+		return
+	}
+	data := []byte(strings.Join(w.dataLines, "\n"))
+	eventName := w.eventName
+	w.eventName = ""
+	w.dataLines = nil
+
+	if eventName == "error" || strings.EqualFold(gjson.GetBytes(data, "type").String(), "error") {
+		w.writeErrorEvent(data)
+		return
+	}
+	if content := openAIChatImagesStreamContent(data); content != "" {
+		w.writeChunk(map[string]any{"content": content}, nil)
+	}
+}
+
+func (w *openAIChatImagesStreamWriter) ensureStreamHeaders() {
+	if w == nil || w.ResponseWriter == nil {
+		return
+	}
+	header := w.ResponseWriter.Header()
+	if strings.TrimSpace(header.Get("Content-Type")) == "" || strings.HasPrefix(strings.ToLower(header.Get("Content-Type")), "application/json") {
+		header.Set("Content-Type", "text/event-stream")
+	}
+	header.Set("Cache-Control", "no-cache")
+	header.Set("Connection", "keep-alive")
+}
+
+func openAIChatImagesStreamContent(data []byte) string {
+	if len(data) == 0 || !gjson.ValidBytes(data) {
+		return ""
+	}
+	if content := openAIChatImagesMarkdownContent(data); content != "Image generation completed." {
+		return content
+	}
+	var parts []string
+	item := gjson.ParseBytes(data)
+	if b64 := strings.TrimSpace(item.Get("b64_json").String()); b64 != "" {
+		parts = append(parts, "![image_1](data:image/png;base64,"+b64+")")
+	}
+	if len(parts) == 0 {
+		if url := strings.TrimSpace(item.Get("url").String()); url != "" {
+			parts = append(parts, "![image_1]("+url+")")
+		}
+	}
+	if len(parts) == 0 {
+		if msg := strings.TrimSpace(item.Get("message").String()); msg != "" {
+			parts = append(parts, msg)
+		}
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+func (w *openAIChatImagesStreamWriter) writeErrorEvent(data []byte) {
+	if w == nil || w.finished {
+		return
+	}
+	w.errorWritten = true
+	if len(data) == 0 || !gjson.ValidBytes(data) {
+		data = []byte(`{"error":{"type":"upstream_error","message":"upstream request failed"}}`)
+	}
+	w.ensureStreamHeaders()
+	if _, err := fmt.Fprintf(w.ResponseWriter, "event: error\ndata: %s\n\n", data); err == nil {
+		w.Flush()
+	}
+	w.finished = true
+}
+
+func (w *openAIChatImagesStreamWriter) writeChunk(delta map[string]any, finishReason *string) {
+	if w == nil || w.finished {
+		return
+	}
+	if !w.sentRole {
+		w.sentRole = true
+		if delta == nil {
+			delta = map[string]any{}
+		}
+		if _, ok := delta["role"]; !ok {
+			delta["role"] = "assistant"
+		}
+	}
+	payload := map[string]any{
+		"id":      w.id,
+		"object":  "chat.completion.chunk",
+		"created": w.created,
+		"model":   w.model,
+		"choices": []map[string]any{{
+			"index":         0,
+			"delta":         delta,
+			"finish_reason": finishReason,
+		}},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		w.writeErrorEvent(buildOpenAIChatImagesStreamErrorBody(err.Error()))
+		return
+	}
+	w.ensureStreamHeaders()
+	if _, err := fmt.Fprintf(w.ResponseWriter, "data: %s\n\n", body); err == nil {
+		w.Flush()
+	}
+}
+
+func (w *openAIChatImagesStreamWriter) finish() {
+	if w == nil || w.finished {
+		return
+	}
+	if w.passthrough {
+		w.Flush()
+		w.finished = true
+		return
+	}
+	if strings.TrimSpace(w.lineBuffer) != "" {
+		if !openAIChatImagesLooksLikeSSELine(w.lineBuffer) {
+			_, _ = io.WriteString(w.ResponseWriter, w.lineBuffer)
+			w.Flush()
+			w.lineBuffer = ""
+			w.finished = true
+			return
+		}
+		w.processSSELine(strings.TrimRight(w.lineBuffer, "\r\n"))
+		w.lineBuffer = ""
+	}
+	w.flushSSEEvent()
+	if w.errorWritten || w.finished {
+		return
+	}
+	if !w.sentRole {
+		w.writeChunk(map[string]any{"content": ""}, nil)
+	}
+	stop := "stop"
+	w.writeChunk(map[string]any{}, &stop)
+	w.ensureStreamHeaders()
+	_, _ = io.WriteString(w.ResponseWriter, "data: [DONE]\n\n")
+	w.Flush()
+	w.finished = true
+}
+
+func openAIChatImagesLooksLikeSSELine(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	return trimmed == "" ||
+		strings.HasPrefix(trimmed, ":") ||
+		strings.HasPrefix(trimmed, "event:") ||
+		strings.HasPrefix(trimmed, "data:")
+}
+
+func buildOpenAIChatImagesStreamErrorBody(message string) []byte {
+	if strings.TrimSpace(message) == "" {
+		message = "upstream request failed"
+	}
+	body := []byte(`{"error":{"type":"upstream_error","message":""}}`)
+	body, _ = sjson.SetBytes(body, "error.message", message)
+	return body
 }
