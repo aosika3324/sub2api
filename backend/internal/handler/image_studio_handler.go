@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -585,7 +586,12 @@ func (h *ImageStudioHandler) GetAsset(c *gin.Context) {
 		return
 	}
 
-	reader, contentType, err := h.store.Open(c.Request.Context(), gen.StorageKeys[idx])
+	key := gen.StorageKeys[idx]
+	if applyStudioAssetCacheHeaders(c, gen, key) {
+		return
+	}
+
+	reader, contentType, err := h.store.Open(c.Request.Context(), key)
 	if err != nil {
 		response.NotFound(c, "Image not found")
 		return
@@ -596,9 +602,6 @@ func (h *ImageStudioHandler) GetAsset(c *gin.Context) {
 		contentType = "image/png"
 	}
 	c.Header("Content-Type", contentType)
-	// Studio images are immutable for a given (genID, idx); cache aggressively but
-	// keep them private to the authenticated user.
-	c.Header("Cache-Control", "private, max-age=86400")
 	c.Status(http.StatusOK)
 	_, _ = io.Copy(c.Writer, reader)
 }
@@ -638,7 +641,12 @@ func (h *ImageStudioHandler) GetInputAsset(c *gin.Context) {
 		return
 	}
 
-	reader, contentType, err := h.store.Open(c.Request.Context(), gen.InputStorageKeys[idx])
+	key := gen.InputStorageKeys[idx]
+	if applyStudioAssetCacheHeaders(c, gen, key) {
+		return
+	}
+
+	reader, contentType, err := h.store.Open(c.Request.Context(), key)
 	if err != nil {
 		response.NotFound(c, "Image not found")
 		return
@@ -649,7 +657,6 @@ func (h *ImageStudioHandler) GetInputAsset(c *gin.Context) {
 		contentType = "image/png"
 	}
 	c.Header("Content-Type", contentType)
-	c.Header("Cache-Control", "private, max-age=86400")
 	c.Status(http.StatusOK)
 	_, _ = io.Copy(c.Writer, reader)
 }
@@ -718,6 +725,52 @@ func buildInputAssetURLs(genID int64, count int) []string {
 		urls = append(urls, imageStudioInputAssetsRoutePrefix+"/"+strconv.FormatInt(genID, 10)+"/"+strconv.Itoa(i))
 	}
 	return urls
+}
+
+// applyStudioAssetCacheHeaders sets private immutable-style cache headers for a
+// stored studio asset and returns true when the request was satisfied as 304.
+func applyStudioAssetCacheHeaders(c *gin.Context, gen *dbent.ImageGeneration, key string) bool {
+	if c == nil || gen == nil {
+		return false
+	}
+	modified := gen.UpdatedAt
+	if modified.IsZero() {
+		modified = gen.CreatedAt
+	}
+	modified = modified.UTC().Truncate(time.Second)
+	etag := fmt.Sprintf(`"studio-%d-%s"`, gen.ID, strings.ReplaceAll(key, `"`, `%22`))
+
+	c.Header("Cache-Control", "private, max-age=86400")
+	c.Header("ETag", etag)
+	if !modified.IsZero() {
+		c.Header("Last-Modified", modified.Format(http.TimeFormat))
+	}
+
+	if studioAssetETagMatches(c.GetHeader("If-None-Match"), etag) {
+		c.Status(http.StatusNotModified)
+		return true
+	}
+	if raw := strings.TrimSpace(c.GetHeader("If-Modified-Since")); raw != "" && !modified.IsZero() {
+		if since, err := http.ParseTime(raw); err == nil && !modified.After(since.UTC()) {
+			c.Status(http.StatusNotModified)
+			return true
+		}
+	}
+	return false
+}
+
+func studioAssetETagMatches(raw, etag string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false
+	}
+	for _, part := range strings.Split(raw, ",") {
+		tag := strings.TrimSpace(part)
+		if tag == "*" || tag == etag || strings.TrimPrefix(tag, "W/") == etag {
+			return true
+		}
+	}
+	return false
 }
 
 func toConversationResponse(conv *dbent.ImageConversation) conversationResponse {

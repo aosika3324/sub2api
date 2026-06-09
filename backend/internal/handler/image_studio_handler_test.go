@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -343,10 +344,12 @@ func TestImageStudioGetAsset_OtherUser404(t *testing.T) {
 }
 
 func TestImageStudioGetAsset_OwnerStreamsBytes(t *testing.T) {
+	updatedAt := time.Date(2026, 6, 9, 8, 30, 0, 0, time.UTC)
 	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
 		ID:          5,
 		UserID:      7,
 		StorageKeys: []string{"user_7/5/0.png"},
+		UpdatedAt:   updatedAt,
 	}}
 	store := &studioStoreStub{data: []byte("the-png-bytes"), contentType: "image/png"}
 	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
@@ -360,7 +363,57 @@ func TestImageStudioGetAsset_OwnerStreamsBytes(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "user_7/5/0.png", store.openedKey)
 	require.Equal(t, "image/png", w.Header().Get("Content-Type"))
+	require.Equal(t, "private, max-age=86400", w.Header().Get("Cache-Control"))
+	require.Equal(t, `"studio-5-user_7/5/0.png"`, w.Header().Get("ETag"))
+	require.Equal(t, updatedAt.Format(http.TimeFormat), w.Header().Get("Last-Modified"))
 	require.Equal(t, []byte("the-png-bytes"), w.Body.Bytes())
+}
+
+func TestImageStudioGetAsset_IfNoneMatchReturns304WithoutOpeningStore(t *testing.T) {
+	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
+		ID:          5,
+		UserID:      7,
+		StorageKeys: []string{"user_7/5/0.png"},
+		UpdatedAt:   time.Date(2026, 6, 9, 8, 30, 0, 0, time.UTC),
+	}}
+	store := &studioStoreStub{data: []byte("the-png-bytes"), contentType: "image/png"}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodGet, "/assets/5/0", "")
+	c.Params = gin.Params{{Key: "genID", Value: "5"}, {Key: "idx", Value: "0"}}
+	c.Request.Header.Set("If-None-Match", `"other", W/"studio-5-user_7/5/0.png"`)
+	setStudioAuth(c, 7)
+
+	h.GetAsset(c)
+
+	require.Equal(t, http.StatusNotModified, w.Code)
+	require.Equal(t, `"studio-5-user_7/5/0.png"`, w.Header().Get("ETag"))
+	require.Empty(t, store.openedKey)
+	require.Empty(t, w.Body.Bytes())
+}
+
+func TestImageStudioGetAsset_IfModifiedSinceReturns304WithoutOpeningStore(t *testing.T) {
+	updatedAt := time.Date(2026, 6, 9, 8, 30, 0, 0, time.UTC)
+	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
+		ID:          5,
+		UserID:      7,
+		StorageKeys: []string{"user_7/5/0.png"},
+		UpdatedAt:   updatedAt,
+	}}
+	store := &studioStoreStub{data: []byte("the-png-bytes"), contentType: "image/png"}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodGet, "/assets/5/0", "")
+	c.Params = gin.Params{{Key: "genID", Value: "5"}, {Key: "idx", Value: "0"}}
+	c.Request.Header.Set("If-Modified-Since", updatedAt.Add(time.Hour).Format(http.TimeFormat))
+	setStudioAuth(c, 7)
+
+	h.GetAsset(c)
+
+	require.Equal(t, http.StatusNotModified, w.Code)
+	require.Equal(t, updatedAt.Format(http.TimeFormat), w.Header().Get("Last-Modified"))
+	require.Empty(t, store.openedKey)
+	require.Empty(t, w.Body.Bytes())
 }
 
 func TestImageStudioGetAsset_IndexOutOfRange404(t *testing.T) {
@@ -386,10 +439,12 @@ func TestImageStudioGetAsset_IndexOutOfRange404(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestImageStudioGetInputAsset_OwnerStreams(t *testing.T) {
+	updatedAt := time.Date(2026, 6, 9, 8, 30, 0, 0, time.UTC)
 	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
 		ID:               5,
 		UserID:           7,
 		InputStorageKeys: []string{"user_7/5/input/0.png"},
+		UpdatedAt:        updatedAt,
 	}}
 	store := &studioStoreStub{data: []byte("the-ref-bytes"), contentType: "image/png"}
 	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
@@ -403,7 +458,33 @@ func TestImageStudioGetInputAsset_OwnerStreams(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "user_7/5/input/0.png", store.openedKey)
 	require.Equal(t, "image/png", w.Header().Get("Content-Type"))
+	require.Equal(t, "private, max-age=86400", w.Header().Get("Cache-Control"))
+	require.Equal(t, `"studio-5-user_7/5/input/0.png"`, w.Header().Get("ETag"))
+	require.Equal(t, updatedAt.Format(http.TimeFormat), w.Header().Get("Last-Modified"))
 	require.Equal(t, []byte("the-ref-bytes"), w.Body.Bytes())
+}
+
+func TestImageStudioGetInputAsset_IfNoneMatchReturns304WithoutOpeningStore(t *testing.T) {
+	repo := &studioRepoStub{generation: &dbent.ImageGeneration{
+		ID:               5,
+		UserID:           7,
+		InputStorageKeys: []string{"user_7/5/input/0.png"},
+		UpdatedAt:        time.Date(2026, 6, 9, 8, 30, 0, 0, time.UTC),
+	}}
+	store := &studioStoreStub{data: []byte("the-ref-bytes"), contentType: "image/png"}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: store}
+
+	w, c := newStudioContext(http.MethodGet, "/input-assets/5/0", "")
+	c.Params = gin.Params{{Key: "genID", Value: "5"}, {Key: "idx", Value: "0"}}
+	c.Request.Header.Set("If-None-Match", `"studio-5-user_7/5/input/0.png"`)
+	setStudioAuth(c, 7)
+
+	h.GetInputAsset(c)
+
+	require.Equal(t, http.StatusNotModified, w.Code)
+	require.Equal(t, `"studio-5-user_7/5/input/0.png"`, w.Header().Get("ETag"))
+	require.Empty(t, store.openedKey)
+	require.Empty(t, w.Body.Bytes())
 }
 
 func TestImageStudioGetInputAsset_OtherUser404(t *testing.T) {
