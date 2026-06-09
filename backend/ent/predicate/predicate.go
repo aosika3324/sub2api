@@ -39,6 +39,12 @@ type ChannelMonitorHistory func(*sql.Selector)
 // ChannelMonitorRequestTemplate is the predicate function for channelmonitorrequesttemplate builders.
 type ChannelMonitorRequestTemplate func(*sql.Selector)
 
+// EditableFileArtifact is the predicate function for editablefileartifact builders.
+type EditableFileArtifact func(*sql.Selector)
+
+// EditableFileTask is the predicate function for editablefiletask builders.
+type EditableFileTask func(*sql.Selector)
+
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)
 

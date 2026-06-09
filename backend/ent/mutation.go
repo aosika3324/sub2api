@@ -23,6 +23,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/editablefileartifact"
+	"github.com/Wei-Shaw/sub2api/ent/editablefiletask"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -73,6 +75,8 @@ const (
 	TypeChannelMonitorDailyRollup     = "ChannelMonitorDailyRollup"
 	TypeChannelMonitorHistory         = "ChannelMonitorHistory"
 	TypeChannelMonitorRequestTemplate = "ChannelMonitorRequestTemplate"
+	TypeEditableFileArtifact          = "EditableFileArtifact"
+	TypeEditableFileTask              = "EditableFileTask"
 	TypeErrorPassthroughRule          = "ErrorPassthroughRule"
 	TypeGroup                         = "Group"
 	TypeIdempotencyRecord             = "IdempotencyRecord"
@@ -13692,6 +13696,2707 @@ func (m *ChannelMonitorRequestTemplateMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelMonitorRequestTemplate edge %s", name)
+}
+
+// EditableFileArtifactMutation represents an operation that mutates the EditableFileArtifact nodes in the graph.
+type EditableFileArtifactMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int64
+	created_at     *time.Time
+	updated_at     *time.Time
+	deleted_at     *time.Time
+	task_id        *int64
+	addtask_id     *int64
+	user_id        *int64
+	adduser_id     *int64
+	kind           *string
+	file_name      *string
+	mime_type      *string
+	size_bytes     *int64
+	addsize_bytes  *int64
+	storage_key    *string
+	source_pointer *string
+	sha256         *string
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*EditableFileArtifact, error)
+	predicates     []predicate.EditableFileArtifact
+}
+
+var _ ent.Mutation = (*EditableFileArtifactMutation)(nil)
+
+// editablefileartifactOption allows management of the mutation configuration using functional options.
+type editablefileartifactOption func(*EditableFileArtifactMutation)
+
+// newEditableFileArtifactMutation creates new mutation for the EditableFileArtifact entity.
+func newEditableFileArtifactMutation(c config, op Op, opts ...editablefileartifactOption) *EditableFileArtifactMutation {
+	m := &EditableFileArtifactMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEditableFileArtifact,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEditableFileArtifactID sets the ID field of the mutation.
+func withEditableFileArtifactID(id int64) editablefileartifactOption {
+	return func(m *EditableFileArtifactMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EditableFileArtifact
+		)
+		m.oldValue = func(ctx context.Context) (*EditableFileArtifact, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EditableFileArtifact.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEditableFileArtifact sets the old EditableFileArtifact of the mutation.
+func withEditableFileArtifact(node *EditableFileArtifact) editablefileartifactOption {
+	return func(m *EditableFileArtifactMutation) {
+		m.oldValue = func(context.Context) (*EditableFileArtifact, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EditableFileArtifactMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EditableFileArtifactMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EditableFileArtifactMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EditableFileArtifactMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EditableFileArtifact.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EditableFileArtifactMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EditableFileArtifactMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EditableFileArtifactMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EditableFileArtifactMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EditableFileArtifactMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EditableFileArtifactMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *EditableFileArtifactMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *EditableFileArtifactMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *EditableFileArtifactMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[editablefileartifact.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *EditableFileArtifactMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[editablefileartifact.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *EditableFileArtifactMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, editablefileartifact.FieldDeletedAt)
+}
+
+// SetTaskID sets the "task_id" field.
+func (m *EditableFileArtifactMutation) SetTaskID(i int64) {
+	m.task_id = &i
+	m.addtask_id = nil
+}
+
+// TaskID returns the value of the "task_id" field in the mutation.
+func (m *EditableFileArtifactMutation) TaskID() (r int64, exists bool) {
+	v := m.task_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaskID returns the old "task_id" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldTaskID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaskID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaskID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaskID: %w", err)
+	}
+	return oldValue.TaskID, nil
+}
+
+// AddTaskID adds i to the "task_id" field.
+func (m *EditableFileArtifactMutation) AddTaskID(i int64) {
+	if m.addtask_id != nil {
+		*m.addtask_id += i
+	} else {
+		m.addtask_id = &i
+	}
+}
+
+// AddedTaskID returns the value that was added to the "task_id" field in this mutation.
+func (m *EditableFileArtifactMutation) AddedTaskID() (r int64, exists bool) {
+	v := m.addtask_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTaskID resets all changes to the "task_id" field.
+func (m *EditableFileArtifactMutation) ResetTaskID() {
+	m.task_id = nil
+	m.addtask_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *EditableFileArtifactMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *EditableFileArtifactMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *EditableFileArtifactMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *EditableFileArtifactMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *EditableFileArtifactMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *EditableFileArtifactMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *EditableFileArtifactMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *EditableFileArtifactMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetFileName sets the "file_name" field.
+func (m *EditableFileArtifactMutation) SetFileName(s string) {
+	m.file_name = &s
+}
+
+// FileName returns the value of the "file_name" field in the mutation.
+func (m *EditableFileArtifactMutation) FileName() (r string, exists bool) {
+	v := m.file_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFileName returns the old "file_name" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldFileName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFileName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFileName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFileName: %w", err)
+	}
+	return oldValue.FileName, nil
+}
+
+// ResetFileName resets all changes to the "file_name" field.
+func (m *EditableFileArtifactMutation) ResetFileName() {
+	m.file_name = nil
+}
+
+// SetMimeType sets the "mime_type" field.
+func (m *EditableFileArtifactMutation) SetMimeType(s string) {
+	m.mime_type = &s
+}
+
+// MimeType returns the value of the "mime_type" field in the mutation.
+func (m *EditableFileArtifactMutation) MimeType() (r string, exists bool) {
+	v := m.mime_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMimeType returns the old "mime_type" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldMimeType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMimeType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMimeType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMimeType: %w", err)
+	}
+	return oldValue.MimeType, nil
+}
+
+// ResetMimeType resets all changes to the "mime_type" field.
+func (m *EditableFileArtifactMutation) ResetMimeType() {
+	m.mime_type = nil
+}
+
+// SetSizeBytes sets the "size_bytes" field.
+func (m *EditableFileArtifactMutation) SetSizeBytes(i int64) {
+	m.size_bytes = &i
+	m.addsize_bytes = nil
+}
+
+// SizeBytes returns the value of the "size_bytes" field in the mutation.
+func (m *EditableFileArtifactMutation) SizeBytes() (r int64, exists bool) {
+	v := m.size_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSizeBytes returns the old "size_bytes" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldSizeBytes(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSizeBytes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSizeBytes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSizeBytes: %w", err)
+	}
+	return oldValue.SizeBytes, nil
+}
+
+// AddSizeBytes adds i to the "size_bytes" field.
+func (m *EditableFileArtifactMutation) AddSizeBytes(i int64) {
+	if m.addsize_bytes != nil {
+		*m.addsize_bytes += i
+	} else {
+		m.addsize_bytes = &i
+	}
+}
+
+// AddedSizeBytes returns the value that was added to the "size_bytes" field in this mutation.
+func (m *EditableFileArtifactMutation) AddedSizeBytes() (r int64, exists bool) {
+	v := m.addsize_bytes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSizeBytes resets all changes to the "size_bytes" field.
+func (m *EditableFileArtifactMutation) ResetSizeBytes() {
+	m.size_bytes = nil
+	m.addsize_bytes = nil
+}
+
+// SetStorageKey sets the "storage_key" field.
+func (m *EditableFileArtifactMutation) SetStorageKey(s string) {
+	m.storage_key = &s
+}
+
+// StorageKey returns the value of the "storage_key" field in the mutation.
+func (m *EditableFileArtifactMutation) StorageKey() (r string, exists bool) {
+	v := m.storage_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorageKey returns the old "storage_key" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldStorageKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorageKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorageKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorageKey: %w", err)
+	}
+	return oldValue.StorageKey, nil
+}
+
+// ResetStorageKey resets all changes to the "storage_key" field.
+func (m *EditableFileArtifactMutation) ResetStorageKey() {
+	m.storage_key = nil
+}
+
+// SetSourcePointer sets the "source_pointer" field.
+func (m *EditableFileArtifactMutation) SetSourcePointer(s string) {
+	m.source_pointer = &s
+}
+
+// SourcePointer returns the value of the "source_pointer" field in the mutation.
+func (m *EditableFileArtifactMutation) SourcePointer() (r string, exists bool) {
+	v := m.source_pointer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourcePointer returns the old "source_pointer" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldSourcePointer(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourcePointer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourcePointer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourcePointer: %w", err)
+	}
+	return oldValue.SourcePointer, nil
+}
+
+// ClearSourcePointer clears the value of the "source_pointer" field.
+func (m *EditableFileArtifactMutation) ClearSourcePointer() {
+	m.source_pointer = nil
+	m.clearedFields[editablefileartifact.FieldSourcePointer] = struct{}{}
+}
+
+// SourcePointerCleared returns if the "source_pointer" field was cleared in this mutation.
+func (m *EditableFileArtifactMutation) SourcePointerCleared() bool {
+	_, ok := m.clearedFields[editablefileartifact.FieldSourcePointer]
+	return ok
+}
+
+// ResetSourcePointer resets all changes to the "source_pointer" field.
+func (m *EditableFileArtifactMutation) ResetSourcePointer() {
+	m.source_pointer = nil
+	delete(m.clearedFields, editablefileartifact.FieldSourcePointer)
+}
+
+// SetSha256 sets the "sha256" field.
+func (m *EditableFileArtifactMutation) SetSha256(s string) {
+	m.sha256 = &s
+}
+
+// Sha256 returns the value of the "sha256" field in the mutation.
+func (m *EditableFileArtifactMutation) Sha256() (r string, exists bool) {
+	v := m.sha256
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSha256 returns the old "sha256" field's value of the EditableFileArtifact entity.
+// If the EditableFileArtifact object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileArtifactMutation) OldSha256(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSha256 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSha256 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSha256: %w", err)
+	}
+	return oldValue.Sha256, nil
+}
+
+// ResetSha256 resets all changes to the "sha256" field.
+func (m *EditableFileArtifactMutation) ResetSha256() {
+	m.sha256 = nil
+}
+
+// Where appends a list predicates to the EditableFileArtifactMutation builder.
+func (m *EditableFileArtifactMutation) Where(ps ...predicate.EditableFileArtifact) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EditableFileArtifactMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EditableFileArtifactMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EditableFileArtifact, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EditableFileArtifactMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EditableFileArtifactMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EditableFileArtifact).
+func (m *EditableFileArtifactMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EditableFileArtifactMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.created_at != nil {
+		fields = append(fields, editablefileartifact.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, editablefileartifact.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, editablefileartifact.FieldDeletedAt)
+	}
+	if m.task_id != nil {
+		fields = append(fields, editablefileartifact.FieldTaskID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, editablefileartifact.FieldUserID)
+	}
+	if m.kind != nil {
+		fields = append(fields, editablefileartifact.FieldKind)
+	}
+	if m.file_name != nil {
+		fields = append(fields, editablefileartifact.FieldFileName)
+	}
+	if m.mime_type != nil {
+		fields = append(fields, editablefileartifact.FieldMimeType)
+	}
+	if m.size_bytes != nil {
+		fields = append(fields, editablefileartifact.FieldSizeBytes)
+	}
+	if m.storage_key != nil {
+		fields = append(fields, editablefileartifact.FieldStorageKey)
+	}
+	if m.source_pointer != nil {
+		fields = append(fields, editablefileartifact.FieldSourcePointer)
+	}
+	if m.sha256 != nil {
+		fields = append(fields, editablefileartifact.FieldSha256)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EditableFileArtifactMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case editablefileartifact.FieldCreatedAt:
+		return m.CreatedAt()
+	case editablefileartifact.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case editablefileartifact.FieldDeletedAt:
+		return m.DeletedAt()
+	case editablefileartifact.FieldTaskID:
+		return m.TaskID()
+	case editablefileartifact.FieldUserID:
+		return m.UserID()
+	case editablefileartifact.FieldKind:
+		return m.Kind()
+	case editablefileartifact.FieldFileName:
+		return m.FileName()
+	case editablefileartifact.FieldMimeType:
+		return m.MimeType()
+	case editablefileartifact.FieldSizeBytes:
+		return m.SizeBytes()
+	case editablefileartifact.FieldStorageKey:
+		return m.StorageKey()
+	case editablefileartifact.FieldSourcePointer:
+		return m.SourcePointer()
+	case editablefileartifact.FieldSha256:
+		return m.Sha256()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EditableFileArtifactMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case editablefileartifact.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case editablefileartifact.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case editablefileartifact.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case editablefileartifact.FieldTaskID:
+		return m.OldTaskID(ctx)
+	case editablefileartifact.FieldUserID:
+		return m.OldUserID(ctx)
+	case editablefileartifact.FieldKind:
+		return m.OldKind(ctx)
+	case editablefileartifact.FieldFileName:
+		return m.OldFileName(ctx)
+	case editablefileartifact.FieldMimeType:
+		return m.OldMimeType(ctx)
+	case editablefileartifact.FieldSizeBytes:
+		return m.OldSizeBytes(ctx)
+	case editablefileartifact.FieldStorageKey:
+		return m.OldStorageKey(ctx)
+	case editablefileartifact.FieldSourcePointer:
+		return m.OldSourcePointer(ctx)
+	case editablefileartifact.FieldSha256:
+		return m.OldSha256(ctx)
+	}
+	return nil, fmt.Errorf("unknown EditableFileArtifact field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EditableFileArtifactMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case editablefileartifact.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case editablefileartifact.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case editablefileartifact.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case editablefileartifact.FieldTaskID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaskID(v)
+		return nil
+	case editablefileartifact.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case editablefileartifact.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case editablefileartifact.FieldFileName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFileName(v)
+		return nil
+	case editablefileartifact.FieldMimeType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMimeType(v)
+		return nil
+	case editablefileartifact.FieldSizeBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSizeBytes(v)
+		return nil
+	case editablefileartifact.FieldStorageKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorageKey(v)
+		return nil
+	case editablefileartifact.FieldSourcePointer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourcePointer(v)
+		return nil
+	case editablefileartifact.FieldSha256:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSha256(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EditableFileArtifact field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EditableFileArtifactMutation) AddedFields() []string {
+	var fields []string
+	if m.addtask_id != nil {
+		fields = append(fields, editablefileartifact.FieldTaskID)
+	}
+	if m.adduser_id != nil {
+		fields = append(fields, editablefileartifact.FieldUserID)
+	}
+	if m.addsize_bytes != nil {
+		fields = append(fields, editablefileartifact.FieldSizeBytes)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EditableFileArtifactMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case editablefileartifact.FieldTaskID:
+		return m.AddedTaskID()
+	case editablefileartifact.FieldUserID:
+		return m.AddedUserID()
+	case editablefileartifact.FieldSizeBytes:
+		return m.AddedSizeBytes()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EditableFileArtifactMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case editablefileartifact.FieldTaskID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTaskID(v)
+		return nil
+	case editablefileartifact.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case editablefileartifact.FieldSizeBytes:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSizeBytes(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EditableFileArtifact numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EditableFileArtifactMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(editablefileartifact.FieldDeletedAt) {
+		fields = append(fields, editablefileartifact.FieldDeletedAt)
+	}
+	if m.FieldCleared(editablefileartifact.FieldSourcePointer) {
+		fields = append(fields, editablefileartifact.FieldSourcePointer)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EditableFileArtifactMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EditableFileArtifactMutation) ClearField(name string) error {
+	switch name {
+	case editablefileartifact.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case editablefileartifact.FieldSourcePointer:
+		m.ClearSourcePointer()
+		return nil
+	}
+	return fmt.Errorf("unknown EditableFileArtifact nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EditableFileArtifactMutation) ResetField(name string) error {
+	switch name {
+	case editablefileartifact.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case editablefileartifact.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case editablefileartifact.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case editablefileartifact.FieldTaskID:
+		m.ResetTaskID()
+		return nil
+	case editablefileartifact.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case editablefileartifact.FieldKind:
+		m.ResetKind()
+		return nil
+	case editablefileartifact.FieldFileName:
+		m.ResetFileName()
+		return nil
+	case editablefileartifact.FieldMimeType:
+		m.ResetMimeType()
+		return nil
+	case editablefileartifact.FieldSizeBytes:
+		m.ResetSizeBytes()
+		return nil
+	case editablefileartifact.FieldStorageKey:
+		m.ResetStorageKey()
+		return nil
+	case editablefileartifact.FieldSourcePointer:
+		m.ResetSourcePointer()
+		return nil
+	case editablefileartifact.FieldSha256:
+		m.ResetSha256()
+		return nil
+	}
+	return fmt.Errorf("unknown EditableFileArtifact field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EditableFileArtifactMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EditableFileArtifactMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EditableFileArtifactMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EditableFileArtifactMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EditableFileArtifactMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EditableFileArtifactMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EditableFileArtifactMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EditableFileArtifact unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EditableFileArtifactMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EditableFileArtifact edge %s", name)
+}
+
+// EditableFileTaskMutation represents an operation that mutates the EditableFileTask nodes in the graph.
+type EditableFileTaskMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int64
+	created_at               *time.Time
+	updated_at               *time.Time
+	deleted_at               *time.Time
+	user_id                  *int64
+	adduser_id               *int64
+	group_id                 *int64
+	addgroup_id              *int64
+	api_key_id               *int64
+	addapi_key_id            *int64
+	image_conversation_id    *int64
+	addimage_conversation_id *int64
+	source_generation_id     *int64
+	addsource_generation_id  *int64
+	account_id               *int64
+	addaccount_id            *int64
+	kind                     *string
+	status                   *string
+	prompt                   *string
+	model                    *string
+	client_task_id           *string
+	chatgpt_conversation_id  *string
+	cost                     *float64
+	addcost                  *float64
+	error                    *string
+	expires_at               *time.Time
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*EditableFileTask, error)
+	predicates               []predicate.EditableFileTask
+}
+
+var _ ent.Mutation = (*EditableFileTaskMutation)(nil)
+
+// editablefiletaskOption allows management of the mutation configuration using functional options.
+type editablefiletaskOption func(*EditableFileTaskMutation)
+
+// newEditableFileTaskMutation creates new mutation for the EditableFileTask entity.
+func newEditableFileTaskMutation(c config, op Op, opts ...editablefiletaskOption) *EditableFileTaskMutation {
+	m := &EditableFileTaskMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEditableFileTask,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEditableFileTaskID sets the ID field of the mutation.
+func withEditableFileTaskID(id int64) editablefiletaskOption {
+	return func(m *EditableFileTaskMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EditableFileTask
+		)
+		m.oldValue = func(ctx context.Context) (*EditableFileTask, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EditableFileTask.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEditableFileTask sets the old EditableFileTask of the mutation.
+func withEditableFileTask(node *EditableFileTask) editablefiletaskOption {
+	return func(m *EditableFileTaskMutation) {
+		m.oldValue = func(context.Context) (*EditableFileTask, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EditableFileTaskMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EditableFileTaskMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EditableFileTaskMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EditableFileTaskMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EditableFileTask.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EditableFileTaskMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EditableFileTaskMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EditableFileTaskMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EditableFileTaskMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EditableFileTaskMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EditableFileTaskMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *EditableFileTaskMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *EditableFileTaskMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *EditableFileTaskMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[editablefiletask.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *EditableFileTaskMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[editablefiletask.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *EditableFileTaskMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, editablefiletask.FieldDeletedAt)
+}
+
+// SetUserID sets the "user_id" field.
+func (m *EditableFileTaskMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *EditableFileTaskMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *EditableFileTaskMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *EditableFileTaskMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *EditableFileTaskMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *EditableFileTaskMutation) SetGroupID(i int64) {
+	m.group_id = &i
+	m.addgroup_id = nil
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *EditableFileTaskMutation) GroupID() (r int64, exists bool) {
+	v := m.group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldGroupID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// AddGroupID adds i to the "group_id" field.
+func (m *EditableFileTaskMutation) AddGroupID(i int64) {
+	if m.addgroup_id != nil {
+		*m.addgroup_id += i
+	} else {
+		m.addgroup_id = &i
+	}
+}
+
+// AddedGroupID returns the value that was added to the "group_id" field in this mutation.
+func (m *EditableFileTaskMutation) AddedGroupID() (r int64, exists bool) {
+	v := m.addgroup_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (m *EditableFileTaskMutation) ClearGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+	m.clearedFields[editablefiletask.FieldGroupID] = struct{}{}
+}
+
+// GroupIDCleared returns if the "group_id" field was cleared in this mutation.
+func (m *EditableFileTaskMutation) GroupIDCleared() bool {
+	_, ok := m.clearedFields[editablefiletask.FieldGroupID]
+	return ok
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *EditableFileTaskMutation) ResetGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+	delete(m.clearedFields, editablefiletask.FieldGroupID)
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *EditableFileTaskMutation) SetAPIKeyID(i int64) {
+	m.api_key_id = &i
+	m.addapi_key_id = nil
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *EditableFileTaskMutation) APIKeyID() (r int64, exists bool) {
+	v := m.api_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyID returns the old "api_key_id" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldAPIKeyID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyID: %w", err)
+	}
+	return oldValue.APIKeyID, nil
+}
+
+// AddAPIKeyID adds i to the "api_key_id" field.
+func (m *EditableFileTaskMutation) AddAPIKeyID(i int64) {
+	if m.addapi_key_id != nil {
+		*m.addapi_key_id += i
+	} else {
+		m.addapi_key_id = &i
+	}
+}
+
+// AddedAPIKeyID returns the value that was added to the "api_key_id" field in this mutation.
+func (m *EditableFileTaskMutation) AddedAPIKeyID() (r int64, exists bool) {
+	v := m.addapi_key_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAPIKeyID clears the value of the "api_key_id" field.
+func (m *EditableFileTaskMutation) ClearAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+	m.clearedFields[editablefiletask.FieldAPIKeyID] = struct{}{}
+}
+
+// APIKeyIDCleared returns if the "api_key_id" field was cleared in this mutation.
+func (m *EditableFileTaskMutation) APIKeyIDCleared() bool {
+	_, ok := m.clearedFields[editablefiletask.FieldAPIKeyID]
+	return ok
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *EditableFileTaskMutation) ResetAPIKeyID() {
+	m.api_key_id = nil
+	m.addapi_key_id = nil
+	delete(m.clearedFields, editablefiletask.FieldAPIKeyID)
+}
+
+// SetImageConversationID sets the "image_conversation_id" field.
+func (m *EditableFileTaskMutation) SetImageConversationID(i int64) {
+	m.image_conversation_id = &i
+	m.addimage_conversation_id = nil
+}
+
+// ImageConversationID returns the value of the "image_conversation_id" field in the mutation.
+func (m *EditableFileTaskMutation) ImageConversationID() (r int64, exists bool) {
+	v := m.image_conversation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageConversationID returns the old "image_conversation_id" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldImageConversationID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageConversationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageConversationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageConversationID: %w", err)
+	}
+	return oldValue.ImageConversationID, nil
+}
+
+// AddImageConversationID adds i to the "image_conversation_id" field.
+func (m *EditableFileTaskMutation) AddImageConversationID(i int64) {
+	if m.addimage_conversation_id != nil {
+		*m.addimage_conversation_id += i
+	} else {
+		m.addimage_conversation_id = &i
+	}
+}
+
+// AddedImageConversationID returns the value that was added to the "image_conversation_id" field in this mutation.
+func (m *EditableFileTaskMutation) AddedImageConversationID() (r int64, exists bool) {
+	v := m.addimage_conversation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearImageConversationID clears the value of the "image_conversation_id" field.
+func (m *EditableFileTaskMutation) ClearImageConversationID() {
+	m.image_conversation_id = nil
+	m.addimage_conversation_id = nil
+	m.clearedFields[editablefiletask.FieldImageConversationID] = struct{}{}
+}
+
+// ImageConversationIDCleared returns if the "image_conversation_id" field was cleared in this mutation.
+func (m *EditableFileTaskMutation) ImageConversationIDCleared() bool {
+	_, ok := m.clearedFields[editablefiletask.FieldImageConversationID]
+	return ok
+}
+
+// ResetImageConversationID resets all changes to the "image_conversation_id" field.
+func (m *EditableFileTaskMutation) ResetImageConversationID() {
+	m.image_conversation_id = nil
+	m.addimage_conversation_id = nil
+	delete(m.clearedFields, editablefiletask.FieldImageConversationID)
+}
+
+// SetSourceGenerationID sets the "source_generation_id" field.
+func (m *EditableFileTaskMutation) SetSourceGenerationID(i int64) {
+	m.source_generation_id = &i
+	m.addsource_generation_id = nil
+}
+
+// SourceGenerationID returns the value of the "source_generation_id" field in the mutation.
+func (m *EditableFileTaskMutation) SourceGenerationID() (r int64, exists bool) {
+	v := m.source_generation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceGenerationID returns the old "source_generation_id" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldSourceGenerationID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceGenerationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceGenerationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceGenerationID: %w", err)
+	}
+	return oldValue.SourceGenerationID, nil
+}
+
+// AddSourceGenerationID adds i to the "source_generation_id" field.
+func (m *EditableFileTaskMutation) AddSourceGenerationID(i int64) {
+	if m.addsource_generation_id != nil {
+		*m.addsource_generation_id += i
+	} else {
+		m.addsource_generation_id = &i
+	}
+}
+
+// AddedSourceGenerationID returns the value that was added to the "source_generation_id" field in this mutation.
+func (m *EditableFileTaskMutation) AddedSourceGenerationID() (r int64, exists bool) {
+	v := m.addsource_generation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceGenerationID clears the value of the "source_generation_id" field.
+func (m *EditableFileTaskMutation) ClearSourceGenerationID() {
+	m.source_generation_id = nil
+	m.addsource_generation_id = nil
+	m.clearedFields[editablefiletask.FieldSourceGenerationID] = struct{}{}
+}
+
+// SourceGenerationIDCleared returns if the "source_generation_id" field was cleared in this mutation.
+func (m *EditableFileTaskMutation) SourceGenerationIDCleared() bool {
+	_, ok := m.clearedFields[editablefiletask.FieldSourceGenerationID]
+	return ok
+}
+
+// ResetSourceGenerationID resets all changes to the "source_generation_id" field.
+func (m *EditableFileTaskMutation) ResetSourceGenerationID() {
+	m.source_generation_id = nil
+	m.addsource_generation_id = nil
+	delete(m.clearedFields, editablefiletask.FieldSourceGenerationID)
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *EditableFileTaskMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *EditableFileTaskMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldAccountID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *EditableFileTaskMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *EditableFileTaskMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (m *EditableFileTaskMutation) ClearAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+	m.clearedFields[editablefiletask.FieldAccountID] = struct{}{}
+}
+
+// AccountIDCleared returns if the "account_id" field was cleared in this mutation.
+func (m *EditableFileTaskMutation) AccountIDCleared() bool {
+	_, ok := m.clearedFields[editablefiletask.FieldAccountID]
+	return ok
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *EditableFileTaskMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+	delete(m.clearedFields, editablefiletask.FieldAccountID)
+}
+
+// SetKind sets the "kind" field.
+func (m *EditableFileTaskMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *EditableFileTaskMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *EditableFileTaskMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EditableFileTaskMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EditableFileTaskMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EditableFileTaskMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetPrompt sets the "prompt" field.
+func (m *EditableFileTaskMutation) SetPrompt(s string) {
+	m.prompt = &s
+}
+
+// Prompt returns the value of the "prompt" field in the mutation.
+func (m *EditableFileTaskMutation) Prompt() (r string, exists bool) {
+	v := m.prompt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrompt returns the old "prompt" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldPrompt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrompt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrompt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrompt: %w", err)
+	}
+	return oldValue.Prompt, nil
+}
+
+// ResetPrompt resets all changes to the "prompt" field.
+func (m *EditableFileTaskMutation) ResetPrompt() {
+	m.prompt = nil
+}
+
+// SetModel sets the "model" field.
+func (m *EditableFileTaskMutation) SetModel(s string) {
+	m.model = &s
+}
+
+// Model returns the value of the "model" field in the mutation.
+func (m *EditableFileTaskMutation) Model() (r string, exists bool) {
+	v := m.model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModel returns the old "model" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModel: %w", err)
+	}
+	return oldValue.Model, nil
+}
+
+// ResetModel resets all changes to the "model" field.
+func (m *EditableFileTaskMutation) ResetModel() {
+	m.model = nil
+}
+
+// SetClientTaskID sets the "client_task_id" field.
+func (m *EditableFileTaskMutation) SetClientTaskID(s string) {
+	m.client_task_id = &s
+}
+
+// ClientTaskID returns the value of the "client_task_id" field in the mutation.
+func (m *EditableFileTaskMutation) ClientTaskID() (r string, exists bool) {
+	v := m.client_task_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClientTaskID returns the old "client_task_id" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldClientTaskID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClientTaskID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClientTaskID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClientTaskID: %w", err)
+	}
+	return oldValue.ClientTaskID, nil
+}
+
+// ResetClientTaskID resets all changes to the "client_task_id" field.
+func (m *EditableFileTaskMutation) ResetClientTaskID() {
+	m.client_task_id = nil
+}
+
+// SetChatgptConversationID sets the "chatgpt_conversation_id" field.
+func (m *EditableFileTaskMutation) SetChatgptConversationID(s string) {
+	m.chatgpt_conversation_id = &s
+}
+
+// ChatgptConversationID returns the value of the "chatgpt_conversation_id" field in the mutation.
+func (m *EditableFileTaskMutation) ChatgptConversationID() (r string, exists bool) {
+	v := m.chatgpt_conversation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChatgptConversationID returns the old "chatgpt_conversation_id" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldChatgptConversationID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChatgptConversationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChatgptConversationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChatgptConversationID: %w", err)
+	}
+	return oldValue.ChatgptConversationID, nil
+}
+
+// ResetChatgptConversationID resets all changes to the "chatgpt_conversation_id" field.
+func (m *EditableFileTaskMutation) ResetChatgptConversationID() {
+	m.chatgpt_conversation_id = nil
+}
+
+// SetCost sets the "cost" field.
+func (m *EditableFileTaskMutation) SetCost(f float64) {
+	m.cost = &f
+	m.addcost = nil
+}
+
+// Cost returns the value of the "cost" field in the mutation.
+func (m *EditableFileTaskMutation) Cost() (r float64, exists bool) {
+	v := m.cost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCost returns the old "cost" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldCost(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCost: %w", err)
+	}
+	return oldValue.Cost, nil
+}
+
+// AddCost adds f to the "cost" field.
+func (m *EditableFileTaskMutation) AddCost(f float64) {
+	if m.addcost != nil {
+		*m.addcost += f
+	} else {
+		m.addcost = &f
+	}
+}
+
+// AddedCost returns the value that was added to the "cost" field in this mutation.
+func (m *EditableFileTaskMutation) AddedCost() (r float64, exists bool) {
+	v := m.addcost
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCost resets all changes to the "cost" field.
+func (m *EditableFileTaskMutation) ResetCost() {
+	m.cost = nil
+	m.addcost = nil
+}
+
+// SetError sets the "error" field.
+func (m *EditableFileTaskMutation) SetError(s string) {
+	m.error = &s
+}
+
+// Error returns the value of the "error" field in the mutation.
+func (m *EditableFileTaskMutation) Error() (r string, exists bool) {
+	v := m.error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldError returns the old "error" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldError(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldError: %w", err)
+	}
+	return oldValue.Error, nil
+}
+
+// ClearError clears the value of the "error" field.
+func (m *EditableFileTaskMutation) ClearError() {
+	m.error = nil
+	m.clearedFields[editablefiletask.FieldError] = struct{}{}
+}
+
+// ErrorCleared returns if the "error" field was cleared in this mutation.
+func (m *EditableFileTaskMutation) ErrorCleared() bool {
+	_, ok := m.clearedFields[editablefiletask.FieldError]
+	return ok
+}
+
+// ResetError resets all changes to the "error" field.
+func (m *EditableFileTaskMutation) ResetError() {
+	m.error = nil
+	delete(m.clearedFields, editablefiletask.FieldError)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *EditableFileTaskMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *EditableFileTaskMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the EditableFileTask entity.
+// If the EditableFileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EditableFileTaskMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *EditableFileTaskMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[editablefiletask.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *EditableFileTaskMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[editablefiletask.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *EditableFileTaskMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, editablefiletask.FieldExpiresAt)
+}
+
+// Where appends a list predicates to the EditableFileTaskMutation builder.
+func (m *EditableFileTaskMutation) Where(ps ...predicate.EditableFileTask) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EditableFileTaskMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EditableFileTaskMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EditableFileTask, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EditableFileTaskMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EditableFileTaskMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EditableFileTask).
+func (m *EditableFileTaskMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EditableFileTaskMutation) Fields() []string {
+	fields := make([]string, 0, 18)
+	if m.created_at != nil {
+		fields = append(fields, editablefiletask.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, editablefiletask.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, editablefiletask.FieldDeletedAt)
+	}
+	if m.user_id != nil {
+		fields = append(fields, editablefiletask.FieldUserID)
+	}
+	if m.group_id != nil {
+		fields = append(fields, editablefiletask.FieldGroupID)
+	}
+	if m.api_key_id != nil {
+		fields = append(fields, editablefiletask.FieldAPIKeyID)
+	}
+	if m.image_conversation_id != nil {
+		fields = append(fields, editablefiletask.FieldImageConversationID)
+	}
+	if m.source_generation_id != nil {
+		fields = append(fields, editablefiletask.FieldSourceGenerationID)
+	}
+	if m.account_id != nil {
+		fields = append(fields, editablefiletask.FieldAccountID)
+	}
+	if m.kind != nil {
+		fields = append(fields, editablefiletask.FieldKind)
+	}
+	if m.status != nil {
+		fields = append(fields, editablefiletask.FieldStatus)
+	}
+	if m.prompt != nil {
+		fields = append(fields, editablefiletask.FieldPrompt)
+	}
+	if m.model != nil {
+		fields = append(fields, editablefiletask.FieldModel)
+	}
+	if m.client_task_id != nil {
+		fields = append(fields, editablefiletask.FieldClientTaskID)
+	}
+	if m.chatgpt_conversation_id != nil {
+		fields = append(fields, editablefiletask.FieldChatgptConversationID)
+	}
+	if m.cost != nil {
+		fields = append(fields, editablefiletask.FieldCost)
+	}
+	if m.error != nil {
+		fields = append(fields, editablefiletask.FieldError)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, editablefiletask.FieldExpiresAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EditableFileTaskMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case editablefiletask.FieldCreatedAt:
+		return m.CreatedAt()
+	case editablefiletask.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case editablefiletask.FieldDeletedAt:
+		return m.DeletedAt()
+	case editablefiletask.FieldUserID:
+		return m.UserID()
+	case editablefiletask.FieldGroupID:
+		return m.GroupID()
+	case editablefiletask.FieldAPIKeyID:
+		return m.APIKeyID()
+	case editablefiletask.FieldImageConversationID:
+		return m.ImageConversationID()
+	case editablefiletask.FieldSourceGenerationID:
+		return m.SourceGenerationID()
+	case editablefiletask.FieldAccountID:
+		return m.AccountID()
+	case editablefiletask.FieldKind:
+		return m.Kind()
+	case editablefiletask.FieldStatus:
+		return m.Status()
+	case editablefiletask.FieldPrompt:
+		return m.Prompt()
+	case editablefiletask.FieldModel:
+		return m.Model()
+	case editablefiletask.FieldClientTaskID:
+		return m.ClientTaskID()
+	case editablefiletask.FieldChatgptConversationID:
+		return m.ChatgptConversationID()
+	case editablefiletask.FieldCost:
+		return m.Cost()
+	case editablefiletask.FieldError:
+		return m.Error()
+	case editablefiletask.FieldExpiresAt:
+		return m.ExpiresAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EditableFileTaskMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case editablefiletask.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case editablefiletask.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case editablefiletask.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case editablefiletask.FieldUserID:
+		return m.OldUserID(ctx)
+	case editablefiletask.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case editablefiletask.FieldAPIKeyID:
+		return m.OldAPIKeyID(ctx)
+	case editablefiletask.FieldImageConversationID:
+		return m.OldImageConversationID(ctx)
+	case editablefiletask.FieldSourceGenerationID:
+		return m.OldSourceGenerationID(ctx)
+	case editablefiletask.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case editablefiletask.FieldKind:
+		return m.OldKind(ctx)
+	case editablefiletask.FieldStatus:
+		return m.OldStatus(ctx)
+	case editablefiletask.FieldPrompt:
+		return m.OldPrompt(ctx)
+	case editablefiletask.FieldModel:
+		return m.OldModel(ctx)
+	case editablefiletask.FieldClientTaskID:
+		return m.OldClientTaskID(ctx)
+	case editablefiletask.FieldChatgptConversationID:
+		return m.OldChatgptConversationID(ctx)
+	case editablefiletask.FieldCost:
+		return m.OldCost(ctx)
+	case editablefiletask.FieldError:
+		return m.OldError(ctx)
+	case editablefiletask.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EditableFileTask field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EditableFileTaskMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case editablefiletask.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case editablefiletask.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case editablefiletask.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case editablefiletask.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case editablefiletask.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case editablefiletask.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case editablefiletask.FieldImageConversationID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageConversationID(v)
+		return nil
+	case editablefiletask.FieldSourceGenerationID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceGenerationID(v)
+		return nil
+	case editablefiletask.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case editablefiletask.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case editablefiletask.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case editablefiletask.FieldPrompt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrompt(v)
+		return nil
+	case editablefiletask.FieldModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModel(v)
+		return nil
+	case editablefiletask.FieldClientTaskID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClientTaskID(v)
+		return nil
+	case editablefiletask.FieldChatgptConversationID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChatgptConversationID(v)
+		return nil
+	case editablefiletask.FieldCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCost(v)
+		return nil
+	case editablefiletask.FieldError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetError(v)
+		return nil
+	case editablefiletask.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EditableFileTask field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EditableFileTaskMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, editablefiletask.FieldUserID)
+	}
+	if m.addgroup_id != nil {
+		fields = append(fields, editablefiletask.FieldGroupID)
+	}
+	if m.addapi_key_id != nil {
+		fields = append(fields, editablefiletask.FieldAPIKeyID)
+	}
+	if m.addimage_conversation_id != nil {
+		fields = append(fields, editablefiletask.FieldImageConversationID)
+	}
+	if m.addsource_generation_id != nil {
+		fields = append(fields, editablefiletask.FieldSourceGenerationID)
+	}
+	if m.addaccount_id != nil {
+		fields = append(fields, editablefiletask.FieldAccountID)
+	}
+	if m.addcost != nil {
+		fields = append(fields, editablefiletask.FieldCost)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EditableFileTaskMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case editablefiletask.FieldUserID:
+		return m.AddedUserID()
+	case editablefiletask.FieldGroupID:
+		return m.AddedGroupID()
+	case editablefiletask.FieldAPIKeyID:
+		return m.AddedAPIKeyID()
+	case editablefiletask.FieldImageConversationID:
+		return m.AddedImageConversationID()
+	case editablefiletask.FieldSourceGenerationID:
+		return m.AddedSourceGenerationID()
+	case editablefiletask.FieldAccountID:
+		return m.AddedAccountID()
+	case editablefiletask.FieldCost:
+		return m.AddedCost()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EditableFileTaskMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case editablefiletask.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case editablefiletask.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGroupID(v)
+		return nil
+	case editablefiletask.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAPIKeyID(v)
+		return nil
+	case editablefiletask.FieldImageConversationID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddImageConversationID(v)
+		return nil
+	case editablefiletask.FieldSourceGenerationID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceGenerationID(v)
+		return nil
+	case editablefiletask.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case editablefiletask.FieldCost:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCost(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EditableFileTask numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EditableFileTaskMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(editablefiletask.FieldDeletedAt) {
+		fields = append(fields, editablefiletask.FieldDeletedAt)
+	}
+	if m.FieldCleared(editablefiletask.FieldGroupID) {
+		fields = append(fields, editablefiletask.FieldGroupID)
+	}
+	if m.FieldCleared(editablefiletask.FieldAPIKeyID) {
+		fields = append(fields, editablefiletask.FieldAPIKeyID)
+	}
+	if m.FieldCleared(editablefiletask.FieldImageConversationID) {
+		fields = append(fields, editablefiletask.FieldImageConversationID)
+	}
+	if m.FieldCleared(editablefiletask.FieldSourceGenerationID) {
+		fields = append(fields, editablefiletask.FieldSourceGenerationID)
+	}
+	if m.FieldCleared(editablefiletask.FieldAccountID) {
+		fields = append(fields, editablefiletask.FieldAccountID)
+	}
+	if m.FieldCleared(editablefiletask.FieldError) {
+		fields = append(fields, editablefiletask.FieldError)
+	}
+	if m.FieldCleared(editablefiletask.FieldExpiresAt) {
+		fields = append(fields, editablefiletask.FieldExpiresAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EditableFileTaskMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EditableFileTaskMutation) ClearField(name string) error {
+	switch name {
+	case editablefiletask.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case editablefiletask.FieldGroupID:
+		m.ClearGroupID()
+		return nil
+	case editablefiletask.FieldAPIKeyID:
+		m.ClearAPIKeyID()
+		return nil
+	case editablefiletask.FieldImageConversationID:
+		m.ClearImageConversationID()
+		return nil
+	case editablefiletask.FieldSourceGenerationID:
+		m.ClearSourceGenerationID()
+		return nil
+	case editablefiletask.FieldAccountID:
+		m.ClearAccountID()
+		return nil
+	case editablefiletask.FieldError:
+		m.ClearError()
+		return nil
+	case editablefiletask.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EditableFileTask nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EditableFileTaskMutation) ResetField(name string) error {
+	switch name {
+	case editablefiletask.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case editablefiletask.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case editablefiletask.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case editablefiletask.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case editablefiletask.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case editablefiletask.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case editablefiletask.FieldImageConversationID:
+		m.ResetImageConversationID()
+		return nil
+	case editablefiletask.FieldSourceGenerationID:
+		m.ResetSourceGenerationID()
+		return nil
+	case editablefiletask.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case editablefiletask.FieldKind:
+		m.ResetKind()
+		return nil
+	case editablefiletask.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case editablefiletask.FieldPrompt:
+		m.ResetPrompt()
+		return nil
+	case editablefiletask.FieldModel:
+		m.ResetModel()
+		return nil
+	case editablefiletask.FieldClientTaskID:
+		m.ResetClientTaskID()
+		return nil
+	case editablefiletask.FieldChatgptConversationID:
+		m.ResetChatgptConversationID()
+		return nil
+	case editablefiletask.FieldCost:
+		m.ResetCost()
+		return nil
+	case editablefiletask.FieldError:
+		m.ResetError()
+		return nil
+	case editablefiletask.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EditableFileTask field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EditableFileTaskMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EditableFileTaskMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EditableFileTaskMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EditableFileTaskMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EditableFileTaskMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EditableFileTaskMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EditableFileTaskMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EditableFileTask unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EditableFileTaskMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EditableFileTask edge %s", name)
 }
 
 // ErrorPassthroughRuleMutation represents an operation that mutates the ErrorPassthroughRule nodes in the graph.

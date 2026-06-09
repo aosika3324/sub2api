@@ -570,6 +570,7 @@ var ProviderSet = wire.NewSet(
 	ProvideImageConcurrencyLimiter,
 	ProvideStudioImageGenerator,
 	ProvideImageStudioService,
+	NewEditableFileService,
 	NewGroupService,
 	NewAccountService,
 	NewProxyService,

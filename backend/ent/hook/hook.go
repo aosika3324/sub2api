@@ -141,6 +141,30 @@ func (f ChannelMonitorRequestTemplateFunc) Mutate(ctx context.Context, m ent.Mut
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelMonitorRequestTemplateMutation", m)
 }
 
+// The EditableFileArtifactFunc type is an adapter to allow the use of ordinary
+// function as EditableFileArtifact mutator.
+type EditableFileArtifactFunc func(context.Context, *ent.EditableFileArtifactMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EditableFileArtifactFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EditableFileArtifactMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EditableFileArtifactMutation", m)
+}
+
+// The EditableFileTaskFunc type is an adapter to allow the use of ordinary
+// function as EditableFileTask mutator.
+type EditableFileTaskFunc func(context.Context, *ent.EditableFileTaskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EditableFileTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EditableFileTaskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EditableFileTaskMutation", m)
+}
+
 // The ErrorPassthroughRuleFunc type is an adapter to allow the use of ordinary
 // function as ErrorPassthroughRule mutator.
 type ErrorPassthroughRuleFunc func(context.Context, *ent.ErrorPassthroughRuleMutation) (ent.Value, error)

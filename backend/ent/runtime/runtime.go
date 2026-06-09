@@ -16,6 +16,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/editablefileartifact"
+	"github.com/Wei-Shaw/sub2api/ent/editablefiletask"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -696,6 +698,100 @@ func init() {
 	channelmonitorrequesttemplate.DefaultBodyOverrideMode = channelmonitorrequesttemplateDescBodyOverrideMode.Default.(string)
 	// channelmonitorrequesttemplate.BodyOverrideModeValidator is a validator for the "body_override_mode" field. It is called by the builders before save.
 	channelmonitorrequesttemplate.BodyOverrideModeValidator = channelmonitorrequesttemplateDescBodyOverrideMode.Validators[0].(func(string) error)
+	editablefileartifactMixin := schema.EditableFileArtifact{}.Mixin()
+	editablefileartifactMixinHooks1 := editablefileartifactMixin[1].Hooks()
+	editablefileartifact.Hooks[0] = editablefileartifactMixinHooks1[0]
+	editablefileartifactMixinInters1 := editablefileartifactMixin[1].Interceptors()
+	editablefileartifact.Interceptors[0] = editablefileartifactMixinInters1[0]
+	editablefileartifactMixinFields0 := editablefileartifactMixin[0].Fields()
+	_ = editablefileartifactMixinFields0
+	editablefileartifactFields := schema.EditableFileArtifact{}.Fields()
+	_ = editablefileartifactFields
+	// editablefileartifactDescCreatedAt is the schema descriptor for created_at field.
+	editablefileartifactDescCreatedAt := editablefileartifactMixinFields0[0].Descriptor()
+	// editablefileartifact.DefaultCreatedAt holds the default value on creation for the created_at field.
+	editablefileartifact.DefaultCreatedAt = editablefileartifactDescCreatedAt.Default.(func() time.Time)
+	// editablefileartifactDescUpdatedAt is the schema descriptor for updated_at field.
+	editablefileartifactDescUpdatedAt := editablefileartifactMixinFields0[1].Descriptor()
+	// editablefileartifact.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	editablefileartifact.DefaultUpdatedAt = editablefileartifactDescUpdatedAt.Default.(func() time.Time)
+	// editablefileartifact.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	editablefileartifact.UpdateDefaultUpdatedAt = editablefileartifactDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// editablefileartifactDescKind is the schema descriptor for kind field.
+	editablefileartifactDescKind := editablefileartifactFields[2].Descriptor()
+	// editablefileartifact.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	editablefileartifact.KindValidator = editablefileartifactDescKind.Validators[0].(func(string) error)
+	// editablefileartifactDescFileName is the schema descriptor for file_name field.
+	editablefileartifactDescFileName := editablefileartifactFields[3].Descriptor()
+	// editablefileartifact.FileNameValidator is a validator for the "file_name" field. It is called by the builders before save.
+	editablefileartifact.FileNameValidator = editablefileartifactDescFileName.Validators[0].(func(string) error)
+	// editablefileartifactDescMimeType is the schema descriptor for mime_type field.
+	editablefileartifactDescMimeType := editablefileartifactFields[4].Descriptor()
+	// editablefileartifact.DefaultMimeType holds the default value on creation for the mime_type field.
+	editablefileartifact.DefaultMimeType = editablefileartifactDescMimeType.Default.(string)
+	// editablefileartifact.MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
+	editablefileartifact.MimeTypeValidator = editablefileartifactDescMimeType.Validators[0].(func(string) error)
+	// editablefileartifactDescSizeBytes is the schema descriptor for size_bytes field.
+	editablefileartifactDescSizeBytes := editablefileartifactFields[5].Descriptor()
+	// editablefileartifact.DefaultSizeBytes holds the default value on creation for the size_bytes field.
+	editablefileartifact.DefaultSizeBytes = editablefileartifactDescSizeBytes.Default.(int64)
+	// editablefileartifactDescSha256 is the schema descriptor for sha256 field.
+	editablefileartifactDescSha256 := editablefileartifactFields[8].Descriptor()
+	// editablefileartifact.DefaultSha256 holds the default value on creation for the sha256 field.
+	editablefileartifact.DefaultSha256 = editablefileartifactDescSha256.Default.(string)
+	// editablefileartifact.Sha256Validator is a validator for the "sha256" field. It is called by the builders before save.
+	editablefileartifact.Sha256Validator = editablefileartifactDescSha256.Validators[0].(func(string) error)
+	editablefiletaskMixin := schema.EditableFileTask{}.Mixin()
+	editablefiletaskMixinHooks1 := editablefiletaskMixin[1].Hooks()
+	editablefiletask.Hooks[0] = editablefiletaskMixinHooks1[0]
+	editablefiletaskMixinInters1 := editablefiletaskMixin[1].Interceptors()
+	editablefiletask.Interceptors[0] = editablefiletaskMixinInters1[0]
+	editablefiletaskMixinFields0 := editablefiletaskMixin[0].Fields()
+	_ = editablefiletaskMixinFields0
+	editablefiletaskFields := schema.EditableFileTask{}.Fields()
+	_ = editablefiletaskFields
+	// editablefiletaskDescCreatedAt is the schema descriptor for created_at field.
+	editablefiletaskDescCreatedAt := editablefiletaskMixinFields0[0].Descriptor()
+	// editablefiletask.DefaultCreatedAt holds the default value on creation for the created_at field.
+	editablefiletask.DefaultCreatedAt = editablefiletaskDescCreatedAt.Default.(func() time.Time)
+	// editablefiletaskDescUpdatedAt is the schema descriptor for updated_at field.
+	editablefiletaskDescUpdatedAt := editablefiletaskMixinFields0[1].Descriptor()
+	// editablefiletask.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	editablefiletask.DefaultUpdatedAt = editablefiletaskDescUpdatedAt.Default.(func() time.Time)
+	// editablefiletask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	editablefiletask.UpdateDefaultUpdatedAt = editablefiletaskDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// editablefiletaskDescKind is the schema descriptor for kind field.
+	editablefiletaskDescKind := editablefiletaskFields[6].Descriptor()
+	// editablefiletask.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	editablefiletask.KindValidator = editablefiletaskDescKind.Validators[0].(func(string) error)
+	// editablefiletaskDescStatus is the schema descriptor for status field.
+	editablefiletaskDescStatus := editablefiletaskFields[7].Descriptor()
+	// editablefiletask.DefaultStatus holds the default value on creation for the status field.
+	editablefiletask.DefaultStatus = editablefiletaskDescStatus.Default.(string)
+	// editablefiletask.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	editablefiletask.StatusValidator = editablefiletaskDescStatus.Validators[0].(func(string) error)
+	// editablefiletaskDescModel is the schema descriptor for model field.
+	editablefiletaskDescModel := editablefiletaskFields[9].Descriptor()
+	// editablefiletask.DefaultModel holds the default value on creation for the model field.
+	editablefiletask.DefaultModel = editablefiletaskDescModel.Default.(string)
+	// editablefiletask.ModelValidator is a validator for the "model" field. It is called by the builders before save.
+	editablefiletask.ModelValidator = editablefiletaskDescModel.Validators[0].(func(string) error)
+	// editablefiletaskDescClientTaskID is the schema descriptor for client_task_id field.
+	editablefiletaskDescClientTaskID := editablefiletaskFields[10].Descriptor()
+	// editablefiletask.DefaultClientTaskID holds the default value on creation for the client_task_id field.
+	editablefiletask.DefaultClientTaskID = editablefiletaskDescClientTaskID.Default.(string)
+	// editablefiletask.ClientTaskIDValidator is a validator for the "client_task_id" field. It is called by the builders before save.
+	editablefiletask.ClientTaskIDValidator = editablefiletaskDescClientTaskID.Validators[0].(func(string) error)
+	// editablefiletaskDescChatgptConversationID is the schema descriptor for chatgpt_conversation_id field.
+	editablefiletaskDescChatgptConversationID := editablefiletaskFields[11].Descriptor()
+	// editablefiletask.DefaultChatgptConversationID holds the default value on creation for the chatgpt_conversation_id field.
+	editablefiletask.DefaultChatgptConversationID = editablefiletaskDescChatgptConversationID.Default.(string)
+	// editablefiletask.ChatgptConversationIDValidator is a validator for the "chatgpt_conversation_id" field. It is called by the builders before save.
+	editablefiletask.ChatgptConversationIDValidator = editablefiletaskDescChatgptConversationID.Validators[0].(func(string) error)
+	// editablefiletaskDescCost is the schema descriptor for cost field.
+	editablefiletaskDescCost := editablefiletaskFields[12].Descriptor()
+	// editablefiletask.DefaultCost holds the default value on creation for the cost field.
+	editablefiletask.DefaultCost = editablefiletaskDescCost.Default.(float64)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()
 	errorpassthroughruleMixinFields0 := errorpassthroughruleMixin[0].Fields()
 	_ = errorpassthroughruleMixinFields0

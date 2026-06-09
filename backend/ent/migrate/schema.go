@@ -92,6 +92,14 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{APIKeysColumns[13]},
 			},
+			{
+				Name:    "apikey_user_id_group_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{APIKeysColumns[24], APIKeysColumns[23], APIKeysColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "internal = true AND deleted_at IS NULL",
+				},
+			},
 		},
 	}
 	// AccountsColumns holds the columns for the "accounts" table.
@@ -595,6 +603,95 @@ var (
 				Name:    "channelmonitorrequesttemplate_provider_api_mode",
 				Unique:  false,
 				Columns: []*schema.Column{ChannelMonitorRequestTemplatesColumns[4], ChannelMonitorRequestTemplatesColumns[5]},
+			},
+		},
+	}
+	// EditableFileArtifactsColumns holds the columns for the "editable_file_artifacts" table.
+	EditableFileArtifactsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "task_id", Type: field.TypeInt64},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "kind", Type: field.TypeString, Size: 20},
+		{Name: "file_name", Type: field.TypeString, Size: 255},
+		{Name: "mime_type", Type: field.TypeString, Size: 120, Default: ""},
+		{Name: "size_bytes", Type: field.TypeInt64, Default: 0},
+		{Name: "storage_key", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "source_pointer", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "sha256", Type: field.TypeString, Size: 64, Default: ""},
+	}
+	// EditableFileArtifactsTable holds the schema information for the "editable_file_artifacts" table.
+	EditableFileArtifactsTable = &schema.Table{
+		Name:       "editable_file_artifacts",
+		Columns:    EditableFileArtifactsColumns,
+		PrimaryKey: []*schema.Column{EditableFileArtifactsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "editablefileartifact_task_id",
+				Unique:  false,
+				Columns: []*schema.Column{EditableFileArtifactsColumns[4]},
+			},
+			{
+				Name:    "editablefileartifact_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{EditableFileArtifactsColumns[5]},
+			},
+			{
+				Name:    "editablefileartifact_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{EditableFileArtifactsColumns[3]},
+			},
+		},
+	}
+	// EditableFileTasksColumns holds the columns for the "editable_file_tasks" table.
+	EditableFileTasksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "group_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "api_key_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "image_conversation_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "source_generation_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "account_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "kind", Type: field.TypeString, Size: 20},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "queued"},
+		{Name: "prompt", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "model", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "client_task_id", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "chatgpt_conversation_id", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "error", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+	}
+	// EditableFileTasksTable holds the schema information for the "editable_file_tasks" table.
+	EditableFileTasksTable = &schema.Table{
+		Name:       "editable_file_tasks",
+		Columns:    EditableFileTasksColumns,
+		PrimaryKey: []*schema.Column{EditableFileTasksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "editablefiletask_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{EditableFileTasksColumns[4]},
+			},
+			{
+				Name:    "editablefiletask_status",
+				Unique:  false,
+				Columns: []*schema.Column{EditableFileTasksColumns[11]},
+			},
+			{
+				Name:    "editablefiletask_client_task_id",
+				Unique:  false,
+				Columns: []*schema.Column{EditableFileTasksColumns[14]},
+			},
+			{
+				Name:    "editablefiletask_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{EditableFileTasksColumns[3]},
 			},
 		},
 	}
@@ -1859,6 +1956,8 @@ var (
 		ChannelMonitorDailyRollupsTable,
 		ChannelMonitorHistoriesTable,
 		ChannelMonitorRequestTemplatesTable,
+		EditableFileArtifactsTable,
+		EditableFileTasksTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
 		IdempotencyRecordsTable,
@@ -1933,6 +2032,12 @@ func init() {
 	}
 	ChannelMonitorRequestTemplatesTable.Annotation = &entsql.Annotation{
 		Table: "channel_monitor_request_templates",
+	}
+	EditableFileArtifactsTable.Annotation = &entsql.Annotation{
+		Table: "editable_file_artifacts",
+	}
+	EditableFileTasksTable.Annotation = &entsql.Annotation{
+		Table: "editable_file_tasks",
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",
