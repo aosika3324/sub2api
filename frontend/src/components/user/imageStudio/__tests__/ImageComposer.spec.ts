@@ -172,17 +172,8 @@ describe('ImageComposer', () => {
 
     expect(options).toEqual([
       'imageStudio.modelGroupImage',
+      'gpt-image-1.5',
       'gpt-image-2',
-      'codex-gpt-image-2',
-      'imageStudio.modelGroupRouting',
-      'auto',
-      'imageStudio.modelGroupGpt5',
-      'gpt-5',
-      'gpt-5-1',
-      'gpt-5-2',
-      'gpt-5-3',
-      'gpt-5-3-mini',
-      'gpt-5-mini',
     ])
   })
 
@@ -365,13 +356,13 @@ describe('ImageComposer', () => {
     await flushPromises()
 
     // Switch the model - the watcher snaps size/quality back to defaults.
-    await wrapper.findAll('select')[1].setValue('gpt-5')
+    await wrapper.findAll('select')[1].setValue('gpt-image-1.5')
     await flushPromises()
 
     await wrapper.find('.send-button').trigger('click')
     const emitted = wrapper.emitted('generate')
     expect(emitted![0][0]).toMatchObject({
-      model: 'gpt-5',
+      model: 'gpt-image-1.5',
       size: '1024x1024',
       quality: 'auto',
     })

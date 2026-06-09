@@ -112,15 +112,8 @@ describe('size helpers', () => {
 describe('model option matrices', () => {
   it('exposes the requested model choices only', () => {
     expect(MODEL_OPTIONS.map((m) => m.value)).toEqual([
+      'gpt-image-1.5',
       'gpt-image-2',
-      'codex-gpt-image-2',
-      'auto',
-      'gpt-5',
-      'gpt-5-1',
-      'gpt-5-2',
-      'gpt-5-3',
-      'gpt-5-3-mini',
-      'gpt-5-mini',
     ])
   })
 
@@ -128,8 +121,8 @@ describe('model option matrices', () => {
     const v2 = optionsForModel('gpt-image-2')
     expect(v2.sizes.map((s) => s.value)).toEqual(['1K', '2K', '4K'])
     expect(v2.qualities.map((q) => q.value)).toEqual(['auto', 'low', 'medium', 'high'])
-    expect(optionsForModel('gpt-5').sizes).toEqual(v2.sizes)
-    expect(optionsForModel('codex-gpt-image-2').qualities).toEqual(v2.qualities)
+    expect(optionsForModel('gpt-image-1.5').sizes).toEqual(v2.sizes)
+    expect(optionsForModel('gpt-image-1.5').qualities).toEqual(v2.qualities)
   })
 
   it('falls back to the gpt-image matrix for unknown models', () => {

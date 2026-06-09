@@ -1076,32 +1076,69 @@ func TestBuildEditsRequest_RoundTripsThroughMultipartParser(t *testing.T) {
 	require.Equal(t, in.InputImages[1].Data, parsed.Uploads[1].Data)
 }
 
-func TestBuildParsedRequest_NormalizesWorkbenchModelAliases(t *testing.T) {
+func TestNormalizeImageStudioModel_WhitelistOnly(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "empty defaults to gpt-image-2", in: "", want: ImageStudioModelGPTImage2},
+		{name: "gpt-image-1.5 accepted", in: "gpt-image-1.5", want: ImageStudioModelGPTImage15},
+		{name: "gpt-image-2 accepted", in: "gpt-image-2", want: ImageStudioModelGPTImage2},
+		{name: "case and spaces normalized", in: " GPT-IMAGE-2 ", want: ImageStudioModelGPTImage2},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NormalizeImageStudioModel(tc.in)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestNormalizeImageStudioModel_RejectsOldRoutingAliases(t *testing.T) {
+	for _, model := range []string{"auto", "codex-gpt-image-2", "gpt-5-3", "gpt-image-1"} {
+		t.Run(model, func(t *testing.T) {
+			got, err := NormalizeImageStudioModel(model)
+			require.ErrorIs(t, err, ErrImageStudioInvalidModel)
+			require.Empty(t, got)
+		})
+	}
+}
+
+func TestBuildParsedRequest_UsesWhitelistedWorkbenchModel(t *testing.T) {
 	f := newStudioFixture(t)
 
-	autoReq := f.svc.buildParsedRequest(ImageStudioGenerateInput{
+	defaultReq := f.svc.buildParsedRequest(ImageStudioGenerateInput{
 		Prompt: "draw",
-		Model:  "auto",
 		Size:   "1024x1024",
 	}, 1)
-	require.Equal(t, "gpt-image-2", autoReq.Model)
-	require.False(t, autoReq.ExplicitModel)
+	require.Equal(t, ImageStudioModelGPTImage2, defaultReq.Model)
+	require.True(t, defaultReq.ExplicitModel)
 
-	gpt5Req := f.svc.buildParsedRequest(ImageStudioGenerateInput{
+	v15Req := f.svc.buildParsedRequest(ImageStudioGenerateInput{
 		Prompt: "draw",
-		Model:  "gpt-5-3",
+		Model:  ImageStudioModelGPTImage15,
 		Size:   "1024x1024",
 	}, 1)
-	require.Equal(t, "gpt-image-2", gpt5Req.Model)
-	require.False(t, gpt5Req.ExplicitModel)
+	require.Equal(t, ImageStudioModelGPTImage15, v15Req.Model)
+	require.True(t, v15Req.ExplicitModel)
+}
 
-	codexReq := f.svc.buildParsedRequest(ImageStudioGenerateInput{
-		Prompt: "draw",
-		Model:  "codex-gpt-image-2",
-		Size:   "1024x1024",
-	}, 1)
-	require.Equal(t, "gpt-image-2-codex", codexReq.Model)
-	require.True(t, codexReq.ExplicitModel)
+func TestImageStudioService_Generate_InvalidModelRejectedBeforePersistence(t *testing.T) {
+	f := newStudioFixture(t)
+	in := studioInput(10)
+	in.Model = "auto"
+
+	res, err := f.svc.Generate(context.Background(), 1, in)
+
+	require.ErrorIs(t, err, ErrImageStudioInvalidModel)
+	require.Nil(t, res)
+	require.Equal(t, 0, f.repo.createdConv)
+	require.Equal(t, 0, f.gen.calls)
+	require.Equal(t, 0, f.store.putCalls)
+	require.Equal(t, 0, f.usage.calls)
 }
 
 // An input image routes Generate through the edits endpoint, stores the input

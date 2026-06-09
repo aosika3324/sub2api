@@ -235,6 +235,7 @@ func TestImageStudioGenerate_ErrorMapping(t *testing.T) {
 		{"busy -> 429", service.ErrImageStudioBusy, http.StatusTooManyRequests},
 		{"insufficient balance -> 400", service.ErrInsufficientBalance, http.StatusBadRequest},
 		{"invalid mode -> 400", service.ErrImageStudioInvalidMode, http.StatusBadRequest},
+		{"invalid model -> 400", service.ErrImageStudioInvalidModel, http.StatusBadRequest},
 		{"subscription not found -> 404", service.ErrSubscriptionNotFound, http.StatusNotFound},
 	}
 	for _, tc := range cases {

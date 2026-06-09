@@ -184,6 +184,9 @@ var (
 	// ErrImageStudioInvalidMode is returned when the selected workbench mode is
 	// inconsistent with its reference-image requirements.
 	ErrImageStudioInvalidMode = errors.New("image studio: invalid workbench mode")
+	// ErrImageStudioInvalidModel is returned when the selected image model is not
+	// enabled for the workbench.
+	ErrImageStudioInvalidModel = errors.New("image studio: invalid image model")
 )
 
 const (
@@ -191,6 +194,8 @@ const (
 	ImageStudioModeGenerate    = "generate"
 	ImageStudioModeEdit        = "edit"
 	ImageStudioModeCompose     = "compose"
+	ImageStudioModelGPTImage15 = "gpt-image-1.5"
+	ImageStudioModelGPTImage2  = "gpt-image-2"
 	// ImageStudioRetention is the server-side retention window for generated and
 	// uploaded image-studio assets.
 	ImageStudioRetention       = 24 * time.Hour
@@ -441,6 +446,11 @@ func (s *ImageStudioService) prepareGeneration(ctx context.Context, userID int64
 		return nil, err
 	}
 	in.Mode = mode
+	model, err := NormalizeImageStudioModel(in.Model)
+	if err != nil {
+		return nil, err
+	}
+	in.Model = model
 
 	// --- Step 2: billing eligibility pre-flight (balance/quota). ---
 	// The synthetic key models the (user, group) identity the image path bills
@@ -928,21 +938,27 @@ func NormalizeImageStudioMode(mode string, referenceCount int) (string, error) {
 	return normalized, nil
 }
 
-func normalizeStudioPipelineModel(model string) (string, bool) {
-	trimmed := strings.TrimSpace(model)
-	lower := strings.ToLower(trimmed)
-	switch {
-	case lower == "", lower == "auto":
-		return "gpt-image-2", false
-	case lower == "codex-gpt-image-2":
-		return "gpt-image-2-codex", true
-	case isOpenAIImageGenerationModel(lower):
-		return trimmed, true
-	case strings.HasPrefix(lower, "gpt-5"):
-		return "gpt-image-2", false
+// NormalizeImageStudioModel returns the small Image Studio model whitelist. An
+// empty model preserves legacy callers by defaulting to the current workbench
+// model, but old routing aliases are rejected instead of being silently mapped.
+func NormalizeImageStudioModel(model string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	switch normalized {
+	case "":
+		return ImageStudioModelGPTImage2, nil
+	case ImageStudioModelGPTImage15, ImageStudioModelGPTImage2:
+		return normalized, nil
 	default:
-		return trimmed, trimmed != ""
+		return "", fmt.Errorf("%w: %s", ErrImageStudioInvalidModel, normalized)
 	}
+}
+
+func normalizeStudioPipelineModel(model string) (string, bool) {
+	normalized, err := NormalizeImageStudioModel(model)
+	if err != nil {
+		return ImageStudioModelGPTImage2, false
+	}
+	return normalized, true
 }
 
 func (s *ImageStudioService) ensureGenerationStillActive(ctx context.Context, genID int64) error {

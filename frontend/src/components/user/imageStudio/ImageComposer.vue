@@ -461,23 +461,7 @@ const modelSelectOptions = computed(() => [
     kind: 'group',
     disabled: true,
   },
-  ...MODEL_OPTIONS.filter((option) =>
-    option.value === 'gpt-image-2' || option.value === 'codex-gpt-image-2'
-  ),
-  {
-    value: '__routing',
-    label: t('imageStudio.modelGroupRouting'),
-    kind: 'group',
-    disabled: true,
-  },
-  ...MODEL_OPTIONS.filter((option) => option.value === 'auto'),
-  {
-    value: '__gpt5',
-    label: t('imageStudio.modelGroupGpt5'),
-    kind: 'group',
-    disabled: true,
-  },
-  ...MODEL_OPTIONS.filter((option) => option.value.startsWith('gpt-5')),
+  ...MODEL_OPTIONS,
 ])
 
 const aspectPresets = ASPECT_PRESETS

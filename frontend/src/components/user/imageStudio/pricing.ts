@@ -8,16 +8,7 @@
  * "≈$x.xx" markup so it reappears automatically if price tables are wired later.
  */
 
-export type ModelId =
-  | 'gpt-image-2'
-  | 'codex-gpt-image-2'
-  | 'auto'
-  | 'gpt-5'
-  | 'gpt-5-1'
-  | 'gpt-5-2'
-  | 'gpt-5-3'
-  | 'gpt-5-3-mini'
-  | 'gpt-5-mini'
+export type ModelId = 'gpt-image-1.5' | 'gpt-image-2'
 
 export interface SizeOption {
   value: string
@@ -38,15 +29,8 @@ interface ModelMatrix {
 }
 
 export const MODEL_OPTIONS: Array<{ value: ModelId; label: string }> = [
+  { value: 'gpt-image-1.5', label: 'gpt-image-1.5' },
   { value: 'gpt-image-2', label: 'gpt-image-2' },
-  { value: 'codex-gpt-image-2', label: 'codex-gpt-image-2' },
-  { value: 'auto', label: 'auto' },
-  { value: 'gpt-5', label: 'gpt-5' },
-  { value: 'gpt-5-1', label: 'gpt-5-1' },
-  { value: 'gpt-5-2', label: 'gpt-5-2' },
-  { value: 'gpt-5-3', label: 'gpt-5-3' },
-  { value: 'gpt-5-3-mini', label: 'gpt-5-3-mini' },
-  { value: 'gpt-5-mini', label: 'gpt-5-mini' },
 ]
 
 /**
@@ -97,15 +81,8 @@ const GPT_IMAGE_MATRIX: ModelMatrix = {
 }
 
 const MATRICES: Record<ModelId, ModelMatrix> = {
+  'gpt-image-1.5': GPT_IMAGE_MATRIX,
   'gpt-image-2': GPT_IMAGE_MATRIX,
-  'codex-gpt-image-2': GPT_IMAGE_MATRIX,
-  auto: GPT_IMAGE_MATRIX,
-  'gpt-5': GPT_IMAGE_MATRIX,
-  'gpt-5-1': GPT_IMAGE_MATRIX,
-  'gpt-5-2': GPT_IMAGE_MATRIX,
-  'gpt-5-3': GPT_IMAGE_MATRIX,
-  'gpt-5-3-mini': GPT_IMAGE_MATRIX,
-  'gpt-5-mini': GPT_IMAGE_MATRIX,
 }
 
 export function optionsForModel(model: string): ModelMatrix {

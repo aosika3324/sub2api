@@ -696,7 +696,8 @@ func (h *ImageStudioHandler) respondGenerateError(c *gin.Context, err error) {
 		response.NotFound(c, "Conversation not found")
 	case errors.Is(err, service.ErrImageStudioBusy):
 		response.Error(c, http.StatusTooManyRequests, err.Error())
-	case errors.Is(err, service.ErrImageStudioInvalidMode):
+	case errors.Is(err, service.ErrImageStudioInvalidMode),
+		errors.Is(err, service.ErrImageStudioInvalidModel):
 		response.BadRequest(c, err.Error())
 	case errors.Is(err, service.ErrImageStudioNoImages),
 		errors.Is(err, service.ErrImageStudioNoAccount):
