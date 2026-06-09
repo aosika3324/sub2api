@@ -170,6 +170,11 @@ import ConversationList from '@/components/user/imageStudio/ConversationList.vue
 import TurnTimeline from '@/components/user/imageStudio/TurnTimeline.vue'
 import ImageComposer from '@/components/user/imageStudio/ImageComposer.vue'
 import type { ComposerSubmitPayload } from '@/components/user/imageStudio/ImageComposer.vue'
+import {
+  clearImageStudioScroll,
+  readImageStudioScroll,
+  writeImageStudioScroll,
+} from '@/components/user/imageStudio/scrollMemory'
 
 const { t } = useI18n()
 const store = useImageStudioStore()
@@ -195,7 +200,6 @@ const balance = computed(() => authStore.user?.balance ?? 0)
 // ==================== Auto-scroll (chat: newest at the bottom) ====================
 
 const scrollPositions = new Map<string, number>()
-const persistedScrollPrefix = 'image-studio-scroll:'
 
 const scrollKey = computed(() =>
   store.activeConversationId === null ? 'all' : `conversation:${store.activeConversationId}`
@@ -212,51 +216,19 @@ function rememberScroll() {
   if (!el) return
   const key = scrollKey.value
   scrollPositions.set(key, el.scrollTop)
-  writePersistedScroll(key, el.scrollTop)
+  writeImageStudioScroll(key, el.scrollTop)
 }
 
 async function restoreScroll(key = scrollKey.value) {
   await nextTick()
   const el = scrollRef.value
   if (!el) return
-  const top = scrollPositions.get(key) ?? readPersistedScroll(key)
+  const top = scrollPositions.get(key) ?? readImageStudioScroll(key)
   if (top == null) {
     el.scrollTo({ top: el.scrollHeight, behavior: 'auto' })
     return
   }
   el.scrollTo({ top, behavior: 'auto' })
-}
-
-function readPersistedScroll(key: string) {
-  try {
-    const raw = window.sessionStorage.getItem(`${persistedScrollPrefix}${key}`)
-    if (raw == null) return null
-    const top = Number(raw)
-    return Number.isFinite(top) ? top : null
-  } catch {
-    return null
-  }
-}
-
-function writePersistedScroll(key: string, top: number) {
-  try {
-    window.sessionStorage.setItem(`${persistedScrollPrefix}${key}`, String(top))
-  } catch {
-    // Ignore storage failures; in-memory scroll memory still works.
-  }
-}
-
-function clearPersistedScrollPositions() {
-  try {
-    for (let i = window.sessionStorage.length - 1; i >= 0; i -= 1) {
-      const key = window.sessionStorage.key(i)
-      if (key?.startsWith(persistedScrollPrefix)) {
-        window.sessionStorage.removeItem(key)
-      }
-    }
-  } catch {
-    // Non-fatal: clearing server history should not depend on browser storage.
-  }
 }
 
 async function scrollToBottom(smooth = true) {
@@ -524,7 +496,7 @@ async function handleClearHistory() {
   try {
     await store.clearHistory()
     scrollPositions.clear()
-    clearPersistedScrollPositions()
+    clearImageStudioScroll()
     appStore.showSuccess(t('imageStudio.historyCleared'))
   } catch (err) {
     appStore.showError(extractError(err).message || t('imageStudio.errorGeneric'))
