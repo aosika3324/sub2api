@@ -27,10 +27,12 @@ import (
 
 type studioGeneratorStub struct {
 	result    *service.ImageStudioGenerateResult
+	start     *service.ImageStudioStartResult
 	err       error
 	gotUserID int64
 	gotInput  service.ImageStudioGenerateInput
 	calls     int
+	starts    int
 }
 
 func (s *studioGeneratorStub) Generate(_ context.Context, userID int64, in service.ImageStudioGenerateInput) (*service.ImageStudioGenerateResult, error) {
@@ -41,6 +43,27 @@ func (s *studioGeneratorStub) Generate(_ context.Context, userID int64, in servi
 		return nil, s.err
 	}
 	return s.result, nil
+}
+
+func (s *studioGeneratorStub) StartGenerate(_ context.Context, userID int64, in service.ImageStudioGenerateInput) (*service.ImageStudioStartResult, error) {
+	s.starts++
+	s.gotUserID = userID
+	s.gotInput = in
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.start != nil {
+		return s.start, nil
+	}
+	if s.result == nil {
+		return nil, nil
+	}
+	return &service.ImageStudioStartResult{
+		GenerationID:   s.result.GenerationID,
+		ConversationID: s.result.ConversationID,
+		InputImages:    s.result.InputImages,
+		Balance:        s.result.Balance,
+	}, nil
 }
 
 type studioRepoStub struct {
@@ -157,13 +180,11 @@ func TestImageStudioGenerate_MissingPrompt400(t *testing.T) {
 	require.Equal(t, 0, gen.calls)
 }
 
-func TestImageStudioGenerate_PassesJWTUserAndBuildsURLs(t *testing.T) {
+func TestImageStudioGenerate_StartsPendingJobAndPassesJWTUser(t *testing.T) {
 	gen := &studioGeneratorStub{
-		result: &service.ImageStudioGenerateResult{
+		start: &service.ImageStudioStartResult{
 			GenerationID:   42,
 			ConversationID: 9,
-			Images:         []string{"user_7/42/0.png", "user_7/42/1.png"},
-			Cost:           0.08,
 			Balance:        4.92,
 		},
 	}
@@ -175,7 +196,8 @@ func TestImageStudioGenerate_PassesJWTUserAndBuildsURLs(t *testing.T) {
 	h.Generate(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, 1, gen.calls)
+	require.Equal(t, 1, gen.starts)
+	require.Equal(t, 0, gen.calls)
 	// The acting user is the JWT subject, never the body.
 	require.Equal(t, int64(7), gen.gotUserID)
 	require.Equal(t, int64(3), gen.gotInput.GroupID)
@@ -189,12 +211,10 @@ func TestImageStudioGenerate_PassesJWTUserAndBuildsURLs(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &env))
 	require.Equal(t, int64(42), env.Data.GenerationID)
 	require.Equal(t, int64(9), env.Data.ConversationID)
-	require.Equal(t, 0.08, env.Data.Cost)
+	require.Equal(t, "pending", env.Data.Status)
+	require.Empty(t, env.Data.Images)
+	require.Zero(t, env.Data.Cost)
 	require.Equal(t, 4.92, env.Data.Balance)
-	require.Equal(t, []string{
-		"/api/v1/user/image-studio/assets/42/0",
-		"/api/v1/user/image-studio/assets/42/1",
-	}, env.Data.Images)
 }
 
 func TestImageStudioGenerate_ErrorMapping(t *testing.T) {
@@ -223,12 +243,10 @@ func TestImageStudioGenerate_ErrorMapping(t *testing.T) {
 
 func TestImageStudioGenerate_MultipartRoutesInputImage(t *testing.T) {
 	gen := &studioGeneratorStub{
-		result: &service.ImageStudioGenerateResult{
+		start: &service.ImageStudioStartResult{
 			GenerationID:   42,
 			ConversationID: 9,
-			Images:         []string{"user_7/42/0.png"},
 			InputImages:    []string{"user_7/42/input/0.png", "user_7/42/input/1.png"},
-			Cost:           0.05,
 			Balance:        4.95,
 		},
 	}
@@ -264,7 +282,8 @@ func TestImageStudioGenerate_MultipartRoutesInputImage(t *testing.T) {
 	h.Generate(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, 1, gen.calls)
+	require.Equal(t, 1, gen.starts)
+	require.Equal(t, 0, gen.calls)
 	require.Equal(t, int64(7), gen.gotUserID)
 	require.Equal(t, int64(3), gen.gotInput.GroupID)
 	require.NotNil(t, gen.gotInput.ConversationID)
@@ -285,7 +304,8 @@ func TestImageStudioGenerate_MultipartRoutesInputImage(t *testing.T) {
 		Data generateImageResponse `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &env))
-	require.Equal(t, []string{"/api/v1/user/image-studio/assets/42/0"}, env.Data.Images)
+	require.Equal(t, "pending", env.Data.Status)
+	require.Empty(t, env.Data.Images)
 	require.Equal(t, []string{"/api/v1/user/image-studio/input-assets/42/0", "/api/v1/user/image-studio/input-assets/42/1"}, env.Data.InputImages)
 }
 

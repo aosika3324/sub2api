@@ -69,6 +69,16 @@ type ImageStudioGenerateResult struct {
 	Balance        float64
 }
 
+// ImageStudioStartResult is returned after a studio job is accepted and stored
+// as a pending generation. The image work continues in the background and the
+// caller tracks progress through GetGeneration/ListGenerations.
+type ImageStudioStartResult struct {
+	GenerationID   int64
+	ConversationID int64
+	InputImages    []string
+	Balance        float64
+}
+
 // StudioGeneratedImage is one produced image returned by the studio image
 // generator port (raw bytes + content type), ready to hand to ImageStore.Put.
 //
@@ -175,6 +185,7 @@ const (
 	imageStudioStatusSucceeded = "succeeded"
 	imageStudioStatusFailed    = "failed"
 	imageStudioTitleMaxLen     = 80
+	imageStudioBackgroundTTL   = 15 * time.Minute
 	// imageStudioMaxN caps the number of images per request, matching the OpenAI
 	// images endpoints' published limit. N is clamped (not rejected) to this.
 	imageStudioMaxN = 10
@@ -225,6 +236,21 @@ type ImageStudioService struct {
 	cfg           *config.Config
 }
 
+type preparedImageStudioGeneration struct {
+	user           *User
+	group          *Group
+	apiKey         *APIKey
+	subscription   *UserSubscription
+	reqLog         *zap.Logger
+	userID         int64
+	conversationID int64
+	generationID   int64
+	input          ImageStudioGenerateInput
+	n              int
+	inputImages    []StudioInputImage
+	inputKeys      []string
+}
+
 // Compile-time assertions: the existing concrete services satisfy the studio
 // ports. The studioImageGenerator port is intentionally NOT asserted here — it
 // is satisfied by a capturing adapter wired in Task 9 (see StudioGeneratedImage),
@@ -257,9 +283,50 @@ func NewImageStudioService(deps ImageStudioServiceDeps) *ImageStudioService {
 	}
 }
 
-// Generate runs the studio orchestration for userID. See ImageStudioService doc
-// for the spec §9 ordering and the per-step mapping in the code below.
+// Generate runs the studio orchestration synchronously for userID. The HTTP
+// workbench uses StartGenerate so slow upstream image work can continue after
+// the browser request returns; this method remains for tests/internal callers
+// that need the final images immediately.
 func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in ImageStudioGenerateInput) (*ImageStudioGenerateResult, error) {
+	prepared, err := s.prepareGeneration(ctx, userID, in)
+	if err != nil {
+		return nil, err
+	}
+	return s.finishPreparedGeneration(ctx, prepared)
+}
+
+// StartGenerate validates the request, creates a pending generation row, stores
+// any reference images, then completes the image work asynchronously.
+func (s *ImageStudioService) StartGenerate(ctx context.Context, userID int64, in ImageStudioGenerateInput) (*ImageStudioStartResult, error) {
+	prepared, err := s.prepareGeneration(ctx, userID, in)
+	if err != nil {
+		return nil, err
+	}
+
+	go s.finishPreparedGenerationInBackground(prepared)
+
+	return &ImageStudioStartResult{
+		GenerationID:   prepared.generationID,
+		ConversationID: prepared.conversationID,
+		InputImages:    prepared.inputKeys,
+		Balance:        s.readBalance(ctx, userID, prepared.user.Balance),
+	}, nil
+}
+
+func (s *ImageStudioService) finishPreparedGenerationInBackground(prepared *preparedImageStudioGeneration) {
+	ctx, cancel := context.WithTimeout(context.Background(), imageStudioBackgroundTTL)
+	defer cancel()
+
+	if _, err := s.finishPreparedGeneration(ctx, prepared); err != nil {
+		prepared.reqLog.Warn("image_studio.background_generation_finished_with_error",
+			zap.Int64("generation_id", prepared.generationID),
+			zap.Error(err),
+		)
+	}
+}
+
+// prepareGeneration runs validation/preflight and creates the pending row.
+func (s *ImageStudioService) prepareGeneration(ctx context.Context, userID int64, in ImageStudioGenerateInput) (*preparedImageStudioGeneration, error) {
 	reqLog := logger.L().With(
 		zap.String("component", "service.image_studio"),
 		zap.Int64("user_id", userID),
@@ -311,14 +378,7 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 		return nil, err
 	}
 
-	// --- Step 3: acquire an image concurrency slot (defer release). ---
-	if release, ok := s.acquireSlot(ctx); !ok {
-		return nil, ErrImageStudioBusy
-	} else if release != nil {
-		defer release()
-	}
-
-	// --- Step 4: resolve conversation + insert pending generation row. ---
+	// --- Step 3: resolve conversation + insert pending generation row. ---
 	conversationID, err := s.resolveConversation(ctx, userID, in)
 	if err != nil {
 		return nil, err
@@ -372,6 +432,47 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 		}
 	}
 
+	return &preparedImageStudioGeneration{
+		user:           user,
+		group:          group,
+		apiKey:         apiKey,
+		subscription:   subscription,
+		reqLog:         reqLog.With(zap.Int64("generation_id", genID)),
+		userID:         userID,
+		conversationID: conversationID,
+		generationID:   genID,
+		input:          in,
+		n:              n,
+		inputImages:    inputImages,
+		inputKeys:      inputKeys,
+	}, nil
+}
+
+func (s *ImageStudioService) finishPreparedGeneration(ctx context.Context, prepared *preparedImageStudioGeneration) (*ImageStudioGenerateResult, error) {
+	if prepared == nil {
+		return nil, errors.New("image studio: generation is not prepared")
+	}
+	reqLog := prepared.reqLog
+	genID := prepared.generationID
+	userID := prepared.userID
+	user := prepared.user
+	group := prepared.group
+	apiKey := prepared.apiKey
+	subscription := prepared.subscription
+	in := prepared.input
+	n := prepared.n
+	inputImages := prepared.inputImages
+	inputKeys := prepared.inputKeys
+	conversationID := prepared.conversationID
+
+	// --- Step 4: acquire an image concurrency slot (defer release). ---
+	if release, ok := s.acquireSlot(ctx); !ok {
+		s.markFailed(ctx, genID, ErrImageStudioBusy, reqLog)
+		return nil, ErrImageStudioBusy
+	} else if release != nil {
+		defer release()
+	}
+
 	// --- Step 5: build the parsed images request + run the shared pipeline. ---
 	// An input image routes through /v1/images/edits (multipart); otherwise the
 	// JSON /v1/images/generations path is used.
@@ -414,6 +515,14 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	if genResult.Account == nil {
 		s.markFailed(ctx, genID, ErrImageStudioNoAccount, reqLog)
 		return nil, ErrImageStudioNoAccount
+	}
+
+	if err := s.ensureGenerationStillActive(ctx, genID); err != nil {
+		reqLog.Info("image_studio.generation_no_longer_active",
+			zap.Int64("generation_id", genID),
+			zap.Error(err),
+		)
+		return nil, err
 	}
 
 	// --- Step 6a: store each produced image; collect keys. ---
@@ -704,10 +813,29 @@ func normalizeStudioPipelineModel(model string) (string, bool) {
 	}
 }
 
+func (s *ImageStudioService) ensureGenerationStillActive(ctx context.Context, genID int64) error {
+	gen, err := s.repo.GetGeneration(ctx, genID)
+	if err != nil {
+		return err
+	}
+	if gen == nil {
+		return ErrImageStudioConversationNotFound
+	}
+	if strings.TrimSpace(gen.Status) != imageStudioStatusPending {
+		return fmt.Errorf("image studio: generation is no longer pending")
+	}
+	return nil
+}
+
 // markFailed records a failed generation; storage/usage are intentionally not
 // touched. Errors from the status write are logged, not propagated (the caller
 // already has a terminal error to return).
 func (s *ImageStudioService) markFailed(ctx context.Context, genID int64, cause error, reqLog *zap.Logger) {
+	if ctx == nil || ctx.Err() != nil {
+		fallbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		ctx = fallbackCtx
+	}
 	msg := ""
 	if cause != nil {
 		msg = cause.Error()

@@ -141,7 +141,10 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
       // it into a multipart upload. We never persist the File on the generation.
       const resp = await imageStudioAPI.generate(req)
 
-      // Build a local ImageStudioGeneration from the response
+      const isFinalSuccess = resp.images.length > 0 || resp.status === 'succeeded'
+
+      // Build a local ImageStudioGeneration from the response. The workbench
+      // endpoint returns a pending row immediately, then polling fills images in.
       const newGen: ImageStudioGeneration = {
         id: resp.generation_id,
         conversation_id: resp.conversation_id,
@@ -152,14 +155,14 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
         quality: req.quality,
         n: req.n,
         image_count: resp.images.length,
-        status: 'succeeded',
+        status: isFinalSuccess ? 'succeeded' : (resp.status || 'pending'),
         cost: resp.cost,
         created_at: new Date().toISOString(),
         images: resp.images,
         input_images: resp.input_images,
       }
 
-      generations.value = [newGen, ...generations.value]
+      generations.value = createdNewConversation ? [newGen] : [newGen, ...generations.value]
 
       // Adopt the auto-created conversation as active and surface it in the
       // sidebar immediately, so subsequent turns reuse it instead of spawning
@@ -202,8 +205,13 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
   async function refreshGeneration(id: number): Promise<ImageStudioGeneration | null> {
     const updated = await imageStudioAPI.getGeneration(id)
     const idx = generations.value.findIndex((g) => g.id === id)
+    const previousStatus = idx !== -1 ? generations.value[idx].status : undefined
     if (idx !== -1) {
       generations.value[idx] = updated
+    }
+    if (previousStatus !== updated.status && updated.status === 'succeeded') {
+      const authStore = useAuthStore()
+      authStore.refreshUser().catch(() => {})
     }
     return updated
   }
@@ -221,7 +229,12 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
       if (update.status !== 'fulfilled') continue
       const idx = generations.value.findIndex((g) => g.id === update.value.id)
       if (idx !== -1) {
+        const previousStatus = generations.value[idx].status
         generations.value[idx] = update.value
+        if (previousStatus !== update.value.status && update.value.status === 'succeeded') {
+          const authStore = useAuthStore()
+          authStore.refreshUser().catch(() => {})
+        }
       }
     }
   }

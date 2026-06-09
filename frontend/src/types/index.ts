@@ -1977,6 +1977,7 @@ export interface GenerateImageStudioResponse {
   images: string[]
   /** Persisted source images for image-to-image generations (absolute asset paths). */
   input_images?: string[]
+  status?: string
   cost: number
   balance: number
 }

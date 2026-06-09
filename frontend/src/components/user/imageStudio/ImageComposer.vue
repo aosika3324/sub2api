@@ -12,7 +12,7 @@
     <!-- Unified pill: textarea on top, compact controls + send below.
          Doubles as a drag-and-drop target for reference images. -->
     <div
-      class="composer-shell relative rounded-[28px] border border-gray-100 bg-white shadow-sm transition-colors focus-within:border-primary-400 dark:border-dark-700/50 dark:bg-dark-800/50 dark:focus-within:border-primary-500"
+      class="composer-shell relative rounded-2xl border border-gray-100 bg-white shadow-sm transition-colors focus-within:border-primary-400 dark:border-dark-700/50 dark:bg-dark-800/70 dark:focus-within:border-primary-500"
       @dragover.prevent="onDragOver"
       @dragleave.prevent="onDragLeave"
       @drop.prevent="onDrop"
@@ -20,7 +20,7 @@
       <!-- Drag overlay -->
       <div
         v-if="dragActive"
-        class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[28px] border-2 border-dashed border-primary-400 bg-primary-50/80 dark:border-primary-500 dark:bg-primary-900/30"
+        class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-primary-400 bg-primary-50/80 dark:border-primary-500 dark:bg-primary-900/30"
       >
         <span class="flex items-center gap-2 text-sm font-medium text-primary-700 dark:text-primary-300">
           <Icon name="upload" size="sm" />
@@ -34,7 +34,7 @@
           <div
             v-for="(item, idx) in referencePreviews"
             :key="`${idx}-${item.url}`"
-            class="relative overflow-hidden rounded-xl border border-gray-200 dark:border-dark-600"
+            class="relative overflow-hidden rounded-lg border border-gray-200 dark:border-dark-600"
           >
             <img
               :src="item.url"
@@ -200,7 +200,6 @@
         </div>
 
         <button
-          v-if="mode !== 'generate' || referencePreviews.length > 0"
           type="button"
           class="reference-dropzone"
           :class="{ 'reference-dropzone-empty': referencePreviews.length === 0 }"
@@ -600,7 +599,7 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 
 <style scoped>
 .composer-prompt {
-  @apply w-full resize-none border-0 bg-transparent px-5 pb-2 pt-4 text-base leading-relaxed;
+  @apply w-full resize-none border-0 bg-transparent px-5 pb-3 pt-4 text-base leading-relaxed;
   @apply text-gray-900 dark:text-white;
   @apply placeholder:text-gray-400 dark:placeholder:text-dark-500;
   @apply focus:outline-none focus:ring-0;
@@ -608,18 +607,18 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 }
 
 .workbench-panel {
-  @apply mx-3 mb-3 rounded-2xl border border-gray-100 bg-gray-50/80 p-3;
-  @apply dark:border-dark-700/70 dark:bg-dark-900/45;
+  @apply mx-3 mb-3 rounded-xl border border-gray-100 bg-gray-50/90 p-4;
+  @apply dark:border-dark-700/70 dark:bg-dark-900/60;
 }
 
 .workbench-row {
   @apply grid gap-3;
-  grid-template-columns: minmax(9rem, 1fr) minmax(12rem, 1.3fr) minmax(13rem, 1.4fr) minmax(5.5rem, 0.55fr);
+  grid-template-columns: minmax(10rem, 1fr) minmax(15rem, 1.25fr) minmax(15rem, 1.2fr) minmax(6rem, 0.55fr);
 }
 
 .workbench-row-secondary {
-  @apply mt-3;
-  grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1.8fr) minmax(12rem, 1fr);
+  @apply mt-4;
+  grid-template-columns: minmax(15rem, 1fr) minmax(20rem, 1.6fr) minmax(13rem, 0.9fr);
 }
 
 @media (max-width: 1024px) {
@@ -641,7 +640,7 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 }
 
 .control-label {
-  @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-normal text-gray-400 dark:text-dark-400;
+  @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-normal text-gray-500 dark:text-dark-300;
 }
 
 .workbench-select :deep(.select-trigger) {
@@ -660,7 +659,7 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 }
 
 .reference-dropzone {
-  @apply mt-3 flex w-full items-center gap-2 rounded-xl border border-dashed border-primary-300 bg-primary-50/70 px-3 py-2 text-left text-sm text-primary-700 transition-colors;
+  @apply mt-4 flex w-full items-center gap-2 rounded-lg border border-dashed border-primary-300 bg-primary-50/70 px-3 py-2.5 text-left text-sm text-primary-700 transition-colors;
   @apply hover:bg-primary-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
   @apply dark:border-primary-700/60 dark:bg-primary-900/20 dark:text-primary-300 dark:hover:bg-primary-900/30;
 }
@@ -719,11 +718,11 @@ defineExpose({ resetPrompt, fillPrompt, resetReference })
 }
 
 .mode-segmented {
-  @apply rounded-full p-0.5;
+  @apply rounded-lg p-1;
 }
 
 .mode-segmented .segmented-btn {
-  @apply rounded-full px-2.5 py-1 text-[11px];
+  @apply rounded-md px-2.5 py-1.5 text-xs;
 }
 
 /* Auto toggle (custom-size disabled state). */

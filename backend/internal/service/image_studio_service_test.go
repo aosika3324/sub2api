@@ -86,11 +86,21 @@ type studioImageGeneratorStub struct {
 	err    error
 	calls  int
 	last   ImageGenInput
+	block  <-chan struct{}
+	done   chan struct{}
 }
 
 func (s *studioImageGeneratorStub) GenerateStudioImages(_ context.Context, in ImageGenInput) (*ImageGenResult, []StudioGeneratedImage, error) {
 	s.calls++
 	s.last = in
+	defer func() {
+		if s.done != nil {
+			close(s.done)
+		}
+	}()
+	if s.block != nil {
+		<-s.block
+	}
 	if s.err != nil {
 		return nil, nil, s.err
 	}
@@ -154,6 +164,7 @@ type studioRepoStub struct {
 	setInputCalls int
 	lastInputKeys []string
 	setInputErr   error
+	getGenSignal  chan struct{}
 }
 
 type studioStatusUpdate struct {
@@ -243,6 +254,13 @@ func (s *studioRepoStub) SetInputStorageKeys(_ context.Context, id int64, keys [
 func (s *studioRepoStub) GetGeneration(_ context.Context, id int64) (*dbent.ImageGeneration, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.getGenSignal != nil {
+		select {
+		case <-s.getGenSignal:
+		default:
+			close(s.getGenSignal)
+		}
+	}
 	g, ok := s.generations[id]
 	if !ok {
 		return nil, errors.New("not found")
@@ -281,7 +299,10 @@ func (s *studioRepoStub) ClearUserHistory(_ context.Context, _ int64) ([]string,
 	return nil, nil
 }
 
-func (s *studioRepoStub) DeleteGeneration(_ context.Context, _ int64) error {
+func (s *studioRepoStub) DeleteGeneration(_ context.Context, id int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.generations, id)
 	return nil
 }
 
@@ -526,6 +547,61 @@ func TestImageStudioService_Generate_Success_NewConversation(t *testing.T) {
 	// Cost + balance surfaced.
 	require.InDelta(t, 0.42, res.Cost, 1e-9)
 	require.InDelta(t, 99.58, res.Balance, 1e-9)
+}
+
+func TestImageStudioService_StartGenerate_ReturnsPendingAndCompletesInBackground(t *testing.T) {
+	f := newStudioFixture(t)
+	f.users.hasAfter = true
+	f.users.balanceAfter = 99.58
+	releaseGeneration := make(chan struct{})
+	f.gen.block = releaseGeneration
+
+	res, err := f.svc.StartGenerate(context.Background(), 1, studioInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.NotZero(t, res.GenerationID)
+	require.NotZero(t, res.ConversationID)
+	require.Equal(t, 0, f.store.putCalls, "StartGenerate returns before output images are stored")
+	require.Equal(t, 0, f.usage.calls, "StartGenerate returns before billing writes")
+
+	close(releaseGeneration)
+	require.Eventually(t, func() bool {
+		last, ok := f.repo.lastStatus()
+		return ok && last.id == res.GenerationID && last.status == "succeeded" && last.imageCount == 2
+	}, time.Second, 10*time.Millisecond)
+	require.Equal(t, 2, f.store.putCalls)
+	require.Equal(t, 1, f.usage.calls)
+}
+
+func TestImageStudioService_StartGenerate_DeletedPendingDoesNotStoreOrBill(t *testing.T) {
+	f := newStudioFixture(t)
+	releaseGeneration := make(chan struct{})
+	generatorDone := make(chan struct{})
+	statusChecked := make(chan struct{})
+	f.gen.block = releaseGeneration
+	f.gen.done = generatorDone
+	f.repo.getGenSignal = statusChecked
+
+	res, err := f.svc.StartGenerate(context.Background(), 1, studioInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.NoError(t, f.repo.DeleteGeneration(context.Background(), res.GenerationID))
+
+	close(releaseGeneration)
+	select {
+	case <-generatorDone:
+	case <-time.After(time.Second):
+		t.Fatal("generator did not finish")
+	}
+	select {
+	case <-statusChecked:
+	case <-time.After(time.Second):
+		t.Fatal("generation status was not checked")
+	}
+	require.Equal(t, 0, f.store.putCalls)
+	require.Equal(t, 0, f.usage.calls)
 }
 
 func TestImageStudioService_Generate_Success_ExistingConversation(t *testing.T) {

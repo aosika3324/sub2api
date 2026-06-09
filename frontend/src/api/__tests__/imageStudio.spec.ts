@@ -65,7 +65,7 @@ describe('imageStudio API', () => {
   it('sends multiple reference images as multipart image fields with no timeout', async () => {
     adapter.mockResolvedValueOnce({
       status: 200,
-      data: { code: 0, data: { generation_id: 1, conversation_id: 1, images: [], cost: 0, balance: 0 } },
+      data: { code: 0, data: { generation_id: 1, conversation_id: 1, images: [], status: 'pending', cost: 0, balance: 0 } },
       headers: {},
       config: {},
       statusText: 'OK',

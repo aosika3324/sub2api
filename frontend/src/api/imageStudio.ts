@@ -192,8 +192,9 @@ export async function clearHistory(): Promise<void> {
  */
 export async function fetchAssetBlob(url: string): Promise<Blob> {
   const path = url.replace(/^\/api\/v1(?=\/)/, '')
-  const { data } = await apiClient.get<Blob>(path, { responseType: 'blob' })
-  if (!(data instanceof Blob) || !data.type.toLowerCase().startsWith('image/')) {
+  const { data, headers } = await apiClient.get<Blob>(path, { responseType: 'blob' })
+  const contentType = String(headers?.['content-type'] || data?.type || '').toLowerCase()
+  if (!data || typeof data !== 'object' || !contentType.startsWith('image/')) {
     throw new Error('Image asset response is not an image')
   }
   return data

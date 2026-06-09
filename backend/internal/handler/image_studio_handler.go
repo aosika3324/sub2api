@@ -25,7 +25,7 @@ import (
 
 // imageStudioGenerator runs an in-app (JWT) image generation.
 type imageStudioGenerator interface {
-	Generate(ctx context.Context, userID int64, in service.ImageStudioGenerateInput) (*service.ImageStudioGenerateResult, error)
+	StartGenerate(ctx context.Context, userID int64, in service.ImageStudioGenerateInput) (*service.ImageStudioStartResult, error)
 }
 
 // imageStudioStore reads stored image bytes back for the assets endpoint.
@@ -108,6 +108,7 @@ type generateImageResponse struct {
 	ConversationID int64    `json:"conversation_id"`
 	Images         []string `json:"images"`
 	InputImages    []string `json:"input_images,omitempty"`
+	Status         string   `json:"status"`
 	Cost           float64  `json:"cost"`
 	Balance        float64  `json:"balance"`
 }
@@ -197,7 +198,7 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	generateCtx, cancel := context.WithTimeout(context.Background(), imageStudioGenerateTTL)
 	defer cancel()
 
-	result, err := h.studio.Generate(generateCtx, subject.UserID, in)
+	result, err := h.studio.StartGenerate(generateCtx, subject.UserID, in)
 	if err != nil {
 		h.respondGenerateError(c, err)
 		return
@@ -206,9 +207,10 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	response.Success(c, generateImageResponse{
 		GenerationID:   result.GenerationID,
 		ConversationID: result.ConversationID,
-		Images:         buildAssetURLs(result.GenerationID, len(result.Images)),
+		Images:         []string{},
 		InputImages:    buildInputAssetURLs(result.GenerationID, len(result.InputImages)),
-		Cost:           result.Cost,
+		Status:         "pending",
+		Cost:           0,
 		Balance:        result.Balance,
 	})
 }
