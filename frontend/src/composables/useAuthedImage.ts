@@ -11,13 +11,14 @@
  */
 
 import { ref, watch, onUnmounted, isRef, type Ref } from 'vue'
-import { fetchAssetBlob } from '@/api/imageStudio'
+import { fetchAssetBlob, toAssetBrowserURL } from '@/api/imageStudio'
 
 export function useAuthedImage(
   assetUrl: Ref<string | undefined | null> | string | undefined | null,
   enabled: Ref<boolean> | boolean = true
 ) {
   const src = ref<string | undefined>(undefined)
+  const fallbackSrc = ref<string | undefined>(undefined)
   const loading = ref(false)
   const error = ref<unknown>(null)
 
@@ -46,9 +47,11 @@ export function useAuthedImage(
     const myId = ++loadId
     revokeCurrent()
     src.value = undefined
+    fallbackSrc.value = undefined
     error.value = null
 
     if (!url) return
+    fallbackSrc.value = toAssetBrowserURL(url)
 
     loading.value = true
     try {
@@ -62,7 +65,10 @@ export function useAuthedImage(
       currentObjectUrl = objectUrl
       src.value = objectUrl
     } catch (err) {
-      if (myId === loadId) error.value = err
+      if (myId === loadId) {
+        error.value = err
+        src.value = fallbackSrc.value
+      }
     } finally {
       if (myId === loadId) loading.value = false
     }
@@ -79,5 +85,5 @@ export function useAuthedImage(
     revokeCurrent()
   })
 
-  return { src, loading, error }
+  return { src, fallbackSrc, loading, error }
 }

@@ -13,6 +13,8 @@ const mockFetchAssetBlob = vi.fn()
 
 vi.mock('@/api/imageStudio', () => ({
   fetchAssetBlob: (...args: any[]) => mockFetchAssetBlob(...args),
+  toAssetBrowserURL: (url: string) =>
+    url.startsWith('/user/image-studio/') ? `/api/v1${url}` : url,
 }))
 
 // ==================== Deferred helper ====================

@@ -10,6 +10,8 @@ vi.mock('vue-i18n', () => ({
 
 vi.mock('@/api/imageStudio', () => ({
   fetchAssetBlob: vi.fn(),
+  toAssetBrowserURL: (url: string) =>
+    url.startsWith('/user/image-studio/') ? `/api/v1${url}` : url,
 }))
 
 import AuthedImage from '../AuthedImage.vue'
@@ -99,5 +101,21 @@ describe('AuthedImage', () => {
     wrapper.unmount()
 
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:asset')
+  })
+
+  it('falls back to the browser asset URL when blob fetching fails', async () => {
+    fetchAssetBlobMock.mockRejectedValueOnce(new Error('bad blob'))
+
+    const wrapper = mount(AuthedImage, {
+      props: { url: '/user/image-studio/assets/9/0' },
+      global: { stubs: { Icon: IconStub } },
+    })
+
+    observerCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver)
+    await flushPromises()
+
+    const img = wrapper.find('img')
+    expect(img.exists()).toBe(true)
+    expect(img.attributes('src')).toBe('/api/v1/user/image-studio/assets/9/0')
   })
 })

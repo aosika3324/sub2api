@@ -116,7 +116,7 @@ describe('useImageStudioStore', () => {
       }
 
       const store = useImageStudioStore()
-      await store.generate(fakeGenerateReq)
+      await store.generate({ ...fakeGenerateReq, conversation_id: 1 })
 
       // Generation prepended
       expect(store.generations).toHaveLength(1)
@@ -152,7 +152,7 @@ describe('useImageStudioStore', () => {
         },
       ]
 
-      await store.generate(fakeGenerateReq)
+      await store.generate({ ...fakeGenerateReq, conversation_id: 1 })
 
       expect(store.generations).toHaveLength(2)
       expect(store.generations[0].id).toBe(42) // new one first

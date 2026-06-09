@@ -28,6 +28,15 @@ import GenerationCard from '../GenerationCard.vue'
 import type { ImageStudioGeneration } from '@/types'
 
 const IconStub = defineComponent({ name: 'Icon', template: '<span />' })
+const AuthedImageStub = defineComponent({
+  name: 'AuthedImage',
+  props: {
+    url: { type: String, required: true },
+    alt: { type: String, default: '' },
+  },
+  emits: ['open'],
+  template: '<img :src="\'blob:\' + url" :alt="alt" @click="$emit(\'open\', \'blob:\' + url)" />',
+})
 
 function makeGeneration(overrides: Partial<ImageStudioGeneration> = {}): ImageStudioGeneration {
   return {
@@ -51,7 +60,7 @@ function makeGeneration(overrides: Partial<ImageStudioGeneration> = {}): ImageSt
 function mountCard(generation: ImageStudioGeneration) {
   return mount(GenerationCard, {
     props: { generation },
-    global: { stubs: { Icon: IconStub } },
+    global: { stubs: { Icon: IconStub, AuthedImage: AuthedImageStub } },
   })
 }
 

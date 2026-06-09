@@ -30,12 +30,12 @@
     <!-- Onboarding hero (first-use / empty conversation) -->
     <div
       v-else-if="generations.length === 0 && !generating"
-      class="onboarding-hero relative flex flex-1 items-center justify-center overflow-hidden px-6 py-16"
+      class="onboarding-hero relative flex flex-1 items-center justify-center overflow-hidden px-6 py-12"
     >
-      <div class="relative z-10 mx-auto max-w-2xl text-center">
+      <div class="relative z-10 mx-auto max-w-3xl text-center">
         <!-- Serif display hero -->
         <h2
-          class="font-serif text-5xl font-normal tracking-tight text-gray-900 md:text-6xl dark:text-white"
+          class="font-serif text-4xl font-normal tracking-tight text-gray-900 md:text-5xl dark:text-white"
         >
           {{ t('imageStudio.onboardingTitle') }}
         </h2>
@@ -45,8 +45,18 @@
           {{ t('imageStudio.onboardingSubtitle') }}
         </p>
 
+        <div class="workbench-empty-grid">
+          <div v-for="item in capabilityItems" :key="item.key" class="workbench-empty-item">
+            <span class="workbench-empty-icon">
+              <Icon :name="item.icon" size="sm" />
+            </span>
+            <span class="workbench-empty-title">{{ item.title }}</span>
+            <span class="workbench-empty-copy">{{ item.copy }}</span>
+          </div>
+        </div>
+
         <!-- Example prompt chips (faint ghost pills) -->
-        <div class="mt-9 flex flex-wrap justify-center gap-2">
+        <div class="mt-7 flex flex-wrap justify-center gap-2">
           <button
             v-for="(example, idx) in examplePrompts"
             :key="idx"
@@ -159,6 +169,27 @@ const examplePrompts = computed<string[]>(() => [
   t('imageStudio.examplePrompt3'),
   t('imageStudio.examplePrompt4'),
 ])
+
+const capabilityItems = computed(() => [
+  {
+    key: 'generate',
+    icon: 'sparkles' as const,
+    title: t('imageStudio.capabilityGenerate'),
+    copy: t('imageStudio.capabilityGenerateCopy'),
+  },
+  {
+    key: 'edit',
+    icon: 'upload' as const,
+    title: t('imageStudio.capabilityEdit'),
+    copy: t('imageStudio.capabilityEditCopy'),
+  },
+  {
+    key: 'history',
+    icon: 'grid' as const,
+    title: t('imageStudio.capabilityHistory'),
+    copy: t('imageStudio.capabilityHistoryCopy'),
+  },
+])
 </script>
 
 <style scoped>
@@ -167,6 +198,28 @@ const examplePrompts = computed<string[]>(() => [
   @apply hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 hover:shadow-sm;
   @apply dark:border-dark-600 dark:bg-dark-800/70 dark:text-gray-300;
   @apply dark:hover:border-primary-700 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+}
+
+.workbench-empty-grid {
+  @apply mx-auto mt-8 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3;
+}
+
+.workbench-empty-item {
+  @apply rounded-xl border border-gray-200 bg-white/75 p-3 text-left shadow-sm;
+  @apply dark:border-dark-700 dark:bg-dark-800/70;
+}
+
+.workbench-empty-icon {
+  @apply inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary-50 text-primary-600;
+  @apply dark:bg-primary-900/30 dark:text-primary-300;
+}
+
+.workbench-empty-title {
+  @apply mt-3 block text-sm font-semibold text-gray-900 dark:text-white;
+}
+
+.workbench-empty-copy {
+  @apply mt-1 block text-xs leading-relaxed text-gray-500 dark:text-dark-300;
 }
 
 /*

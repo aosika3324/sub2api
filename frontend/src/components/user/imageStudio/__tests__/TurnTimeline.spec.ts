@@ -69,6 +69,10 @@ describe('TurnTimeline', () => {
     expect(wrapper.find('.onboarding-hero').exists()).toBe(true)
     // Four example chips
     expect(wrapper.findAll('.example-chip').length).toBe(4)
+    expect(wrapper.findAll('.workbench-empty-item').length).toBe(3)
+    expect(wrapper.text()).toContain('imageStudio.capabilityGenerate')
+    expect(wrapper.text()).toContain('imageStudio.capabilityEdit')
+    expect(wrapper.text()).toContain('imageStudio.capabilityHistory')
     expect(wrapper.findAllComponents(GenerationCardStub).length).toBe(0)
   })
 

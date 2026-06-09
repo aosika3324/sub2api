@@ -15,6 +15,7 @@ describe('imageStudio API', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let adapter: any
   let fetchAssetBlob: (url: string) => Promise<Blob>
+  let toAssetBrowserURL: (url: string) => string
   let generate: typeof import('@/api/imageStudio').generate
   let getGeneration: typeof import('@/api/imageStudio').getGeneration
   let clearHistory: typeof import('@/api/imageStudio').clearHistory
@@ -25,6 +26,7 @@ describe('imageStudio API', () => {
     const client = await import('@/api/client')
     const api = await import('@/api/imageStudio')
     fetchAssetBlob = api.fetchAssetBlob
+    toAssetBrowserURL = api.toAssetBrowserURL
     generate = api.generate
     getGeneration = api.getGeneration
     clearHistory = api.clearHistory
@@ -60,6 +62,31 @@ describe('imageStudio API', () => {
     await fetchAssetBlob('/user/image-studio/assets/9/1')
 
     expect(fullURL()).toBe('/api/v1/user/image-studio/assets/9/1')
+  })
+
+  it('sniffs PNG blobs when the asset response has no image content-type', async () => {
+    adapter.mockResolvedValueOnce({
+      status: 200,
+      data: new Blob([
+        new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      ]),
+      headers: {},
+      config: {},
+      statusText: 'OK',
+    })
+
+    const blob = await fetchAssetBlob('/user/image-studio/assets/9/1')
+
+    expect(blob.type).toBe('image/png')
+  })
+
+  it('normalizes relative asset paths into browser URLs for direct image fallback', () => {
+    expect(toAssetBrowserURL('/user/image-studio/assets/9/1')).toBe(
+      '/api/v1/user/image-studio/assets/9/1'
+    )
+    expect(toAssetBrowserURL('/api/v1/user/image-studio/assets/9/1')).toBe(
+      '/api/v1/user/image-studio/assets/9/1'
+    )
   })
 
   it('sends multiple reference images as multipart image fields with no timeout', async () => {

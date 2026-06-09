@@ -1343,6 +1343,20 @@ export default {
 
   // Image Studio
   imageStudio: {
+    workbenchSubtitle: '\u5728\u4e00\u4e2a\u5de5\u4f5c\u53f0\u91cc\u5b8c\u6210\u751f\u6210\u3001\u7f16\u8f91\u548c\u591a\u56fe\u7ec4\u56fe\u3002',
+    capabilityGenerate: '\u751f\u6210',
+    capabilityEdit: '\u7f16\u8f91',
+    capabilityCompose: '\u7ec4\u56fe',
+    capabilityHistory: '\u5386\u53f2',
+    capabilityGenerateCopy: '\u4ece\u63d0\u793a\u8bcd\u4e00\u6b21\u751f\u6210\u4e00\u5f20\u6216\u591a\u5f20\u56fe\u3002',
+    capabilityEditCopy: '\u4e0a\u4f20\u53c2\u8003\u56fe\uff0c\u7528\u4e8e\u7f16\u8f91\u6216\u591a\u56fe\u7ec4\u56fe\u3002',
+    capabilityHistoryCopy: '\u56de\u770b\u3001\u5220\u9664\u3001\u6e05\u7a7a\uff0c\u8d85\u65f6\u4efb\u52a1\u4e5f\u80fd\u7ee7\u7eed\u7b49\u5f85\u3002',
+    stepCreate: '\u521b\u4f5c',
+    stepReference: '\u53c2\u8003\u56fe',
+    stepPrompt: '\u63d0\u793a\u8bcd',
+    workbenchModeTitle: '\u6a21\u5f0f\u4e0e\u8f93\u51fa',
+    referenceWorkbenchTitle: '\u53c2\u8003\u56fe\u5de5\u4f5c\u533a',
+    promptTitle: '\u63cf\u8ff0\u4f60\u60f3\u8981\u7684\u7ed3\u679c',
     title: '作图工作台',
     workbenchTitle: '在线画图工作台',
     subtitle: '使用 AI 生成图片',

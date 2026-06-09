@@ -16,7 +16,7 @@
 
     <!-- Error -->
     <div
-      v-else-if="error"
+      v-else-if="error && !displaySrc"
       class="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center"
     >
       <Icon name="exclamationTriangle" size="md" class="text-gray-400 dark:text-dark-500" />
@@ -27,14 +27,14 @@
 
     <!-- Image -->
     <img
-      v-else-if="src"
-      :src="src"
+      v-else-if="displaySrc"
+      :src="displaySrc"
       :alt="alt"
       loading="lazy"
       class="h-full w-full cursor-zoom-in transition-transform duration-200 group-hover:scale-[1.02]"
       :class="aspectRatio ? 'object-contain' : 'object-cover'"
       @error="markImageError"
-      @click="$emit('open', src)"
+      @click="$emit('open', displaySrc)"
     />
   </div>
 </template>
@@ -64,7 +64,7 @@ const { t } = useI18n()
 // Reactively follow `url` so the image re-fetches if the prop changes.
 const containerRef = ref<HTMLElement | null>(null)
 const visible = ref(typeof window === 'undefined' || !('IntersectionObserver' in window))
-const { src, loading, error } = useAuthedImage(toRef(props, 'url'), visible)
+const { src, fallbackSrc, loading, error } = useAuthedImage(toRef(props, 'url'), visible)
 
 let observer: IntersectionObserver | null = null
 
@@ -94,6 +94,13 @@ onBeforeUnmount(() => {
 })
 
 function markImageError() {
+  if (src.value && fallbackSrc.value && src.value !== fallbackSrc.value) {
+    src.value = fallbackSrc.value
+    error.value = null
+    return
+  }
+  src.value = undefined
+  fallbackSrc.value = undefined
   error.value = new Error('Image failed to render')
 }
 
@@ -101,4 +108,6 @@ const containerStyle = computed(() => ({
   aspectRatio:
     props.aspectRatio && props.aspectRatio > 0 ? String(props.aspectRatio) : '1 / 1',
 }))
+
+const displaySrc = computed(() => src.value || fallbackSrc.value)
 </script>

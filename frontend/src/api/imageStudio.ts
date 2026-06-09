@@ -12,6 +12,21 @@ import type {
   GenerateImageStudioResponse,
 } from '@/types'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+
+export function normalizeAssetPath(url: string): string {
+  return url.replace(/^\/api\/v1(?=\/)/, '')
+}
+
+export function toAssetBrowserURL(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url
+  if (url.startsWith('/api/v1/')) return url
+  if (url.startsWith('/user/image-studio/')) {
+    return `${API_BASE_URL.replace(/\/$/, '')}${url}`
+  }
+  return url
+}
+
 // ==================== Generate ====================
 
 /**
@@ -193,13 +208,97 @@ export async function clearHistory(): Promise<void> {
  * @param url - The asset URL (e.g. /api/v1/user/image-studio/assets/:genID/:idx)
  */
 export async function fetchAssetBlob(url: string): Promise<Blob> {
-  const path = url.replace(/^\/api\/v1(?=\/)/, '')
+  const path = normalizeAssetPath(url)
   const { data, headers } = await apiClient.get<Blob>(path, { responseType: 'blob' })
-  const contentType = String(headers?.['content-type'] || data?.type || '').toLowerCase()
-  if (!data || typeof data !== 'object' || !contentType.startsWith('image/')) {
+  if (!isBlobLike(data)) {
     throw new Error('Image asset response is not an image')
   }
-  return data
+  const declaredType = getHeader(headers, 'content-type') || data.type
+  const imageType = declaredType.toLowerCase().startsWith('image/')
+    ? declaredType
+    : await sniffImageType(data)
+  if (!imageType) {
+    throw new Error('Image asset response is not an image')
+  }
+  return data.type === imageType ? data : data.slice(0, data.size, imageType)
+}
+
+function isBlobLike(value: unknown): value is Blob {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Blob).slice === 'function' &&
+    typeof (value as Blob).size === 'number'
+  )
+}
+
+function getHeader(headers: unknown, name: string): string {
+  const maybeHeaders = headers as
+    | Record<string, unknown>
+    | { get?: (key: string) => unknown }
+    | undefined
+  const getter = (maybeHeaders as { get?: unknown } | undefined)?.get
+  const fromGetter = typeof getter === 'function' ? getter.call(maybeHeaders, name) : undefined
+  if (typeof fromGetter === 'string') return fromGetter
+  const direct = (maybeHeaders as Record<string, unknown> | undefined)?.[name]
+  if (typeof direct === 'string') return direct
+  return ''
+}
+
+async function sniffImageType(blob: Blob): Promise<string> {
+  const head = new Uint8Array(await readBlobArrayBuffer(blob.slice(0, 16)))
+  if (
+    head[0] === 0x89 &&
+    head[1] === 0x50 &&
+    head[2] === 0x4e &&
+    head[3] === 0x47 &&
+    head[4] === 0x0d &&
+    head[5] === 0x0a &&
+    head[6] === 0x1a &&
+    head[7] === 0x0a
+  ) {
+    return 'image/png'
+  }
+  if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) {
+    return 'image/jpeg'
+  }
+  if (
+    head[0] === 0x47 &&
+    head[1] === 0x49 &&
+    head[2] === 0x46 &&
+    head[3] === 0x38
+  ) {
+    return 'image/gif'
+  }
+  if (
+    head[0] === 0x52 &&
+    head[1] === 0x49 &&
+    head[2] === 0x46 &&
+    head[3] === 0x46 &&
+    head[8] === 0x57 &&
+    head[9] === 0x45 &&
+    head[10] === 0x42 &&
+    head[11] === 0x50
+  ) {
+    return 'image/webp'
+  }
+  return ''
+}
+
+function readBlobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  const arrayBuffer = blob.arrayBuffer
+  if (typeof arrayBuffer === 'function') {
+    return arrayBuffer.call(blob)
+  }
+  if (typeof FileReader !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as ArrayBuffer)
+      reader.onerror = () => reject(reader.error ?? new Error('Unable to read image blob'))
+      reader.readAsArrayBuffer(blob)
+    })
+  }
+  return Promise.reject(new Error('Unable to read image blob'))
 }
 
 export const imageStudioAPI = {
