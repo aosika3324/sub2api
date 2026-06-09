@@ -121,6 +121,15 @@ func TestResolveOpenAIForwardModel(t *testing.T) {
 			defaultMappedModel: "gpt-5.4",
 			expectedModel:      "gpt-5.5-openai-compact",
 		},
+		{
+			name: "codex image alias forwards as upstream image model",
+			account: &Account{
+				Credentials: map[string]any{},
+			},
+			requestedModel:     "codex-gpt-image-2",
+			defaultMappedModel: "gpt-5.4",
+			expectedModel:      "gpt-image-2",
+		},
 	}
 
 	for _, tt := range tests {

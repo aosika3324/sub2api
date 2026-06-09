@@ -585,6 +585,12 @@ func normalizeRequestedModelForLookup(platform, requestedModel string) string {
 	if trimmed == "" {
 		return ""
 	}
+	if isOpenAIImageGenerationModel(trimmed) {
+		upstreamModel := openAIImageGenerationUpstreamModel(trimmed)
+		if upstreamModel != trimmed {
+			return upstreamModel
+		}
+	}
 	if platform != PlatformGemini && platform != PlatformAntigravity {
 		return trimmed
 	}

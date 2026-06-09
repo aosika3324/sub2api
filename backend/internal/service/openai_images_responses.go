@@ -914,8 +914,8 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthNonStreamingResponse(
 		}
 		return OpenAIUsage{}, 0, nil, fmt.Errorf("upstream did not return image output")
 	}
-	if strings.TrimSpace(firstMeta.Model) == "" {
-		firstMeta.Model = strings.TrimSpace(fallbackModel)
+	if clientModel := strings.TrimSpace(fallbackModel); clientModel != "" {
+		firstMeta.Model = clientModel
 	}
 
 	responseBody, err := buildOpenAIImagesAPIResponse(results, createdAt, usageRaw, firstMeta, responseFormat)
@@ -958,7 +958,8 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 	emitted := make(map[string]struct{})
 	pendingResults := make([]openAIResponsesImageResult, 0, 1)
 	pendingSeen := make(map[string]struct{})
-	streamMeta := openAIResponsesImageResult{Model: strings.TrimSpace(fallbackModel)}
+	clientModel := strings.TrimSpace(fallbackModel)
+	streamMeta := openAIResponsesImageResult{Model: clientModel}
 	var createdAt int64
 	clientDisconnected := false
 	lastDownstreamWriteAt := time.Now()
@@ -980,6 +981,9 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 		}
 		if meta, eventCreatedAt, ok := extractOpenAIResponsesImageMetaFromLifecycleEvent(dataBytes); ok {
 			mergeOpenAIResponsesImageMeta(&streamMeta, meta)
+			if clientModel != "" {
+				streamMeta.Model = clientModel
+			}
 			if eventCreatedAt > 0 {
 				createdAt = eventCreatedAt
 			}
@@ -1036,14 +1040,23 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 				return
 			}
 			mergeOpenAIResponsesImageMeta(&streamMeta, firstMeta)
+			if clientModel != "" {
+				streamMeta.Model = clientModel
+			}
 			finalResults := make([]openAIResponsesImageResult, 0, len(results)+len(pendingResults))
 			finalSeen := make(map[string]struct{})
 			for _, img := range results {
 				mergeOpenAIResponsesImageMeta(&img, streamMeta)
+				if clientModel != "" {
+					img.Model = clientModel
+				}
 				appendOpenAIResponsesImageResultDedup(&finalResults, finalSeen, "", img)
 			}
 			for _, img := range pendingResults {
 				mergeOpenAIResponsesImageMeta(&img, streamMeta)
+				if clientModel != "" {
+					img.Model = clientModel
+				}
 				appendOpenAIResponsesImageResultDedup(&finalResults, finalSeen, "", img)
 			}
 			if len(finalResults) == 0 {
@@ -1293,10 +1306,12 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}
+	upstreamModel := openAIImageGenerationUpstreamModel(requestModel)
 	logger.LegacyPrintf(
 		"service.openai_gateway",
-		"[OpenAI] Images request routing request_model=%s endpoint=%s account_type=%s uploads=%d",
+		"[OpenAI] Images request routing request_model=%s upstream_model=%s endpoint=%s account_type=%s uploads=%d",
 		requestModel,
+		upstreamModel,
 		parsed.Endpoint,
 		account.Type,
 		len(parsed.Uploads),
@@ -1309,7 +1324,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		return nil, err
 	}
 
-	responsesBody, err := buildOpenAIImagesResponsesRequest(parsed, requestModel)
+	responsesBody, err := buildOpenAIImagesResponsesRequest(parsed, upstreamModel)
 	if err != nil {
 		return nil, err
 	}
@@ -1358,14 +1373,14 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 				Kind:               "failover",
 				Message:            upstreamMsg,
 			})
-			s.handleFailoverSideEffects(upstreamCtx, resp, account, requestModel)
+			s.handleFailoverSideEffects(upstreamCtx, resp, account, upstreamModel)
 			return nil, &UpstreamFailoverError{
 				StatusCode:             resp.StatusCode,
 				ResponseBody:           respBody,
 				RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
 			}
 		}
-		return s.handleOpenAIImagesErrorResponse(upstreamCtx, resp, c, account, requestModel)
+		return s.handleOpenAIImagesErrorResponse(upstreamCtx, resp, c, account, upstreamModel)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -1383,7 +1398,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 					RequestID:        resp.Header.Get("x-request-id"),
 					Usage:            usage,
 					Model:            requestModel,
-					UpstreamModel:    requestModel,
+					UpstreamModel:    upstreamModel,
 					Stream:           parsed.Stream,
 					ResponseHeaders:  resp.Header.Clone(),
 					Duration:         time.Since(startTime),
@@ -1409,7 +1424,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		RequestID:        resp.Header.Get("x-request-id"),
 		Usage:            usage,
 		Model:            requestModel,
-		UpstreamModel:    requestModel,
+		UpstreamModel:    upstreamModel,
 		Stream:           parsed.Stream,
 		ResponseHeaders:  resp.Header.Clone(),
 		Duration:         time.Since(startTime),

@@ -50,6 +50,7 @@ func (s *OpenAIGatewayService) ParseOpenAIChatImagesRequest(body []byte) (*OpenA
 	if strings.TrimSpace(model) == "" {
 		model = "gpt-image-2"
 	}
+	model = strings.TrimSpace(model)
 
 	prompt, imageURLs := extractOpenAIChatImagesPromptAndURLs(body)
 	if strings.TrimSpace(prompt) == "" {

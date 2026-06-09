@@ -773,6 +773,7 @@ func normalizeOpenAIResponsesImageOnlyModel(reqBody map[string]any) bool {
 	if !isOpenAIImageGenerationModel(imageModel) {
 		return false
 	}
+	upstreamImageModel := openAIImageGenerationUpstreamModel(imageModel)
 
 	modified := false
 	tools, _ := reqBody["tools"].([]any)
@@ -790,7 +791,7 @@ func normalizeOpenAIResponsesImageOnlyModel(reqBody map[string]any) bool {
 	if imageToolIndex < 0 {
 		tools = append(tools, map[string]any{
 			"type":  "image_generation",
-			"model": imageModel,
+			"model": upstreamImageModel,
 		})
 		imageToolIndex = len(tools) - 1
 		reqBody["tools"] = tools
@@ -799,7 +800,10 @@ func normalizeOpenAIResponsesImageOnlyModel(reqBody map[string]any) bool {
 
 	if toolMap, ok := tools[imageToolIndex].(map[string]any); ok {
 		if strings.TrimSpace(firstNonEmptyString(toolMap["model"])) == "" {
-			toolMap["model"] = imageModel
+			toolMap["model"] = upstreamImageModel
+			modified = true
+		} else if upstream := openAIImageGenerationUpstreamModel(firstNonEmptyString(toolMap["model"])); upstream != strings.TrimSpace(firstNonEmptyString(toolMap["model"])) {
+			toolMap["model"] = upstream
 			modified = true
 		}
 		for _, key := range []string{

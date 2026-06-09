@@ -454,8 +454,21 @@ func applyOpenAIImagesDefaults(req *OpenAIImagesRequest) {
 	req.Model = "gpt-image-2"
 }
 
+const openAICodexImageModelAlias = "codex-gpt-image-2"
+
+func openAIImageGenerationUpstreamModel(model string) string {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	switch normalized {
+	case openAICodexImageModelAlias:
+		return "gpt-image-2"
+	default:
+		return strings.TrimSpace(model)
+	}
+}
+
 func isOpenAIImageGenerationModel(model string) bool {
-	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "gpt-image-")
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	return strings.HasPrefix(normalized, "gpt-image-") || normalized == openAICodexImageModelAlias
 }
 
 func validateOpenAIImagesModel(model string) error {
@@ -572,7 +585,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}
-	upstreamModel := account.GetMappedModel(requestModel)
+	upstreamModel := resolveOpenAIForwardModel(account, requestModel, "")
 	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
 		return nil, err
 	}

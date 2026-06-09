@@ -809,6 +809,26 @@ func TestNormalizeOpenAIResponsesImageOnlyModel_PreservesExistingImageTool(t *te
 	require.Equal(t, "gpt-image-1.5", tool["model"])
 }
 
+func TestNormalizeOpenAIResponsesImageOnlyModel_CodexAliasMapsToImage2Tool(t *testing.T) {
+	reqBody := map[string]any{
+		"model":  "codex-gpt-image-2",
+		"prompt": "draw a cat",
+	}
+
+	modified := normalizeOpenAIResponsesImageOnlyModel(reqBody)
+	require.True(t, modified)
+	require.Equal(t, openAIImagesResponsesMainModel, reqBody["model"])
+	require.Equal(t, "draw a cat", reqBody["input"])
+
+	tools, ok := reqBody["tools"].([]any)
+	require.True(t, ok)
+	require.Len(t, tools, 1)
+	tool, ok := tools[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "image_generation", tool["type"])
+	require.Equal(t, "gpt-image-2", tool["model"])
+}
+
 func TestValidateOpenAIResponsesImageModel_RejectsImageOnlyModel(t *testing.T) {
 	err := validateOpenAIResponsesImageModel(map[string]any{
 		"tools": []any{

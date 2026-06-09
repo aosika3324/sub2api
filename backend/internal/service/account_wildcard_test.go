@@ -197,6 +197,16 @@ func TestAccountIsModelSupported(t *testing.T) {
 			expected:       true,
 		},
 		{
+			name: "codex image alias matches upstream image model mapping",
+			credentials: map[string]any{
+				"model_mapping": map[string]any{
+					"gpt-image-2": "gpt-image-2",
+				},
+			},
+			requestedModel: "codex-gpt-image-2",
+			expected:       true,
+		},
+		{
 			name: "wildcard match not supported",
 			credentials: map[string]any{
 				"model_mapping": map[string]any{
@@ -281,6 +291,16 @@ func TestAccountGetMappedModel(t *testing.T) {
 			},
 			requestedModel: "gemini-3.1-pro-preview-customtools",
 			expected:       "gemini-3.1-pro-preview",
+		},
+		{
+			name: "codex image alias resolves through upstream image model mapping",
+			credentials: map[string]any{
+				"model_mapping": map[string]any{
+					"gpt-image-2": "gpt-image-2",
+				},
+			},
+			requestedModel: "codex-gpt-image-2",
+			expected:       "gpt-image-2",
 		},
 		{
 			name:     "gemini customtools exact mapping wins over normalized fallback",

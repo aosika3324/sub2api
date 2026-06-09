@@ -10,14 +10,14 @@ func resolveOpenAIForwardModel(account *Account, requestedModel, defaultMappedMo
 		if defaultMappedModel != "" && claudeMessagesDispatchFamily(requestedModel) != "" {
 			return defaultMappedModel
 		}
-		return requestedModel
+		return openAIImageGenerationUpstreamModel(requestedModel)
 	}
 
 	mappedModel, matched := account.ResolveMappedModel(requestedModel)
 	if !matched && defaultMappedModel != "" && claudeMessagesDispatchFamily(requestedModel) != "" {
 		return defaultMappedModel
 	}
-	return mappedModel
+	return openAIImageGenerationUpstreamModel(mappedModel)
 }
 
 // resolveOpenAICompactForwardModel determines the compact-only upstream model

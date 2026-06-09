@@ -97,6 +97,21 @@ func TestParseOpenAIChatImagesRequest_ImageGenerationToolDefaultsModel(t *testin
 	require.Equal(t, "draw a city skyline", parsed.Prompt)
 }
 
+func TestParseOpenAIChatImagesRequest_CodexAliasPreserved(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	body := []byte(`{
+		"model":"codex-gpt-image-2",
+		"messages":[{"role":"user","content":"draw a cat"}]
+	}`)
+
+	parsed, ok, err := svc.ParseOpenAIChatImagesRequest(body)
+
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "codex-gpt-image-2", parsed.Model)
+	require.Equal(t, "codex-gpt-image-2", gjson.GetBytes(parsed.Body, "model").String())
+}
+
 func TestParseOpenAIChatImagesRequest_OrdinaryChatIgnored(t *testing.T) {
 	svc := &OpenAIGatewayService{}
 	body := []byte(`{
