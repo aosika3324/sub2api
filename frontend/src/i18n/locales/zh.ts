@@ -389,7 +389,7 @@ export default {
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
     riskControl: '风控中心',
-    imageStudio: '作图工作台',
+    imageStudio: '绘图',
   },
 
   // Auth
@@ -1357,7 +1357,7 @@ export default {
     workbenchModeTitle: '\u6a21\u5f0f\u4e0e\u8f93\u51fa',
     referenceWorkbenchTitle: '\u53c2\u8003\u56fe\u5de5\u4f5c\u533a',
     promptTitle: '\u63cf\u8ff0\u4f60\u60f3\u8981\u7684\u7ed3\u679c',
-    title: '作图工作台',
+    title: '绘图',
     workbenchTitle: '在线画图工作台',
     subtitle: '使用 AI 生成图片',
     conversations: '会话列表',
