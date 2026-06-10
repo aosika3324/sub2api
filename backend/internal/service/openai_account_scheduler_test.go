@@ -613,7 +613,7 @@ func TestOpenAIGatewayService_SelectAccountWithSchedulerForImages_CodexAliasRequ
 			Status:      StatusActive,
 			Schedulable: true,
 			Concurrency: 1,
-			Priority:    10,
+			Priority:    1,
 			Credentials: map[string]any{
 				"plan_type": "free",
 			},
@@ -625,7 +625,7 @@ func TestOpenAIGatewayService_SelectAccountWithSchedulerForImages_CodexAliasRequ
 			Status:      StatusActive,
 			Schedulable: true,
 			Concurrency: 1,
-			Priority:    1,
+			Priority:    10,
 			Credentials: map[string]any{
 				"plan_type": "plus",
 			},
@@ -669,7 +669,7 @@ func TestOpenAIGatewayService_SelectAccountWithSchedulerForImages_OfficialImageA
 			Status:      StatusActive,
 			Schedulable: true,
 			Concurrency: 1,
-			Priority:    10,
+			Priority:    1,
 			Credentials: map[string]any{
 				"plan_type": "free",
 			},
@@ -681,7 +681,7 @@ func TestOpenAIGatewayService_SelectAccountWithSchedulerForImages_OfficialImageA
 			Status:      StatusActive,
 			Schedulable: true,
 			Concurrency: 1,
-			Priority:    1,
+			Priority:    10,
 			Credentials: map[string]any{
 				"plan_type": "plus",
 			},

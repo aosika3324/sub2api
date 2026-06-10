@@ -2475,6 +2475,24 @@ export default {
         finalPricePreview: '最终单张价格预览',
         notConfigured: '未配置'
       },
+      soraPricing: {
+        title: 'Sora 按次计费',
+        description: '配置 Sora 图片/视频按次收费价格，留空则默认不计费',
+        image360: '图片 360px ($)',
+        image540: '图片 540px ($)',
+        video: '视频（标准）($)',
+        videoHd: '视频（Pro-HD）($)',
+        storageQuota: '存储配额',
+        storageQuotaHint: '单位 GB，设置该分组用户的 Sora 存储配额上限，0 表示使用系统默认'
+      },
+      claudeMaxSimulation: {
+        title: 'Claude Max 用量模拟',
+        tooltip:
+          '开启后，对于上游没有缓存写入用量的 Claude 模型，系统会确定性地映射为少量输入和 1 小时缓存创建，同时保持总 token 不变。',
+        enabled: '已启用（模拟 1 小时缓存）',
+        disabled: '未启用',
+        hint: '仅调整用量计费日志中的 token 类别，不会持久化每次请求的映射状态。'
+      },
       modelsList: {
         title: '自定义 /v1/models 模型列表',
         hint: '仅影响 /v1/models 展示结果，不影响白名单模型调用和账号调度。',

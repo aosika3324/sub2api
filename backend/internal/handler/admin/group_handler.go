@@ -84,7 +84,7 @@ func NewGroupHandler(adminService service.AdminService, dashboardService *servic
 type CreateGroupRequest struct {
 	Name             string             `json:"name" binding:"required"`
 	Description      string             `json:"description"`
-	Platform         string             `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity"`
+	Platform         string             `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity sora"`
 	RateMultiplier   float64            `json:"rate_multiplier"`
 	IsExclusive      bool               `json:"is_exclusive"`
 	SubscriptionType string             `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
@@ -98,13 +98,19 @@ type CreateGroupRequest struct {
 	ImagePrice1K                    *float64 `json:"image_price_1k"`
 	ImagePrice2K                    *float64 `json:"image_price_2k"`
 	ImagePrice4K                    *float64 `json:"image_price_4k"`
+	SoraImagePrice360               *float64 `json:"sora_image_price_360"`
+	SoraImagePrice540               *float64 `json:"sora_image_price_540"`
+	SoraVideoPricePerRequest        *float64 `json:"sora_video_price_per_request"`
+	SoraVideoPricePerRequestHD      *float64 `json:"sora_video_price_per_request_hd"`
+	SoraStorageQuotaBytes           int64    `json:"sora_storage_quota_bytes"`
 	ClaudeCodeOnly                  bool     `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id"`
 	FallbackGroupIDOnInvalidRequest *int64   `json:"fallback_group_id_on_invalid_request"`
 	// 模型路由配置（仅 anthropic 平台使用）
-	ModelRouting        map[string][]int64 `json:"model_routing"`
-	ModelRoutingEnabled bool               `json:"model_routing_enabled"`
-	MCPXMLInject        *bool              `json:"mcp_xml_inject"`
+	ModelRouting             map[string][]int64 `json:"model_routing"`
+	ModelRoutingEnabled      bool               `json:"model_routing_enabled"`
+	MCPXMLInject             *bool              `json:"mcp_xml_inject"`
+	SimulateClaudeMaxEnabled *bool              `json:"simulate_claude_max_enabled"`
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes []string `json:"supported_model_scopes"`
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
@@ -124,7 +130,7 @@ type CreateGroupRequest struct {
 type UpdateGroupRequest struct {
 	Name             string             `json:"name"`
 	Description      *string            `json:"description"`
-	Platform         string             `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity"`
+	Platform         string             `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity sora"`
 	RateMultiplier   *float64           `json:"rate_multiplier"`
 	IsExclusive      *bool              `json:"is_exclusive"`
 	Status           string             `json:"status" binding:"omitempty,oneof=active inactive"`
@@ -139,13 +145,19 @@ type UpdateGroupRequest struct {
 	ImagePrice1K                    *float64 `json:"image_price_1k"`
 	ImagePrice2K                    *float64 `json:"image_price_2k"`
 	ImagePrice4K                    *float64 `json:"image_price_4k"`
+	SoraImagePrice360               *float64 `json:"sora_image_price_360"`
+	SoraImagePrice540               *float64 `json:"sora_image_price_540"`
+	SoraVideoPricePerRequest        *float64 `json:"sora_video_price_per_request"`
+	SoraVideoPricePerRequestHD      *float64 `json:"sora_video_price_per_request_hd"`
+	SoraStorageQuotaBytes           *int64   `json:"sora_storage_quota_bytes"`
 	ClaudeCodeOnly                  *bool    `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id"`
 	FallbackGroupIDOnInvalidRequest *int64   `json:"fallback_group_id_on_invalid_request"`
 	// 模型路由配置（仅 anthropic 平台使用）
-	ModelRouting        map[string][]int64 `json:"model_routing"`
-	ModelRoutingEnabled *bool              `json:"model_routing_enabled"`
-	MCPXMLInject        *bool              `json:"mcp_xml_inject"`
+	ModelRouting             map[string][]int64 `json:"model_routing"`
+	ModelRoutingEnabled      *bool              `json:"model_routing_enabled"`
+	MCPXMLInject             *bool              `json:"mcp_xml_inject"`
+	SimulateClaudeMaxEnabled *bool              `json:"simulate_claude_max_enabled"`
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes *[]string `json:"supported_model_scopes"`
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
@@ -287,12 +299,18 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		ImagePrice1K:                    req.ImagePrice1K,
 		ImagePrice2K:                    req.ImagePrice2K,
 		ImagePrice4K:                    req.ImagePrice4K,
+		SoraImagePrice360:               req.SoraImagePrice360,
+		SoraImagePrice540:               req.SoraImagePrice540,
+		SoraVideoPricePerRequest:        req.SoraVideoPricePerRequest,
+		SoraVideoPricePerRequestHD:      req.SoraVideoPricePerRequestHD,
+		SoraStorageQuotaBytes:           req.SoraStorageQuotaBytes,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
 		FallbackGroupID:                 req.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: req.FallbackGroupIDOnInvalidRequest,
 		ModelRouting:                    req.ModelRouting,
 		ModelRoutingEnabled:             req.ModelRoutingEnabled,
 		MCPXMLInject:                    req.MCPXMLInject,
+		SimulateClaudeMaxEnabled:        req.SimulateClaudeMaxEnabled,
 		SupportedModelScopes:            req.SupportedModelScopes,
 		AllowMessagesDispatch:           req.AllowMessagesDispatch,
 		RequireOAuthOnly:                req.RequireOAuthOnly,
@@ -343,12 +361,18 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		ImagePrice1K:                    req.ImagePrice1K,
 		ImagePrice2K:                    req.ImagePrice2K,
 		ImagePrice4K:                    req.ImagePrice4K,
+		SoraImagePrice360:               req.SoraImagePrice360,
+		SoraImagePrice540:               req.SoraImagePrice540,
+		SoraVideoPricePerRequest:        req.SoraVideoPricePerRequest,
+		SoraVideoPricePerRequestHD:      req.SoraVideoPricePerRequestHD,
+		SoraStorageQuotaBytes:           req.SoraStorageQuotaBytes,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
 		FallbackGroupID:                 req.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: req.FallbackGroupIDOnInvalidRequest,
 		ModelRouting:                    req.ModelRouting,
 		ModelRoutingEnabled:             req.ModelRoutingEnabled,
 		MCPXMLInject:                    req.MCPXMLInject,
+		SimulateClaudeMaxEnabled:        req.SimulateClaudeMaxEnabled,
 		SupportedModelScopes:            req.SupportedModelScopes,
 		AllowMessagesDispatch:           req.AllowMessagesDispatch,
 		RequireOAuthOnly:                req.RequireOAuthOnly,

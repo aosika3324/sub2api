@@ -27,12 +27,17 @@ type Group struct {
 	DefaultValidityDays int
 
 	// 图片生成计费配置（antigravity 和 gemini 平台使用）
-	AllowImageGeneration bool
-	ImageRateIndependent bool
-	ImageRateMultiplier  float64
-	ImagePrice1K         *float64
-	ImagePrice2K         *float64
-	ImagePrice4K         *float64
+	AllowImageGeneration       bool
+	ImageRateIndependent       bool
+	ImageRateMultiplier        float64
+	ImagePrice1K               *float64
+	ImagePrice2K               *float64
+	ImagePrice4K               *float64
+	SoraImagePrice360          *float64
+	SoraImagePrice540          *float64
+	SoraVideoPricePerRequest   *float64
+	SoraVideoPricePerRequestHD *float64
+	SoraStorageQuotaBytes      int64
 
 	// Claude Code 客户端限制
 	ClaudeCodeOnly  bool
@@ -48,6 +53,9 @@ type Group struct {
 
 	// MCP XML 协议注入开关（仅 antigravity 平台使用）
 	MCPXMLInject bool
+
+	// Claude usage 模拟开关：将无写缓存 usage 模拟为 claude-max 风格
+	SimulateClaudeMaxEnabled bool
 
 	// 支持的模型系列（仅 antigravity 平台使用）
 	// 可选值: claude, gemini_text, gemini_image
@@ -110,6 +118,17 @@ func (g *Group) GetImagePrice(imageSize string) *float64 {
 	default:
 		// 未知尺寸默认按 2K 计费
 		return g.ImagePrice2K
+	}
+}
+
+func (g *Group) GetSoraImagePrice(imageSize string) *float64 {
+	switch imageSize {
+	case "360":
+		return g.SoraImagePrice360
+	case "540":
+		return g.SoraImagePrice540
+	default:
+		return g.SoraImagePrice360
 	}
 }
 
