@@ -526,6 +526,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			h.submitUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
 					Result:             result,
+					ParsedRequest:      parsedReq,
 					QuotaPlatform:      quotaPlatform,
 					APIKey:             apiKey,
 					User:               apiKey.User,
@@ -935,6 +936,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			h.submitUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
 					Result:             result,
+					ParsedRequest:      attemptParsedReq,
 					QuotaPlatform:      quotaPlatform,
 					APIKey:             currentAPIKey,
 					User:               currentAPIKey.User,

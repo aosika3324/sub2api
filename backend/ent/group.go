@@ -47,11 +47,11 @@ type Group struct {
 	MonthlyLimitUsd *float64 `json:"monthly_limit_usd,omitempty"`
 	// DefaultValidityDays holds the value of the "default_validity_days" field.
 	DefaultValidityDays int `json:"default_validity_days,omitempty"`
-	// 是否允许该分组使用图片生成能力
+	// whether this group allows image generation
 	AllowImageGeneration bool `json:"allow_image_generation,omitempty"`
-	// 图片生成是否使用独立倍率；false 表示共享分组有效倍率
+	// whether image generation uses an independent rate multiplier
 	ImageRateIndependent bool `json:"image_rate_independent,omitempty"`
-	// 图片生成独立倍率，仅 image_rate_independent=true 时生效
+	// independent image generation rate multiplier
 	ImageRateMultiplier float64 `json:"image_rate_multiplier,omitempty"`
 	// ImagePrice1k holds the value of the "image_price_1k" field.
 	ImagePrice1k *float64 `json:"image_price_1k,omitempty"`
@@ -59,36 +59,48 @@ type Group struct {
 	ImagePrice2k *float64 `json:"image_price_2k,omitempty"`
 	// ImagePrice4k holds the value of the "image_price_4k" field.
 	ImagePrice4k *float64 `json:"image_price_4k,omitempty"`
-	// 是否仅允许 Claude Code 客户端
+	// SoraImagePrice360 holds the value of the "sora_image_price_360" field.
+	SoraImagePrice360 *float64 `json:"sora_image_price_360,omitempty"`
+	// SoraImagePrice540 holds the value of the "sora_image_price_540" field.
+	SoraImagePrice540 *float64 `json:"sora_image_price_540,omitempty"`
+	// SoraVideoPricePerRequest holds the value of the "sora_video_price_per_request" field.
+	SoraVideoPricePerRequest *float64 `json:"sora_video_price_per_request,omitempty"`
+	// SoraVideoPricePerRequestHd holds the value of the "sora_video_price_per_request_hd" field.
+	SoraVideoPricePerRequestHd *float64 `json:"sora_video_price_per_request_hd,omitempty"`
+	// SoraStorageQuotaBytes holds the value of the "sora_storage_quota_bytes" field.
+	SoraStorageQuotaBytes int64 `json:"sora_storage_quota_bytes,omitempty"`
+	// allow Claude Code client only
 	ClaudeCodeOnly bool `json:"claude_code_only,omitempty"`
-	// 非 Claude Code 请求降级使用的分组 ID
+	// fallback group for non-Claude-Code requests
 	FallbackGroupID *int64 `json:"fallback_group_id,omitempty"`
-	// 无效请求兜底使用的分组 ID
+	// fallback group for invalid request
 	FallbackGroupIDOnInvalidRequest *int64 `json:"fallback_group_id_on_invalid_request,omitempty"`
-	// 模型路由配置：模型模式 -> 优先账号ID列表
+	// model routing config: pattern -> account ids
 	ModelRouting map[string][]int64 `json:"model_routing,omitempty"`
-	// 是否启用模型路由配置
+	// whether model routing is enabled
 	ModelRoutingEnabled bool `json:"model_routing_enabled,omitempty"`
-	// 是否注入 MCP XML 调用协议提示词（仅 antigravity 平台）
+	// whether MCP XML prompt injection is enabled
 	McpXMLInject bool `json:"mcp_xml_inject,omitempty"`
-	// 支持的模型系列：claude, gemini_text, gemini_image
+	// supported model scopes: claude, gemini_text, gemini_image
 	SupportedModelScopes []string `json:"supported_model_scopes,omitempty"`
-	// 分组显示排序，数值越小越靠前
+	// group display order, lower comes first
 	SortOrder int `json:"sort_order,omitempty"`
-	// 是否允许 /v1/messages 调度到此 OpenAI 分组
+	// whether /v1/messages dispatch is allowed for this OpenAI group
 	AllowMessagesDispatch bool `json:"allow_messages_dispatch,omitempty"`
-	// 仅允许非 apikey 类型账号关联到此分组
+	// only non-apikey accounts can be associated with this group
 	RequireOauthOnly bool `json:"require_oauth_only,omitempty"`
-	// 调度时仅允许 privacy 已成功设置的账号
+	// only accounts with privacy successfully configured can be used for dispatch
 	RequirePrivacySet bool `json:"require_privacy_set,omitempty"`
-	// 默认映射模型 ID，当账号级映射找不到时使用此值
+	// default mapped model id when no account-level mapping exists
 	DefaultMappedModel string `json:"default_mapped_model,omitempty"`
-	// OpenAI Messages 调度模型配置：按 Claude 系列/精确模型映射到目标 GPT 模型
+	// OpenAI messages dispatch model mapping config
 	MessagesDispatchModelConfig domain.OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`
-	// 自定义 /v1/models 展示列表配置；仅影响模型列表响应，不影响调度
+	// custom /v1/models list response config
 	ModelsListConfig domain.GroupModelsListConfig `json:"models_list_config,omitempty"`
-	// 分组 RPM 上限，0 表示不限制；设置后接管该分组用户的限流
+	// group RPM limit, 0 means unlimited
 	RpmLimit int `json:"rpm_limit,omitempty"`
+	// simulate claude usage as claude-max style (1h cache write)
+	SimulateClaudeMaxEnabled bool `json:"simulate_claude_max_enabled,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GroupQuery when eager-loading is set.
 	Edges        GroupEdges `json:"edges"`
@@ -197,11 +209,11 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldMessagesDispatchModelConfig, group.FieldModelsListConfig:
 			values[i] = new([]byte)
-		case group.FieldIsExclusive, group.FieldAllowImageGeneration, group.FieldImageRateIndependent, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet:
+		case group.FieldIsExclusive, group.FieldAllowImageGeneration, group.FieldImageRateIndependent, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet, group.FieldSimulateClaudeMaxEnabled:
 			values[i] = new(sql.NullBool)
-		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImageRateMultiplier, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k:
+		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImageRateMultiplier, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k, group.FieldSoraImagePrice360, group.FieldSoraImagePrice540, group.FieldSoraVideoPricePerRequest, group.FieldSoraVideoPricePerRequestHd:
 			values[i] = new(sql.NullFloat64)
-		case group.FieldID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSortOrder, group.FieldRpmLimit:
+		case group.FieldID, group.FieldDefaultValidityDays, group.FieldSoraStorageQuotaBytes, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSortOrder, group.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
 		case group.FieldName, group.FieldDescription, group.FieldStatus, group.FieldPlatform, group.FieldSubscriptionType, group.FieldDefaultMappedModel:
 			values[i] = new(sql.NullString)
@@ -356,6 +368,40 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				_m.ImagePrice4k = new(float64)
 				*_m.ImagePrice4k = value.Float64
 			}
+		case group.FieldSoraImagePrice360:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field sora_image_price_360", values[i])
+			} else if value.Valid {
+				_m.SoraImagePrice360 = new(float64)
+				*_m.SoraImagePrice360 = value.Float64
+			}
+		case group.FieldSoraImagePrice540:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field sora_image_price_540", values[i])
+			} else if value.Valid {
+				_m.SoraImagePrice540 = new(float64)
+				*_m.SoraImagePrice540 = value.Float64
+			}
+		case group.FieldSoraVideoPricePerRequest:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field sora_video_price_per_request", values[i])
+			} else if value.Valid {
+				_m.SoraVideoPricePerRequest = new(float64)
+				*_m.SoraVideoPricePerRequest = value.Float64
+			}
+		case group.FieldSoraVideoPricePerRequestHd:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field sora_video_price_per_request_hd", values[i])
+			} else if value.Valid {
+				_m.SoraVideoPricePerRequestHd = new(float64)
+				*_m.SoraVideoPricePerRequestHd = value.Float64
+			}
+		case group.FieldSoraStorageQuotaBytes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field sora_storage_quota_bytes", values[i])
+			} else if value.Valid {
+				_m.SoraStorageQuotaBytes = value.Int64
+			}
 		case group.FieldClaudeCodeOnly:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field claude_code_only", values[i])
@@ -455,6 +501,12 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field rpm_limit", values[i])
 			} else if value.Valid {
 				_m.RpmLimit = int(value.Int64)
+			}
+		case group.FieldSimulateClaudeMaxEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field simulate_claude_max_enabled", values[i])
+			} else if value.Valid {
+				_m.SimulateClaudeMaxEnabled = value.Bool
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -608,6 +660,29 @@ func (_m *Group) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
+	if v := _m.SoraImagePrice360; v != nil {
+		builder.WriteString("sora_image_price_360=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SoraImagePrice540; v != nil {
+		builder.WriteString("sora_image_price_540=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SoraVideoPricePerRequest; v != nil {
+		builder.WriteString("sora_video_price_per_request=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SoraVideoPricePerRequestHd; v != nil {
+		builder.WriteString("sora_video_price_per_request_hd=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("sora_storage_quota_bytes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SoraStorageQuotaBytes))
+	builder.WriteString(", ")
 	builder.WriteString("claude_code_only=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ClaudeCodeOnly))
 	builder.WriteString(", ")
@@ -656,6 +731,9 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("rpm_limit=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RpmLimit))
+	builder.WriteString(", ")
+	builder.WriteString("simulate_claude_max_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SimulateClaudeMaxEnabled))
 	builder.WriteByte(')')
 	return builder.String()
 }

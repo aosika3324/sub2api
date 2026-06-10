@@ -2392,6 +2392,16 @@ export default {
         finalPricePreview: 'Final per-image price preview',
         notConfigured: 'Not configured'
       },
+      soraPricing: {
+        title: 'Sora Per-Request Pricing',
+        description: 'Configure per-request pricing for Sora image/video generation. Leave empty to disable billing.',
+        image360: 'Image 360px ($)',
+        image540: 'Image 540px ($)',
+        video: 'Video (standard) ($)',
+        videoHd: 'Video (Pro-HD) ($)',
+        storageQuota: 'Storage Quota',
+        storageQuotaHint: 'In GB, set the Sora storage quota for users in this group. 0 means use system default'
+      },
       modelsList: {
         title: 'Custom /v1/models Model List',
         hint: 'Only changes the /v1/models response. Whitelist model calls and account routing are unchanged.',

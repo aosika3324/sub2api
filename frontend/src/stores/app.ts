@@ -335,6 +335,7 @@ export const useAppStore = defineStore('app', () => {
         doc_url: docUrl.value,
         home_content: '',
         hide_ccs_import_button: false,
+        sora_client_enabled: false,
         payment_enabled: false,
         external_recharge_enabled: false,
         external_recharge_url: '',

@@ -368,7 +368,7 @@
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
     <AccountStatsModal :show="showStats" :account="statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
-    <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
+    <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-status="handleResetStatus" @clear-rate-limit="handleClearRateLimit" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
     <SyncFromCrsModal :show="showSync" @close="showSync = false" @synced="reload" />
     <ImportDataModal :show="showImportData" @close="showImportData = false" @imported="handleDataImported" />
     <BulkEditAccountModal
@@ -1618,6 +1618,28 @@ const onRevertFallback = async (a: Account) => {
   } catch (error: any) {
     console.error('Failed to revert proxy fallback:', error)
     appStore.showError(error?.response?.data?.message || t('admin.accounts.revertProxyFailed'))
+  }
+}
+const handleResetStatus = async (a: Account) => {
+  try {
+    const updated = await adminAPI.accounts.clearError(a.id)
+    patchAccountInList(updated)
+    enterAutoRefreshSilentWindow()
+    appStore.showSuccess(t('common.success'))
+  } catch (error: any) {
+    console.error('Failed to reset account status:', error)
+    appStore.showError(error?.response?.data?.message || t('admin.accounts.failedToResetStatus'))
+  }
+}
+const handleClearRateLimit = async (a: Account) => {
+  try {
+    const updated = await adminAPI.accounts.clearRateLimit(a.id)
+    patchAccountInList(updated)
+    enterAutoRefreshSilentWindow()
+    appStore.showSuccess(t('common.success'))
+  } catch (error: any) {
+    console.error('Failed to clear rate limit:', error)
+    appStore.showError(error?.response?.data?.message || t('admin.accounts.failedToClearRateLimit'))
   }
 }
 const handleDelete = (a: Account) => { deletingAcc.value = a; showDeleteDialog.value = true }

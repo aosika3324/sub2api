@@ -55,6 +55,11 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetNillableImagePrice1k(groupIn.ImagePrice1K).
 		SetNillableImagePrice2k(groupIn.ImagePrice2K).
 		SetNillableImagePrice4k(groupIn.ImagePrice4K).
+		SetNillableSoraImagePrice360(groupIn.SoraImagePrice360).
+		SetNillableSoraImagePrice540(groupIn.SoraImagePrice540).
+		SetNillableSoraVideoPricePerRequest(groupIn.SoraVideoPricePerRequest).
+		SetNillableSoraVideoPricePerRequestHd(groupIn.SoraVideoPricePerRequestHD).
+		SetSoraStorageQuotaBytes(groupIn.SoraStorageQuotaBytes).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
 		SetNillableFallbackGroupID(groupIn.FallbackGroupID).
@@ -67,7 +72,8 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
 		SetModelsListConfig(groupIn.ModelsListConfig).
-		SetRpmLimit(groupIn.RPMLimit)
+		SetRpmLimit(groupIn.RPMLimit).
+		SetSimulateClaudeMaxEnabled(groupIn.SimulateClaudeMaxEnabled)
 
 	// 设置模型路由配置
 	if groupIn.ModelRouting != nil {
@@ -133,6 +139,11 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetNillableImagePrice1k(groupIn.ImagePrice1K).
 		SetNillableImagePrice2k(groupIn.ImagePrice2K).
 		SetNillableImagePrice4k(groupIn.ImagePrice4K).
+		SetNillableSoraImagePrice360(groupIn.SoraImagePrice360).
+		SetNillableSoraImagePrice540(groupIn.SoraImagePrice540).
+		SetNillableSoraVideoPricePerRequest(groupIn.SoraVideoPricePerRequest).
+		SetNillableSoraVideoPricePerRequestHd(groupIn.SoraVideoPricePerRequestHD).
+		SetSoraStorageQuotaBytes(groupIn.SoraStorageQuotaBytes).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
@@ -143,7 +154,8 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetDefaultMappedModel(groupIn.DefaultMappedModel).
 		SetMessagesDispatchModelConfig(groupIn.MessagesDispatchModelConfig).
 		SetModelsListConfig(groupIn.ModelsListConfig).
-		SetRpmLimit(groupIn.RPMLimit)
+		SetRpmLimit(groupIn.RPMLimit).
+		SetSimulateClaudeMaxEnabled(groupIn.SimulateClaudeMaxEnabled)
 
 	// 显式处理可空字段：nil 需要 clear，非 nil 需要 set。
 	if groupIn.DailyLimitUSD != nil {
@@ -175,6 +187,26 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		builder = builder.SetImagePrice4k(*groupIn.ImagePrice4K)
 	} else {
 		builder = builder.ClearImagePrice4k()
+	}
+	if groupIn.SoraImagePrice360 != nil {
+		builder = builder.SetSoraImagePrice360(*groupIn.SoraImagePrice360)
+	} else {
+		builder = builder.ClearSoraImagePrice360()
+	}
+	if groupIn.SoraImagePrice540 != nil {
+		builder = builder.SetSoraImagePrice540(*groupIn.SoraImagePrice540)
+	} else {
+		builder = builder.ClearSoraImagePrice540()
+	}
+	if groupIn.SoraVideoPricePerRequest != nil {
+		builder = builder.SetSoraVideoPricePerRequest(*groupIn.SoraVideoPricePerRequest)
+	} else {
+		builder = builder.ClearSoraVideoPricePerRequest()
+	}
+	if groupIn.SoraVideoPricePerRequestHD != nil {
+		builder = builder.SetSoraVideoPricePerRequestHd(*groupIn.SoraVideoPricePerRequestHD)
+	} else {
+		builder = builder.ClearSoraVideoPricePerRequestHd()
 	}
 
 	// 处理 FallbackGroupID：nil 时清除，否则设置

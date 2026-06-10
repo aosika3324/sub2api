@@ -393,6 +393,89 @@
           />
           <p class="input-hint">{{ t("admin.groups.platformHint") }}</p>
         </div>
+        <div v-if="createForm.platform === 'sora'" class="border-t pt-4">
+          <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+            {{ t("admin.groups.soraPricing.title") }}
+          </label>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            {{ t("admin.groups.soraPricing.description") }}
+          </p>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.soraPricing.image360")
+              }}</label>
+              <input
+                v-model.number="createForm.sora_image_price_360"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="0.05"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.soraPricing.image540")
+              }}</label>
+              <input
+                v-model.number="createForm.sora_image_price_540"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="0.08"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.soraPricing.video")
+              }}</label>
+              <input
+                v-model.number="createForm.sora_video_price_per_request"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="0.5"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.soraPricing.videoHd")
+              }}</label>
+              <input
+                v-model.number="createForm.sora_video_price_per_request_hd"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="0.8"
+              />
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="input-label">{{
+              t("admin.groups.soraPricing.storageQuota")
+            }}</label>
+            <div class="flex items-center gap-2">
+              <input
+                v-model.number="createForm.sora_storage_quota_gb"
+                type="number"
+                step="0.1"
+                min="0"
+                class="input"
+                placeholder="10"
+              />
+              <span class="shrink-0 text-sm text-gray-500">GB</span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t("admin.groups.soraPricing.storageQuotaHint") }}
+            </p>
+          </div>
+        </div>
         <!-- 从分组复制账号 -->
         <div v-if="copyAccountsGroupOptions.length > 0">
           <div class="mb-1.5 flex items-center gap-1">
@@ -1060,6 +1143,70 @@
           </div>
         </div>
 
+        <div v-if="createForm.platform === 'anthropic'" class="border-t pt-4">
+          <div class="mb-1.5 flex items-center gap-1">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t("admin.groups.claudeMaxSimulation.title") }}
+            </label>
+            <div class="group relative inline-flex">
+              <Icon
+                name="questionCircle"
+                size="sm"
+                :stroke-width="2"
+                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+              />
+              <div
+                class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-80 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
+              >
+                <div
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                >
+                  <p class="text-xs leading-relaxed text-gray-300">
+                    {{ t("admin.groups.claudeMaxSimulation.tooltip") }}
+                  </p>
+                  <div
+                    class="absolute -bottom-1.5 left-3 h-3 w-3 rotate-45 bg-gray-900 dark:bg-gray-800"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              @click="
+                createForm.simulate_claude_max_enabled =
+                  !createForm.simulate_claude_max_enabled
+              "
+              :class="[
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                createForm.simulate_claude_max_enabled
+                  ? 'bg-primary-500'
+                  : 'bg-gray-300 dark:bg-dark-600',
+              ]"
+            >
+              <span
+                :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  createForm.simulate_claude_max_enabled
+                    ? 'translate-x-6'
+                    : 'translate-x-1',
+                ]"
+              />
+            </button>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              {{
+                createForm.simulate_claude_max_enabled
+                  ? t("admin.groups.claudeMaxSimulation.enabled")
+                  : t("admin.groups.claudeMaxSimulation.disabled")
+              }}
+            </span>
+          </div>
+          <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            {{ t("admin.groups.claudeMaxSimulation.hint") }}
+          </p>
+        </div>
+
         <!-- OpenAI Messages 调度配置（仅 openai 平台） -->
         <div
           v-if="createForm.platform === 'openai'"
@@ -1677,6 +1824,89 @@
             data-tour="group-form-platform"
           />
           <p class="input-hint">{{ t("admin.groups.platformNotEditable") }}</p>
+        </div>
+        <div v-if="editForm.platform === 'sora'" class="border-t pt-4">
+          <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+            {{ t("admin.groups.soraPricing.title") }}
+          </label>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            {{ t("admin.groups.soraPricing.description") }}
+          </p>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.soraPricing.image360")
+              }}</label>
+              <input
+                v-model.number="editForm.sora_image_price_360"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="0.05"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.soraPricing.image540")
+              }}</label>
+              <input
+                v-model.number="editForm.sora_image_price_540"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="0.08"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.soraPricing.video")
+              }}</label>
+              <input
+                v-model.number="editForm.sora_video_price_per_request"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="0.5"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{
+                t("admin.groups.soraPricing.videoHd")
+              }}</label>
+              <input
+                v-model.number="editForm.sora_video_price_per_request_hd"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="0.8"
+              />
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="input-label">{{
+              t("admin.groups.soraPricing.storageQuota")
+            }}</label>
+            <div class="flex items-center gap-2">
+              <input
+                v-model.number="editForm.sora_storage_quota_gb"
+                type="number"
+                step="0.1"
+                min="0"
+                class="input"
+                placeholder="10"
+              />
+              <span class="shrink-0 text-sm text-gray-500">GB</span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t("admin.groups.soraPricing.storageQuotaHint") }}
+            </p>
+          </div>
         </div>
         <!-- 从分组复制账号（编辑时） -->
         <div v-if="copyAccountsGroupOptionsForEdit.length > 0">
@@ -2342,6 +2572,70 @@
               {{ t("admin.groups.claudeCode.fallbackHint") }}
             </p>
           </div>
+        </div>
+
+        <div v-if="editForm.platform === 'anthropic'" class="border-t pt-4">
+          <div class="mb-1.5 flex items-center gap-1">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t("admin.groups.claudeMaxSimulation.title") }}
+            </label>
+            <div class="group relative inline-flex">
+              <Icon
+                name="questionCircle"
+                size="sm"
+                :stroke-width="2"
+                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+              />
+              <div
+                class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-80 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
+              >
+                <div
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                >
+                  <p class="text-xs leading-relaxed text-gray-300">
+                    {{ t("admin.groups.claudeMaxSimulation.tooltip") }}
+                  </p>
+                  <div
+                    class="absolute -bottom-1.5 left-3 h-3 w-3 rotate-45 bg-gray-900 dark:bg-gray-800"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              @click="
+                editForm.simulate_claude_max_enabled =
+                  !editForm.simulate_claude_max_enabled
+              "
+              :class="[
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                editForm.simulate_claude_max_enabled
+                  ? 'bg-primary-500'
+                  : 'bg-gray-300 dark:bg-dark-600',
+              ]"
+            >
+              <span
+                :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  editForm.simulate_claude_max_enabled
+                    ? 'translate-x-6'
+                    : 'translate-x-1',
+                ]"
+              />
+            </button>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              {{
+                editForm.simulate_claude_max_enabled
+                  ? t("admin.groups.claudeMaxSimulation.enabled")
+                  : t("admin.groups.claudeMaxSimulation.disabled")
+              }}
+            </span>
+          </div>
+          <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            {{ t("admin.groups.claudeMaxSimulation.hint") }}
+          </p>
         </div>
 
         <!-- OpenAI Messages 调度配置（仅 openai 平台） -->
@@ -3138,6 +3432,7 @@ const platformOptions = computed(() => [
   { value: "openai", label: "OpenAI" },
   { value: "gemini", label: "Gemini" },
   { value: "antigravity", label: "Antigravity" },
+  { value: "sora", label: "Sora" },
 ]);
 
 const platformFilterOptions = computed(() => [
@@ -3146,6 +3441,7 @@ const platformFilterOptions = computed(() => [
   { value: "openai", label: "OpenAI" },
   { value: "gemini", label: "Gemini" },
   { value: "antigravity", label: "Antigravity" },
+  { value: "sora", label: "Sora" },
 ]);
 
 const editStatusOptions = computed(() => [
@@ -3340,8 +3636,14 @@ const createForm = reactive({
   image_price_1k: null as number | null,
   image_price_2k: null as number | null,
   image_price_4k: null as number | null,
+  sora_image_price_360: null as number | null,
+  sora_image_price_540: null as number | null,
+  sora_video_price_per_request: null as number | null,
+  sora_video_price_per_request_hd: null as number | null,
+  sora_storage_quota_gb: null as number | null,
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
+  simulate_claude_max_enabled: false,
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
   // OpenAI Messages 调度配置（仅 openai 平台使用）
@@ -3671,8 +3973,14 @@ const editForm = reactive({
   image_price_1k: null as number | null,
   image_price_2k: null as number | null,
   image_price_4k: null as number | null,
+  sora_image_price_360: null as number | null,
+  sora_image_price_540: null as number | null,
+  sora_video_price_per_request: null as number | null,
+  sora_video_price_per_request_hd: null as number | null,
+  sora_storage_quota_gb: null as number | null,
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
+  simulate_claude_max_enabled: false,
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
   // OpenAI Messages 调度配置（仅 openai 平台使用）
@@ -3922,7 +4230,13 @@ const closeCreateModal = () => {
   createForm.image_price_1k = null;
   createForm.image_price_2k = null;
   createForm.image_price_4k = null;
+  createForm.sora_image_price_360 = null;
+  createForm.sora_image_price_540 = null;
+  createForm.sora_video_price_per_request = null;
+  createForm.sora_video_price_per_request_hd = null;
+  createForm.sora_storage_quota_gb = null;
   createForm.claude_code_only = false;
+  createForm.simulate_claude_max_enabled = false;
   createForm.fallback_group_id = null;
   createForm.fallback_group_id_on_invalid_request = null;
   resetMessagesDispatchFormState(createForm);
@@ -3965,6 +4279,18 @@ const normalizeImageRateMultiplier = (
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
 };
 
+const normalizeSoraStorageQuotaBytes = (
+  value: number | string | null | undefined,
+): number => {
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.round(parsed * 1024 * 1024 * 1024)
+    : 0;
+};
+
 const handleCreateGroup = async () => {
   if (!createForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
@@ -3984,6 +4310,13 @@ const handleCreateGroup = async () => {
       monthly_limit_usd: normalizeOptionalLimit(
         createForm.monthly_limit_usd as number | string | null,
       ),
+      sora_storage_quota_bytes: normalizeSoraStorageQuotaBytes(
+        createForm.sora_storage_quota_gb,
+      ),
+      simulate_claude_max_enabled:
+        createForm.platform === "anthropic"
+          ? createForm.simulate_claude_max_enabled
+          : false,
       model_routing: convertRoutingRulesToApiFormat(
         createModelRoutingRules.value,
       ),
@@ -4011,6 +4344,7 @@ const handleCreateGroup = async () => {
     requestData.image_rate_multiplier = normalizeImageRateMultiplier(
       requestData.image_rate_multiplier,
     );
+    delete (requestData as any).sora_storage_quota_gb;
     await adminAPI.groups.create(requestData);
     appStore.showSuccess(t("admin.groups.groupCreated"));
     closeCreateModal();
@@ -4048,7 +4382,18 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.image_price_1k = group.image_price_1k;
   editForm.image_price_2k = group.image_price_2k;
   editForm.image_price_4k = group.image_price_4k;
+  editForm.sora_image_price_360 = group.sora_image_price_360 ?? null;
+  editForm.sora_image_price_540 = group.sora_image_price_540 ?? null;
+  editForm.sora_video_price_per_request =
+    group.sora_video_price_per_request ?? null;
+  editForm.sora_video_price_per_request_hd =
+    group.sora_video_price_per_request_hd ?? null;
+  editForm.sora_storage_quota_gb = group.sora_storage_quota_bytes
+    ? Number((group.sora_storage_quota_bytes / (1024 * 1024 * 1024)).toFixed(2))
+    : null;
   editForm.claude_code_only = group.claude_code_only || false;
+  editForm.simulate_claude_max_enabled =
+    group.simulate_claude_max_enabled || false;
   editForm.fallback_group_id = group.fallback_group_id;
   editForm.fallback_group_id_on_invalid_request =
     group.fallback_group_id_on_invalid_request;
@@ -4091,6 +4436,12 @@ const closeEditModal = () => {
   showEditModal.value = false;
   editingGroup.value = null;
   editModelRoutingRules.value = [];
+  editForm.sora_image_price_360 = null;
+  editForm.sora_image_price_540 = null;
+  editForm.sora_video_price_per_request = null;
+  editForm.sora_video_price_per_request_hd = null;
+  editForm.sora_storage_quota_gb = null;
+  editForm.simulate_claude_max_enabled = false;
   editForm.copy_accounts_from_group_ids = [];
   resetMessagesDispatchFormState(editForm);
   resetModelsListState(editModelsListState);
@@ -4117,6 +4468,13 @@ const handleUpdateGroup = async () => {
       monthly_limit_usd: normalizeOptionalLimit(
         editForm.monthly_limit_usd as number | string | null,
       ),
+      sora_storage_quota_bytes: normalizeSoraStorageQuotaBytes(
+        editForm.sora_storage_quota_gb,
+      ),
+      simulate_claude_max_enabled:
+        editForm.platform === "anthropic"
+          ? editForm.simulate_claude_max_enabled
+          : false,
       fallback_group_id:
         editForm.fallback_group_id === null ? 0 : editForm.fallback_group_id,
       fallback_group_id_on_invalid_request:
@@ -4150,6 +4508,7 @@ const handleUpdateGroup = async () => {
     payload.image_rate_multiplier = normalizeImageRateMultiplier(
       payload.image_rate_multiplier,
     );
+    delete (payload as any).sora_storage_quota_gb;
     await adminAPI.groups.update(editingGroup.value.id, payload);
     appStore.showSuccess(t("admin.groups.groupUpdated"));
     closeEditModal();
@@ -4240,6 +4599,9 @@ watch(
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(createForm);
     }
+    if (newVal !== "anthropic") {
+      createForm.simulate_claude_max_enabled = false;
+    }
     if (!["openai", "antigravity", "anthropic", "gemini"].includes(newVal)) {
       createForm.require_oauth_only = false;
       createForm.require_privacy_set = false;
@@ -4258,6 +4620,9 @@ watch(
     if (newVal !== "openai") {
       resetMessagesDispatchFormState(editForm);
     }
+    if (newVal !== "anthropic") {
+      editForm.simulate_claude_max_enabled = false;
+    }
     if (!["openai", "antigravity", "anthropic", "gemini"].includes(newVal)) {
       editForm.require_oauth_only = false;
       editForm.require_privacy_set = false;
@@ -4268,19 +4633,6 @@ watch(
     }
   },
 );
-
-watch(
-  () => editForm.platform,
-  (newVal) => {
-    if (!['anthropic', 'antigravity'].includes(newVal)) {
-      editForm.fallback_group_id_on_invalid_request = null
-    }
-    if (newVal !== 'openai') {
-      editForm.allow_messages_dispatch = false
-      editForm.default_mapped_model = ''
-    }
-  }
-)
 
 // 点击外部关闭账号搜索下拉框
 const handleClickOutside = (event: MouseEvent) => {

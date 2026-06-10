@@ -202,20 +202,26 @@ type CreateGroupInput struct {
 	WeeklyLimitUSD   *float64 // 周限额 (USD)
 	MonthlyLimitUSD  *float64 // 月限额 (USD)
 	// 图片生成计费配置（仅 antigravity 平台使用）
-	AllowImageGeneration bool
-	ImageRateIndependent bool
-	ImageRateMultiplier  *float64
-	ImagePrice1K         *float64
-	ImagePrice2K         *float64
-	ImagePrice4K         *float64
-	ClaudeCodeOnly       bool   // 仅允许 Claude Code 客户端
-	FallbackGroupID      *int64 // 降级分组 ID
+	AllowImageGeneration       bool
+	ImageRateIndependent       bool
+	ImageRateMultiplier        *float64
+	ImagePrice1K               *float64
+	ImagePrice2K               *float64
+	ImagePrice4K               *float64
+	SoraImagePrice360          *float64
+	SoraImagePrice540          *float64
+	SoraVideoPricePerRequest   *float64
+	SoraVideoPricePerRequestHD *float64
+	SoraStorageQuotaBytes      int64
+	ClaudeCodeOnly             bool   // 仅允许 Claude Code 客户端
+	FallbackGroupID            *int64 // 降级分组 ID
 	// 无效请求兜底分组 ID（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64
 	// 模型路由配置（仅 anthropic 平台使用）
-	ModelRouting        map[string][]int64
-	ModelRoutingEnabled bool // 是否启用模型路由
-	MCPXMLInject        *bool
+	ModelRouting             map[string][]int64
+	ModelRoutingEnabled      bool // 是否启用模型路由
+	MCPXMLInject             *bool
+	SimulateClaudeMaxEnabled *bool
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes []string
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
@@ -243,20 +249,26 @@ type UpdateGroupInput struct {
 	WeeklyLimitUSD   *float64 // 周限额 (USD)
 	MonthlyLimitUSD  *float64 // 月限额 (USD)
 	// 图片生成计费配置（仅 antigravity 平台使用）
-	AllowImageGeneration *bool
-	ImageRateIndependent *bool
-	ImageRateMultiplier  *float64
-	ImagePrice1K         *float64
-	ImagePrice2K         *float64
-	ImagePrice4K         *float64
-	ClaudeCodeOnly       *bool  // 仅允许 Claude Code 客户端
-	FallbackGroupID      *int64 // 降级分组 ID
+	AllowImageGeneration       *bool
+	ImageRateIndependent       *bool
+	ImageRateMultiplier        *float64
+	ImagePrice1K               *float64
+	ImagePrice2K               *float64
+	ImagePrice4K               *float64
+	SoraImagePrice360          *float64
+	SoraImagePrice540          *float64
+	SoraVideoPricePerRequest   *float64
+	SoraVideoPricePerRequestHD *float64
+	SoraStorageQuotaBytes      *int64
+	ClaudeCodeOnly             *bool  // 仅允许 Claude Code 客户端
+	FallbackGroupID            *int64 // 降级分组 ID
 	// 无效请求兜底分组 ID（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64
 	// 模型路由配置（仅 anthropic 平台使用）
-	ModelRouting        map[string][]int64
-	ModelRoutingEnabled *bool // 是否启用模型路由
-	MCPXMLInject        *bool
+	ModelRouting             map[string][]int64
+	ModelRoutingEnabled      *bool // 是否启用模型路由
+	MCPXMLInject             *bool
+	SimulateClaudeMaxEnabled *bool
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes *[]string
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
@@ -1803,6 +1815,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	imagePrice1K := normalizePrice(input.ImagePrice1K)
 	imagePrice2K := normalizePrice(input.ImagePrice2K)
 	imagePrice4K := normalizePrice(input.ImagePrice4K)
+	soraImagePrice360 := normalizePrice(input.SoraImagePrice360)
+	soraImagePrice540 := normalizePrice(input.SoraImagePrice540)
+	soraVideoPrice := normalizePrice(input.SoraVideoPricePerRequest)
+	soraVideoPriceHD := normalizePrice(input.SoraVideoPricePerRequestHD)
 	imageRateMultiplier := 1.0
 	if input.ImageRateMultiplier != nil {
 		if *input.ImageRateMultiplier < 0 {
@@ -1832,6 +1848,13 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	mcpXMLInject := true
 	if input.MCPXMLInject != nil {
 		mcpXMLInject = *input.MCPXMLInject
+	}
+	simulateClaudeMaxEnabled := false
+	if input.SimulateClaudeMaxEnabled != nil {
+		if platform != PlatformAnthropic && *input.SimulateClaudeMaxEnabled {
+			return nil, fmt.Errorf("simulate_claude_max_enabled only supported for anthropic groups")
+		}
+		simulateClaudeMaxEnabled = *input.SimulateClaudeMaxEnabled
 	}
 
 	// 如果指定了复制账号的源分组，先获取账号 ID 列表
@@ -1883,11 +1906,17 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		ImagePrice1K:                    imagePrice1K,
 		ImagePrice2K:                    imagePrice2K,
 		ImagePrice4K:                    imagePrice4K,
+		SoraImagePrice360:               soraImagePrice360,
+		SoraImagePrice540:               soraImagePrice540,
+		SoraVideoPricePerRequest:        soraVideoPrice,
+		SoraVideoPricePerRequestHD:      soraVideoPriceHD,
+		SoraStorageQuotaBytes:           input.SoraStorageQuotaBytes,
 		ClaudeCodeOnly:                  input.ClaudeCodeOnly,
 		FallbackGroupID:                 input.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest,
 		ModelRouting:                    input.ModelRouting,
 		MCPXMLInject:                    mcpXMLInject,
+		SimulateClaudeMaxEnabled:        simulateClaudeMaxEnabled,
 		SupportedModelScopes:            input.SupportedModelScopes,
 		AllowMessagesDispatch:           input.AllowMessagesDispatch,
 		RequireOAuthOnly:                input.RequireOAuthOnly,
@@ -2078,6 +2107,21 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.ImagePrice4K != nil {
 		group.ImagePrice4K = normalizePrice(input.ImagePrice4K)
 	}
+	if input.SoraImagePrice360 != nil {
+		group.SoraImagePrice360 = normalizePrice(input.SoraImagePrice360)
+	}
+	if input.SoraImagePrice540 != nil {
+		group.SoraImagePrice540 = normalizePrice(input.SoraImagePrice540)
+	}
+	if input.SoraVideoPricePerRequest != nil {
+		group.SoraVideoPricePerRequest = normalizePrice(input.SoraVideoPricePerRequest)
+	}
+	if input.SoraVideoPricePerRequestHD != nil {
+		group.SoraVideoPricePerRequestHD = normalizePrice(input.SoraVideoPricePerRequestHD)
+	}
+	if input.SoraStorageQuotaBytes != nil {
+		group.SoraStorageQuotaBytes = *input.SoraStorageQuotaBytes
+	}
 
 	// Claude Code 客户端限制
 	if input.ClaudeCodeOnly != nil {
@@ -2119,6 +2163,15 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.MCPXMLInject != nil {
 		group.MCPXMLInject = *input.MCPXMLInject
+	}
+	if input.SimulateClaudeMaxEnabled != nil {
+		if group.Platform != PlatformAnthropic && *input.SimulateClaudeMaxEnabled {
+			return nil, fmt.Errorf("simulate_claude_max_enabled only supported for anthropic groups")
+		}
+		group.SimulateClaudeMaxEnabled = *input.SimulateClaudeMaxEnabled
+	}
+	if group.Platform != PlatformAnthropic {
+		group.SimulateClaudeMaxEnabled = false
 	}
 
 	// 支持的模型系列（仅 antigravity 平台使用）

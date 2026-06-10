@@ -82,8 +82,11 @@ const (
 )
 
 const (
-	cacheTTLTarget5m = "5m"
-	cacheTTLTarget1h = "1h"
+	cacheTTLTarget5m               = "5m"
+	cacheTTLTarget1h               = "1h"
+	claudeMaxMessageOverheadTokens = 3
+	claudeMaxBlockOverheadTokens   = 1
+	claudeMaxUnknownContentTokens  = 4
 )
 
 // ForceCacheBillingContextKey 强制缓存计费上下文键
@@ -553,6 +556,7 @@ type ForwardResult struct {
 	RequestID string
 	Usage     ClaudeUsage
 	Model     string
+	MediaType string
 	// UpstreamModel is the actual upstream model after mapping.
 	// Prefer empty when it is identical to Model; persistence normalizes equal values away as no-op mappings.
 	UpstreamModel    string
@@ -5109,6 +5113,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	}
 
 	// 处理正常响应
+	ctx = withClaudeMaxResponseRewriteContext(ctx, c, parsed)
 
 	if !bytes.Equal(lastWireBody, body) {
 		// 成功后再同步最终 wire body，避免失败重试从已签名 CCH 的 body 继续派生。
@@ -7707,6 +7712,7 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 	needModelReplace := originalModel != mappedModel
 	clientDisconnected := false // 客户端断开标志，断开后继续读取上游以获取完整usage
 	sawTerminalEvent := false
+	skipAccountTTLOverride := false
 
 	pendingEventLines := make([]string, 0, 4)
 
@@ -7768,18 +7774,26 @@ func (s *GatewayService) handleStreamingResponse(ctx context.Context, resp *http
 			if msg, ok := event["message"].(map[string]any); ok {
 				if u, ok := msg["usage"].(map[string]any); ok {
 					eventChanged = reconcileCachedTokens(u) || eventChanged
+					claudeMaxOutcome := applyClaudeMaxSimulationToUsageJSONMap(ctx, u, originalModel, account.ID)
+					if claudeMaxOutcome.Simulated {
+						skipAccountTTLOverride = true
+					}
 				}
 			}
 		}
 		if eventType == "message_delta" {
 			if u, ok := event["usage"].(map[string]any); ok {
 				eventChanged = reconcileCachedTokens(u) || eventChanged
+				claudeMaxOutcome := applyClaudeMaxSimulationToUsageJSONMap(ctx, u, originalModel, account.ID)
+				if claudeMaxOutcome.Simulated {
+					skipAccountTTLOverride = true
+				}
 			}
 		}
 
 		// Cache TTL Override: 重写 SSE 事件中的 cache_creation 分类。
 		// 账号级设置优先；全局 1h 请求注入开启时，默认把 usage 计费归回 5m。
-		if overrideTarget, ok := s.resolveCacheTTLUsageOverrideTarget(ctx, account); ok {
+		if overrideTarget, ok := s.resolveCacheTTLUsageOverrideTarget(ctx, account); ok && !skipAccountTTLOverride {
 			if eventType == "message_start" {
 				if msg, ok := event["message"].(map[string]any); ok {
 					if u, ok := msg["usage"].(map[string]any); ok {
@@ -8235,9 +8249,14 @@ func (s *GatewayService) handleNonStreamingResponse(ctx context.Context, resp *h
 		}
 	}
 
+	claudeMaxOutcome := applyClaudeMaxSimulationToUsage(ctx, &response.Usage, originalModel, account.ID)
+	if claudeMaxOutcome.Simulated {
+		body = rewriteClaudeUsageJSONBytes(body, response.Usage)
+	}
+
 	// Cache TTL Override: 重写 non-streaming 响应中的 cache_creation 分类。
 	// 账号级设置优先；全局 1h 请求注入开启时，默认把 usage 计费归回 5m。
-	if overrideTarget, ok := s.resolveCacheTTLUsageOverrideTarget(ctx, account); ok {
+	if overrideTarget, ok := s.resolveCacheTTLUsageOverrideTarget(ctx, account); ok && !claudeMaxOutcome.Simulated {
 		if applyCacheTTLOverride(&response.Usage, overrideTarget) {
 			// 同步更新 body JSON 中的嵌套 cache_creation 对象
 			if newBody, err := sjson.SetBytes(body, "usage.cache_creation.ephemeral_5m_input_tokens", response.Usage.CacheCreation5mTokens); err == nil {
@@ -8305,6 +8324,7 @@ func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID,
 // 异步 worker 只接收计费所需快照，不能持有 ParsedRequest/RequestBodyRef 这类大请求体引用。
 type RecordUsageInput struct {
 	Result             *ForwardResult
+	ParsedRequest      *ParsedRequest
 	APIKey             *APIKey
 	User               *User
 	Account            *Account
@@ -8793,6 +8813,7 @@ type recordUsageOpts struct {
 func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInput) error {
 	return s.recordUsageCore(ctx, &recordUsageCoreInput{
 		Result:             input.Result,
+		ParsedRequest:      input.ParsedRequest,
 		APIKey:             input.APIKey,
 		User:               input.User,
 		Account:            input.Account,
@@ -8812,6 +8833,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 // RecordUsageLongContextInput 记录使用量的输入参数（支持长上下文双倍计费）
 type RecordUsageLongContextInput struct {
 	Result                *ForwardResult
+	ParsedRequest         *ParsedRequest
 	APIKey                *APIKey
 	User                  *User
 	Account               *Account
@@ -8834,6 +8856,7 @@ type RecordUsageLongContextInput struct {
 func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *RecordUsageLongContextInput) error {
 	return s.recordUsageCore(ctx, &recordUsageCoreInput{
 		Result:             input.Result,
+		ParsedRequest:      input.ParsedRequest,
 		APIKey:             input.APIKey,
 		User:               input.User,
 		Account:            input.Account,
@@ -8856,6 +8879,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 // recordUsageCoreInput 是 recordUsageCore 的公共输入字段，从两种输入结构体中提取。
 type recordUsageCoreInput struct {
 	Result             *ForwardResult
+	ParsedRequest      *ParsedRequest
 	APIKey             *APIKey
 	User               *User
 	Account            *Account
@@ -8890,10 +8914,18 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		result.Usage.InputTokens = 0
 	}
 
+	var apiKeyGroup *Group
+	if apiKey != nil {
+		apiKeyGroup = apiKey.Group
+	}
+	claudeMaxOutcome := applyClaudeMaxCacheBillingPolicyToUsage(&result.Usage, input.ParsedRequest, apiKeyGroup, result.Model, account.ID)
+	simulatedClaudeMax := claudeMaxOutcome.Simulated ||
+		(shouldApplyClaudeMaxBillingRulesForUsage(apiKeyGroup, result.Model, input.ParsedRequest) && hasCacheCreationTokens(result.Usage))
+
 	// Cache TTL Override: 确保计费时 token 分类与账号设置一致。
 	// 账号级设置优先；全局 1h 请求注入开启时，默认把 usage 计费归回 5m。
 	cacheTTLOverridden := false
-	if overrideTarget, ok := s.resolveCacheTTLUsageOverrideTarget(ctx, account); ok {
+	if overrideTarget, ok := s.resolveCacheTTLUsageOverrideTarget(ctx, account); ok && !simulatedClaudeMax {
 		applyCacheTTLOverride(&result.Usage, overrideTarget)
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
@@ -9002,6 +9034,13 @@ func (s *GatewayService) calculateRecordUsageCost(
 	imageMultiplier float64,
 	opts *recordUsageOpts,
 ) *CostBreakdown {
+	if result.MediaType == "image" || result.MediaType == "video" {
+		return s.calculateSoraMediaCost(result, apiKey, multiplier)
+	}
+	if result.MediaType == "prompt" {
+		return &CostBreakdown{}
+	}
+
 	// 图片生成：渠道定价为 token 计费时走 token 路径，否则走图片计费
 	if result.ImageCount > 0 {
 		if resolved := s.resolveChannelPricing(ctx, billingModel, apiKey); resolved != nil && resolved.Mode == BillingModeToken {
@@ -9071,6 +9110,22 @@ func (s *GatewayService) calculateImageCost(
 		}
 	}
 	return s.billingService.CalculateImageCost(billingModel, sizeTier, result.ImageCount, groupConfig, multiplier)
+}
+
+func (s *GatewayService) calculateSoraMediaCost(result *ForwardResult, apiKey *APIKey, multiplier float64) *CostBreakdown {
+	var soraConfig *SoraPriceConfig
+	if apiKey != nil && apiKey.Group != nil {
+		soraConfig = &SoraPriceConfig{
+			ImagePrice360:          apiKey.Group.SoraImagePrice360,
+			ImagePrice540:          apiKey.Group.SoraImagePrice540,
+			VideoPricePerRequest:   apiKey.Group.SoraVideoPricePerRequest,
+			VideoPricePerRequestHD: apiKey.Group.SoraVideoPricePerRequestHD,
+		}
+	}
+	if result.MediaType == "image" {
+		return s.billingService.CalculateSoraImageCost(result.ImageSize, result.ImageCount, soraConfig, multiplier)
+	}
+	return s.billingService.CalculateSoraVideoCost(result.Model, soraConfig, multiplier)
 }
 
 // calculateTokenCost 计算 Token 计费：根据 opts 决定走普通/长上下文/渠道统一计费。
@@ -9175,6 +9230,7 @@ func (s *GatewayService) buildRecordUsageLog(
 		ImageOutputSize:       optionalTrimmedStringPtr(result.ImageOutputSize),
 		ImageSizeSource:       optionalTrimmedStringPtr(result.ImageSizeSource),
 		ImageSizeBreakdown:    result.ImageSizeBreakdown,
+		MediaType:             optionalTrimmedStringPtr(result.MediaType),
 		CacheTTLOverridden:    cacheTTLOverridden,
 		ChannelID:             optionalInt64Ptr(input.ChannelID),
 		ModelMappingChain:     optionalTrimmedStringPtr(input.ModelMappingChain),
@@ -9206,6 +9262,8 @@ func resolveBillingMode(result *ForwardResult, cost *CostBreakdown) *string {
 	switch {
 	case cost != nil && cost.BillingMode != "":
 		mode = cost.BillingMode
+	case result.MediaType == "video":
+		mode = string(BillingModePerRequest)
 	case result.ImageCount > 0:
 		mode = string(BillingModeImage)
 	default:

@@ -97,12 +97,17 @@ type Group struct {
 	MonthlyLimitUSD  *float64 `json:"monthly_limit_usd"`
 
 	// 图片生成计费配置（仅 antigravity 平台使用）
-	AllowImageGeneration bool     `json:"allow_image_generation"`
-	ImageRateIndependent bool     `json:"image_rate_independent"`
-	ImageRateMultiplier  float64  `json:"image_rate_multiplier"`
-	ImagePrice1K         *float64 `json:"image_price_1k"`
-	ImagePrice2K         *float64 `json:"image_price_2k"`
-	ImagePrice4K         *float64 `json:"image_price_4k"`
+	AllowImageGeneration       bool     `json:"allow_image_generation"`
+	ImageRateIndependent       bool     `json:"image_rate_independent"`
+	ImageRateMultiplier        float64  `json:"image_rate_multiplier"`
+	ImagePrice1K               *float64 `json:"image_price_1k"`
+	ImagePrice2K               *float64 `json:"image_price_2k"`
+	ImagePrice4K               *float64 `json:"image_price_4k"`
+	SoraImagePrice360          *float64 `json:"sora_image_price_360"`
+	SoraImagePrice540          *float64 `json:"sora_image_price_540"`
+	SoraVideoPricePerRequest   *float64 `json:"sora_video_price_per_request"`
+	SoraVideoPricePerRequestHD *float64 `json:"sora_video_price_per_request_hd"`
+	SoraStorageQuotaBytes      int64    `json:"sora_storage_quota_bytes"`
 
 	// Claude Code 客户端限制
 	ClaudeCodeOnly  bool   `json:"claude_code_only"`
@@ -135,6 +140,8 @@ type AdminGroup struct {
 
 	// MCP XML 协议注入（仅 antigravity 平台使用）
 	MCPXMLInject bool `json:"mcp_xml_inject"`
+	// Claude usage 模拟开关（仅管理员可见）
+	SimulateClaudeMaxEnabled bool `json:"simulate_claude_max_enabled"`
 
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
 	DefaultMappedModel          string                                   `json:"default_mapped_model"`
