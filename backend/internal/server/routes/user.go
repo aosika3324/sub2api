@@ -95,6 +95,12 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		// 用户计费透明度（非管理员接口）
+		billing := authenticated.Group("/billing")
+		{
+			billing.GET("/rates", h.AvailableChannel.ListBillingRates)
+		}
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{

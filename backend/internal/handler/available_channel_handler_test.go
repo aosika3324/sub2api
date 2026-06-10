@@ -3,6 +3,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -154,4 +155,140 @@ func TestBuildPlatformSections_GroupsByPlatform(t *testing.T) {
 	require.Equal(t, int64(2), sections[0].Groups[0].ID)
 	require.Len(t, sections[0].SupportedModels, 1)
 	require.Equal(t, "claude-sonnet-4-6", sections[0].SupportedModels[0].Name)
+}
+
+func TestBuildUserBillingRates_AppliesUserOverrideAndMultiplier(t *testing.T) {
+	inputPrice := 0.000001
+	outputPrice := 0.000003
+	channels := []service.AvailableChannel{
+		{
+			Name:   "primary",
+			Status: service.StatusActive,
+			Groups: []service.AvailableGroupRef{
+				{ID: 1, Name: "default-rate", Platform: "anthropic", RateMultiplier: 1.2},
+				{ID: 2, Name: "custom-rate", Platform: "anthropic", RateMultiplier: 1.5},
+				{ID: 3, Name: "not-allowed", Platform: "anthropic", RateMultiplier: 9},
+			},
+			SupportedModels: []service.SupportedModel{
+				{
+					Name:     "claude-sonnet-4-6",
+					Platform: "anthropic",
+					Pricing: &service.ChannelModelPricing{
+						BillingMode: service.BillingModeToken,
+						InputPrice:  &inputPrice,
+						OutputPrice: &outputPrice,
+					},
+				},
+			},
+		},
+	}
+	allowed := map[int64]struct{}{1: {}, 2: {}}
+	userRates := map[int64]float64{2: 0.8}
+
+	groups, rows := buildUserBillingRates(context.Background(), channels, allowed, userRates, nil)
+
+	require.Len(t, groups, 2)
+	require.Len(t, rows, 2)
+
+	var defaultRow, customRow *userBillingRateModel
+	for i := range rows {
+		switch rows[i].Group.ID {
+		case 1:
+			defaultRow = &rows[i]
+		case 2:
+			customRow = &rows[i]
+		}
+	}
+	require.NotNil(t, defaultRow)
+	require.NotNil(t, customRow)
+
+	require.Nil(t, defaultRow.Group.CustomRateMultiplier)
+	require.InDelta(t, 1.2, defaultRow.Group.EffectiveMultiplier, 1e-12)
+	require.NotNil(t, defaultRow.EffectivePricing)
+	require.InDelta(t, inputPrice*1.2, *defaultRow.EffectivePricing.InputPrice, 1e-12)
+	require.InDelta(t, outputPrice*1.2, *defaultRow.EffectivePricing.OutputPrice, 1e-12)
+	require.Equal(t, "display", defaultRow.PricingSource)
+	require.Equal(t, "standard", defaultRow.MultiplierType)
+	require.InDelta(t, 1.2, defaultRow.AppliedMultiplier, 1e-12)
+
+	require.NotNil(t, customRow.Group.CustomRateMultiplier)
+	require.InDelta(t, 0.8, *customRow.Group.CustomRateMultiplier, 1e-12)
+	require.InDelta(t, 0.8, customRow.Group.EffectiveMultiplier, 1e-12)
+	require.NotNil(t, customRow.EffectivePricing)
+	require.InDelta(t, inputPrice*0.8, *customRow.EffectivePricing.InputPrice, 1e-12)
+	require.InDelta(t, outputPrice*0.8, *customRow.EffectivePricing.OutputPrice, 1e-12)
+}
+
+func TestBuildUserBillingRates_UsesImageMultiplierForImagePricing(t *testing.T) {
+	imagePrice := 0.02
+	channels := []service.AvailableChannel{
+		{
+			Name:   "image",
+			Status: service.StatusActive,
+			Groups: []service.AvailableGroupRef{
+				{
+					ID:                   1,
+					Name:                 "image-rate",
+					Platform:             "openai",
+					RateMultiplier:       1.5,
+					ImageRateIndependent: true,
+					ImageRateMultiplier:  0.4,
+				},
+			},
+			SupportedModels: []service.SupportedModel{
+				{
+					Name:     "gpt-image-1",
+					Platform: "openai",
+					Pricing: &service.ChannelModelPricing{
+						BillingMode:      service.BillingModeImage,
+						ImageOutputPrice: &imagePrice,
+					},
+				},
+			},
+		},
+	}
+
+	_, rows := buildUserBillingRates(
+		context.Background(),
+		channels,
+		map[int64]struct{}{1: {}},
+		nil,
+		nil,
+	)
+
+	require.Len(t, rows, 1)
+	row := rows[0]
+	require.Equal(t, "image", row.MultiplierType)
+	require.InDelta(t, 0.4, row.AppliedMultiplier, 1e-12)
+	require.InDelta(t, 0.4, row.Group.EffectiveImageMultiplier, 1e-12)
+	require.NotNil(t, row.EffectivePricing)
+	require.InDelta(t, imagePrice*0.4, *row.EffectivePricing.ImageOutputPrice, 1e-12)
+}
+
+func TestMultiplyUserPricing_MultipliesIntervalsWithoutMutatingBase(t *testing.T) {
+	in := 0.000002
+	out := 0.000004
+	perRequest := 0.03
+	maxTokens := 1000
+	base := &userSupportedModelPricing{
+		BillingMode:     string(service.BillingModePerRequest),
+		InputPrice:      &in,
+		OutputPrice:     &out,
+		PerRequestPrice: &perRequest,
+		Intervals: []userPricingIntervalDTO{
+			{MinTokens: 0, MaxTokens: &maxTokens, TierLabel: "small", PerRequestPrice: &perRequest},
+		},
+	}
+
+	got := multiplyUserPricing(base, 2.5)
+
+	require.NotNil(t, got)
+	require.InDelta(t, in*2.5, *got.InputPrice, 1e-12)
+	require.InDelta(t, out*2.5, *got.OutputPrice, 1e-12)
+	require.InDelta(t, perRequest*2.5, *got.PerRequestPrice, 1e-12)
+	require.Len(t, got.Intervals, 1)
+	require.InDelta(t, perRequest*2.5, *got.Intervals[0].PerRequestPrice, 1e-12)
+
+	require.InDelta(t, in, *base.InputPrice, 1e-12)
+	require.InDelta(t, perRequest, *base.Intervals[0].PerRequestPrice, 1e-12)
 }

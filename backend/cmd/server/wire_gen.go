@@ -253,7 +253,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	totpHandler := handler.NewTotpHandler(totpService)
 	handlerPaymentHandler := handler.NewPaymentHandler(paymentService, paymentConfigService, channelService)
 	paymentWebhookHandler := handler.NewPaymentWebhookHandler(paymentService, registry)
-	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
+	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService, modelPricingResolver)
 	studioImageGenerator := service.ProvideStudioImageGenerator(openAIGatewayService)
 	imageStudioRepository := repository.NewImageStudioRepository(client)
 	imageStoreRootDir := provideImageStoreRootDir()

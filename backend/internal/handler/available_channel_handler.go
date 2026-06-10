@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"sort"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -24,6 +25,7 @@ type AvailableChannelHandler struct {
 	channelService *service.ChannelService
 	apiKeyService  *service.APIKeyService
 	settingService *service.SettingService
+	resolver       *service.ModelPricingResolver
 }
 
 // NewAvailableChannelHandler 创建用户侧可用渠道 handler。
@@ -31,11 +33,13 @@ func NewAvailableChannelHandler(
 	channelService *service.ChannelService,
 	apiKeyService *service.APIKeyService,
 	settingService *service.SettingService,
+	resolver *service.ModelPricingResolver,
 ) *AvailableChannelHandler {
 	return &AvailableChannelHandler{
 		channelService: channelService,
 		apiKeyService:  apiKeyService,
 		settingService: settingService,
+		resolver:       resolver,
 	}
 }
 
@@ -53,12 +57,14 @@ func (h *AvailableChannelHandler) featureEnabled(c *gin.Context) bool {
 // 订阅视觉加深），并用 RateMultiplier 作为默认倍率；用户专属倍率前端走
 // /groups/rates，和 API 密钥页面保持一致。
 type userAvailableGroup struct {
-	ID               int64   `json:"id"`
-	Name             string  `json:"name"`
-	Platform         string  `json:"platform"`
-	SubscriptionType string  `json:"subscription_type"`
-	RateMultiplier   float64 `json:"rate_multiplier"`
-	IsExclusive      bool    `json:"is_exclusive"`
+	ID                   int64   `json:"id"`
+	Name                 string  `json:"name"`
+	Platform             string  `json:"platform"`
+	SubscriptionType     string  `json:"subscription_type"`
+	RateMultiplier       float64 `json:"rate_multiplier"`
+	ImageRateIndependent bool    `json:"-"`
+	ImageRateMultiplier  float64 `json:"-"`
+	IsExclusive          bool    `json:"is_exclusive"`
 }
 
 // userSupportedModelPricing 用户可见的定价字段白名单。
@@ -90,6 +96,46 @@ type userSupportedModel struct {
 	Name     string                     `json:"name"`
 	Platform string                     `json:"platform"`
 	Pricing  *userSupportedModelPricing `json:"pricing"`
+}
+
+// userBillingRateGroup is the group view used by the user-facing billing
+// transparency endpoint. It exposes only the multiplier inputs that affect the
+// user's bill: the group default and the optional per-user override.
+type userBillingRateGroup struct {
+	ID                       int64    `json:"id"`
+	Name                     string   `json:"name"`
+	Platform                 string   `json:"platform"`
+	SubscriptionType         string   `json:"subscription_type"`
+	DefaultRateMultiplier    float64  `json:"default_rate_multiplier"`
+	CustomRateMultiplier     *float64 `json:"custom_rate_multiplier,omitempty"`
+	EffectiveMultiplier      float64  `json:"effective_multiplier"`
+	ImageRateIndependent     bool     `json:"image_rate_independent"`
+	ImageRateMultiplier      float64  `json:"image_rate_multiplier"`
+	EffectiveImageMultiplier float64  `json:"effective_image_multiplier"`
+	IsExclusive              bool     `json:"is_exclusive"`
+}
+
+// userBillingRateModel is a flattened model row: one channel + one platform +
+// one accessible group + one model. Flattening makes the frontend display the
+// unit-price formula directly: base pricing * effective multiplier = multiplied
+// unit pricing.
+type userBillingRateModel struct {
+	ChannelName        string                     `json:"channel_name"`
+	ChannelDescription string                     `json:"channel_description"`
+	Platform           string                     `json:"platform"`
+	Group              userBillingRateGroup       `json:"group"`
+	Model              string                     `json:"model"`
+	BasePricing        *userSupportedModelPricing `json:"base_pricing"`
+	EffectivePricing   *userSupportedModelPricing `json:"effective_pricing"`
+	PricingSource      string                     `json:"pricing_source"`
+	PricingKind        string                     `json:"pricing_kind"`
+	AppliedMultiplier  float64                    `json:"applied_multiplier"`
+	MultiplierType     string                     `json:"multiplier_type"`
+}
+
+type userBillingRatesResponse struct {
+	Groups []userBillingRateGroup `json:"groups"`
+	Models []userBillingRateModel `json:"models"`
 }
 
 // userChannelPlatformSection 单渠道内某个平台的子视图：用户可见的分组 + 该平台
@@ -166,6 +212,53 @@ func (h *AvailableChannelHandler) List(c *gin.Context) {
 	response.Success(c, out)
 }
 
+// ListBillingRates returns the current user's billable view: accessible groups,
+// their effective multipliers, and model prices after applying those
+// multipliers. It intentionally does not expose accounts, account cost
+// multipliers, routing internals, channel IDs, or disabled groups.
+// GET /api/v1/billing/rates
+func (h *AvailableChannelHandler) ListBillingRates(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	userGroups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	allowedGroupIDs := make(map[int64]struct{}, len(userGroups))
+	for i := range userGroups {
+		allowedGroupIDs[userGroups[i].ID] = struct{}{}
+	}
+
+	userRates, err := h.apiKeyService.GetUserGroupRates(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	groups := buildUserBillingRateGroups(userGroups, userRates)
+
+	// Reuse the existing Available Channels exposure boundary: group multipliers
+	// are already visible through /groups/available and /groups/rates, but channel
+	// and model pricing remain opt-in via the available-channels runtime switch.
+	if !h.featureEnabled(c) {
+		response.Success(c, userBillingRatesResponse{Groups: groups, Models: []userBillingRateModel{}})
+		return
+	}
+
+	channels, err := h.channelService.ListAvailable(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	_, models := buildUserBillingRates(c.Request.Context(), channels, allowedGroupIDs, userRates, h.resolver)
+	response.Success(c, userBillingRatesResponse{Groups: groups, Models: models})
+}
+
 // buildPlatformSections 把一个渠道按 visibleGroups 的平台集合拆成有序的 section 列表：
 // 每个 section 对应一个平台，只包含该平台的 groups 和 supported_models。
 // 输出按 platform 字母序稳定排序，便于前端等效比较与回归测试。
@@ -213,15 +306,278 @@ func filterUserVisibleGroups(
 			continue
 		}
 		visible = append(visible, userAvailableGroup{
-			ID:               g.ID,
-			Name:             g.Name,
-			Platform:         g.Platform,
-			SubscriptionType: g.SubscriptionType,
-			RateMultiplier:   g.RateMultiplier,
-			IsExclusive:      g.IsExclusive,
+			ID:                   g.ID,
+			Name:                 g.Name,
+			Platform:             g.Platform,
+			SubscriptionType:     g.SubscriptionType,
+			RateMultiplier:       g.RateMultiplier,
+			ImageRateIndependent: g.ImageRateIndependent,
+			ImageRateMultiplier:  g.ImageRateMultiplier,
+			IsExclusive:          g.IsExclusive,
 		})
 	}
 	return visible
+}
+
+func buildUserBillingRates(
+	ctx context.Context,
+	channels []service.AvailableChannel,
+	allowed map[int64]struct{},
+	userRates map[int64]float64,
+	resolver *service.ModelPricingResolver,
+) ([]userBillingRateGroup, []userBillingRateModel) {
+	groupByID := make(map[int64]userBillingRateGroup)
+	rows := make([]userBillingRateModel, 0)
+
+	for _, ch := range channels {
+		if ch.Status != service.StatusActive {
+			continue
+		}
+		visibleGroups := filterUserVisibleGroups(ch.Groups, allowed)
+		if len(visibleGroups) == 0 {
+			continue
+		}
+		sections := buildPlatformSections(ch, visibleGroups)
+		for _, section := range sections {
+			for _, group := range section.Groups {
+				billingGroup := toUserBillingRateGroup(group, userRates)
+				groupByID[billingGroup.ID] = billingGroup
+
+				for _, model := range section.SupportedModels {
+					base, source := resolveUserBillingPricing(ctx, resolver, group.ID, model.Name, model.Pricing)
+					multiplier, multiplierType := billingMultiplierForPricing(base, billingGroup)
+					rows = append(rows, userBillingRateModel{
+						ChannelName:        ch.Name,
+						ChannelDescription: ch.Description,
+						Platform:           section.Platform,
+						Group:              billingGroup,
+						Model:              model.Name,
+						BasePricing:        base,
+						EffectivePricing:   multiplyUserPricing(base, multiplier),
+						PricingSource:      source,
+						PricingKind:        "unit_price_table",
+						AppliedMultiplier:  multiplier,
+						MultiplierType:     multiplierType,
+					})
+				}
+			}
+		}
+	}
+
+	groups := make([]userBillingRateGroup, 0, len(groupByID))
+	for _, group := range groupByID {
+		groups = append(groups, group)
+	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		if groups[i].Platform != groups[j].Platform {
+			return groups[i].Platform < groups[j].Platform
+		}
+		if groups[i].Name != groups[j].Name {
+			return groups[i].Name < groups[j].Name
+		}
+		return groups[i].ID < groups[j].ID
+	})
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].Platform != rows[j].Platform {
+			return rows[i].Platform < rows[j].Platform
+		}
+		if rows[i].ChannelName != rows[j].ChannelName {
+			return rows[i].ChannelName < rows[j].ChannelName
+		}
+		if rows[i].Model != rows[j].Model {
+			return rows[i].Model < rows[j].Model
+		}
+		return rows[i].Group.Name < rows[j].Group.Name
+	})
+
+	return groups, rows
+}
+
+func buildUserBillingRateGroups(groups []service.Group, userRates map[int64]float64) []userBillingRateGroup {
+	out := make([]userBillingRateGroup, 0, len(groups))
+	for i := range groups {
+		g := groups[i]
+		available := userAvailableGroup{
+			ID:                   g.ID,
+			Name:                 g.Name,
+			Platform:             g.Platform,
+			SubscriptionType:     g.SubscriptionType,
+			RateMultiplier:       g.RateMultiplier,
+			ImageRateIndependent: g.ImageRateIndependent,
+			ImageRateMultiplier:  g.ImageRateMultiplier,
+			IsExclusive:          g.IsExclusive,
+		}
+		out = append(out, toUserBillingRateGroup(available, userRates))
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Platform != out[j].Platform {
+			return out[i].Platform < out[j].Platform
+		}
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out
+}
+
+func toUserBillingRateGroup(group userAvailableGroup, userRates map[int64]float64) userBillingRateGroup {
+	var custom *float64
+	effective := group.RateMultiplier
+	if rate, ok := userRates[group.ID]; ok {
+		r := rate
+		custom = &r
+		effective = rate
+	}
+	imageMultiplier := effective
+	if group.ImageRateIndependent {
+		imageMultiplier = group.ImageRateMultiplier
+		if imageMultiplier < 0 {
+			imageMultiplier = 0
+		}
+	}
+	return userBillingRateGroup{
+		ID:                       group.ID,
+		Name:                     group.Name,
+		Platform:                 group.Platform,
+		SubscriptionType:         group.SubscriptionType,
+		DefaultRateMultiplier:    group.RateMultiplier,
+		CustomRateMultiplier:     custom,
+		EffectiveMultiplier:      effective,
+		ImageRateIndependent:     group.ImageRateIndependent,
+		ImageRateMultiplier:      group.ImageRateMultiplier,
+		EffectiveImageMultiplier: imageMultiplier,
+		IsExclusive:              group.IsExclusive,
+	}
+}
+
+func resolveUserBillingPricing(
+	ctx context.Context,
+	resolver *service.ModelPricingResolver,
+	groupID int64,
+	model string,
+	displayPricing *userSupportedModelPricing,
+) (*userSupportedModelPricing, string) {
+	if resolver == nil {
+		return displayPricing, "display"
+	}
+	resolved := resolver.Resolve(ctx, service.PricingInput{Model: model, GroupID: &groupID})
+	if resolved == nil {
+		return nil, ""
+	}
+	if resolved.Source != service.PricingSourceChannel && isNonTokenPricing(displayPricing) {
+		return displayPricing, "display"
+	}
+	pricing := toUserPricingFromResolved(resolved)
+	if !userPricingHasPrice(pricing) {
+		return nil, resolved.Source
+	}
+	return pricing, resolved.Source
+}
+
+func isNonTokenPricing(p *userSupportedModelPricing) bool {
+	return p != nil && p.BillingMode != "" && p.BillingMode != string(service.BillingModeToken)
+}
+
+func toUserPricingFromResolved(resolved *service.ResolvedPricing) *userSupportedModelPricing {
+	if resolved == nil {
+		return nil
+	}
+	billingMode := string(resolved.Mode)
+	if billingMode == "" {
+		billingMode = string(service.BillingModeToken)
+	}
+	out := &userSupportedModelPricing{BillingMode: billingMode}
+
+	switch resolved.Mode {
+	case service.BillingModePerRequest, service.BillingModeImage:
+		out.PerRequestPrice = positiveFloatPtr(resolved.DefaultPerRequestPrice)
+		out.Intervals = toUserPricingIntervals(resolved.RequestTiers)
+	default:
+		out.Intervals = toUserPricingIntervals(resolved.Intervals)
+		if resolved.BasePricing != nil {
+			out.InputPrice = positiveFloatPtr(resolved.BasePricing.InputPricePerToken)
+			out.OutputPrice = positiveFloatPtr(resolved.BasePricing.OutputPricePerToken)
+			out.CacheWritePrice = firstPositiveFloatPtr(
+				resolved.BasePricing.CacheCreationPricePerToken,
+				resolved.BasePricing.CacheCreation5mPrice,
+			)
+			out.CacheReadPrice = positiveFloatPtr(resolved.BasePricing.CacheReadPricePerToken)
+			if resolved.BasePricing.ImageOutputPriceExplicit {
+				out.ImageOutputPrice = floatPtr(resolved.BasePricing.ImageOutputPricePerToken)
+			} else {
+				out.ImageOutputPrice = positiveFloatPtr(resolved.BasePricing.ImageOutputPricePerToken)
+			}
+		}
+	}
+	return out
+}
+
+func toUserPricingIntervals(intervals []service.PricingInterval) []userPricingIntervalDTO {
+	out := make([]userPricingIntervalDTO, 0, len(intervals))
+	for _, iv := range intervals {
+		out = append(out, userPricingIntervalDTO{
+			MinTokens:       iv.MinTokens,
+			MaxTokens:       iv.MaxTokens,
+			TierLabel:       iv.TierLabel,
+			InputPrice:      iv.InputPrice,
+			OutputPrice:     iv.OutputPrice,
+			CacheWritePrice: iv.CacheWritePrice,
+			CacheReadPrice:  iv.CacheReadPrice,
+			PerRequestPrice: iv.PerRequestPrice,
+		})
+	}
+	return out
+}
+
+func billingMultiplierForPricing(
+	pricing *userSupportedModelPricing,
+	group userBillingRateGroup,
+) (float64, string) {
+	if pricing != nil && pricing.BillingMode == string(service.BillingModeImage) {
+		return group.EffectiveImageMultiplier, "image"
+	}
+	return group.EffectiveMultiplier, "standard"
+}
+
+func userPricingHasPrice(p *userSupportedModelPricing) bool {
+	if p == nil {
+		return false
+	}
+	if p.InputPrice != nil || p.OutputPrice != nil ||
+		p.CacheWritePrice != nil || p.CacheReadPrice != nil ||
+		p.ImageOutputPrice != nil || p.PerRequestPrice != nil {
+		return true
+	}
+	for _, iv := range p.Intervals {
+		if iv.InputPrice != nil || iv.OutputPrice != nil ||
+			iv.CacheWritePrice != nil || iv.CacheReadPrice != nil ||
+			iv.PerRequestPrice != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func positiveFloatPtr(v float64) *float64 {
+	if v == 0 {
+		return nil
+	}
+	return floatPtr(v)
+}
+
+func firstPositiveFloatPtr(values ...float64) *float64 {
+	for _, value := range values {
+		if value != 0 {
+			return floatPtr(value)
+		}
+	}
+	return nil
+}
+
+func floatPtr(v float64) *float64 {
+	out := v
+	return &out
 }
 
 // toUserSupportedModels 将 service 层支持模型转换为用户 DTO（字段白名单）。
@@ -280,4 +636,41 @@ func toUserPricing(p *service.ChannelModelPricing) *userSupportedModelPricing {
 		PerRequestPrice:  p.PerRequestPrice,
 		Intervals:        intervals,
 	}
+}
+
+func multiplyUserPricing(p *userSupportedModelPricing, multiplier float64) *userSupportedModelPricing {
+	if p == nil {
+		return nil
+	}
+	out := &userSupportedModelPricing{
+		BillingMode:      p.BillingMode,
+		InputPrice:       multiplyFloatPtr(p.InputPrice, multiplier),
+		OutputPrice:      multiplyFloatPtr(p.OutputPrice, multiplier),
+		CacheWritePrice:  multiplyFloatPtr(p.CacheWritePrice, multiplier),
+		CacheReadPrice:   multiplyFloatPtr(p.CacheReadPrice, multiplier),
+		ImageOutputPrice: multiplyFloatPtr(p.ImageOutputPrice, multiplier),
+		PerRequestPrice:  multiplyFloatPtr(p.PerRequestPrice, multiplier),
+		Intervals:        make([]userPricingIntervalDTO, 0, len(p.Intervals)),
+	}
+	for _, iv := range p.Intervals {
+		out.Intervals = append(out.Intervals, userPricingIntervalDTO{
+			MinTokens:       iv.MinTokens,
+			MaxTokens:       iv.MaxTokens,
+			TierLabel:       iv.TierLabel,
+			InputPrice:      multiplyFloatPtr(iv.InputPrice, multiplier),
+			OutputPrice:     multiplyFloatPtr(iv.OutputPrice, multiplier),
+			CacheWritePrice: multiplyFloatPtr(iv.CacheWritePrice, multiplier),
+			CacheReadPrice:  multiplyFloatPtr(iv.CacheReadPrice, multiplier),
+			PerRequestPrice: multiplyFloatPtr(iv.PerRequestPrice, multiplier),
+		})
+	}
+	return out
+}
+
+func multiplyFloatPtr(v *float64, multiplier float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	out := *v * multiplier
+	return &out
 }
