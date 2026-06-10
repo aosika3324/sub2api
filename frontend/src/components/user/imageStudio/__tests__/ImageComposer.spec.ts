@@ -104,6 +104,7 @@ function mountComposer(groups: Group[], props: Record<string, unknown> = {}) {
 describe('ImageComposer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
     // jsdom lacks object-URL helpers; stub them for the reference-image flow.
     URL.createObjectURL = vi.fn(() => 'blob:reference') as unknown as typeof URL.createObjectURL
     URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL
@@ -399,6 +400,50 @@ describe('ImageComposer', () => {
 
     const emitted = wrapper.emitted('generate')
     expect(emitted![0][0]).toMatchObject({ group_id: 9 })
+  })
+
+  it('restores the persisted group selection on remount', async () => {
+    window.localStorage.setItem('image-studio-group-id', '11')
+    const groups = [
+      makeGroup({ id: 9, name: 'First' }),
+      makeGroup({ id: 11, name: 'Second' }),
+    ]
+    const wrapper = mountComposer(groups)
+    await flushPromises()
+
+    await wrapper.find('textarea').setValue('hello')
+    await wrapper.find('.send-button').trigger('click')
+
+    const emitted = wrapper.emitted('generate')
+    expect(emitted![0][0]).toMatchObject({ group_id: 11 })
+  })
+
+  it('falls back to the first group when the persisted selection is unavailable', async () => {
+    window.localStorage.setItem('image-studio-group-id', '999')
+    const groups = [makeGroup({ id: 9, name: 'Only' })]
+    const wrapper = mountComposer(groups)
+    await flushPromises()
+
+    await wrapper.find('textarea').setValue('hello')
+    await wrapper.find('.send-button').trigger('click')
+
+    const emitted = wrapper.emitted('generate')
+    expect(emitted![0][0]).toMatchObject({ group_id: 9 })
+  })
+
+  it('persists the selected group and exposes it via currentGroupId', async () => {
+    const groups = [makeGroup({ id: 9, name: 'First' }), makeGroup({ id: 11, name: 'Second' })]
+    const wrapper = mountComposer(groups)
+    await flushPromises()
+
+    const groupSelect = wrapper.findAll('select')[0]
+    await groupSelect.setValue('11')
+    await flushPromises()
+
+    expect(window.localStorage.getItem('image-studio-group-id')).toBe('11')
+    expect(
+      (wrapper.vm as unknown as { currentGroupId: () => number | null }).currentGroupId()
+    ).toBe(11)
   })
 
   it('shows the no-image-group hint and disables Generate when no usable group', async () => {

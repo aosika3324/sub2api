@@ -506,8 +506,12 @@ async function handleRetry(generation: ImageStudioGeneration) {
   }
   const retryMode: ComposerSubmitPayload['mode'] =
     referenceImages.length >= 2 ? 'compose' : referenceImages.length === 1 ? 'edit' : 'generate'
+  // Retry with the group currently selected in the composer, not the group the
+  // failed generation originally used — the original group may be the very
+  // reason it failed (e.g. no schedulable accounts), and the user switching
+  // groups before retrying is the natural recovery path.
   runGenerate({
-    group_id: generation.group_id,
+    group_id: composerRef.value?.currentGroupId() ?? generation.group_id,
     mode: retryMode,
     prompt: generation.prompt,
     model: generation.model,

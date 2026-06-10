@@ -566,17 +566,43 @@ watch(mode, (next) => {
   emit('modeChange', next)
 }, { immediate: true })
 
+const GROUP_STORAGE_KEY = 'image-studio-group-id'
+
+function readSavedGroupId(): number | null {
+  try {
+    const raw = window.localStorage.getItem(GROUP_STORAGE_KEY)
+    if (raw == null) return null
+    const id = Number(raw)
+    return Number.isInteger(id) && id > 0 ? id : null
+  } catch {
+    return null
+  }
+}
+
+function writeSavedGroupId(id: number): void {
+  try {
+    window.localStorage.setItem(GROUP_STORAGE_KEY, String(id))
+  } catch {
+    // Non-fatal: selection just won't survive a reload.
+  }
+}
+
 watch(
   imageGroups,
   (list) => {
     if (groupId.value === null && list.length > 0) {
-      groupId.value = list[0].id
+      const saved = readSavedGroupId()
+      groupId.value = saved !== null && list.some((g) => g.id === saved) ? saved : list[0].id
     } else if (groupId.value !== null && !list.some((g) => g.id === groupId.value)) {
       groupId.value = list.length > 0 ? list[0].id : null
     }
   },
   { immediate: true }
 )
+
+watch(groupId, (id) => {
+  if (id !== null) writeSavedGroupId(id)
+})
 
 const disabled = computed(() => props.generating === true)
 
@@ -781,6 +807,10 @@ onBeforeUnmount(() => {
   revokeReferenceUrls()
 })
 
+function currentGroupId(): number | null {
+  return groupId.value
+}
+
 defineExpose({
   resetPrompt,
   fillPrompt,
@@ -788,6 +818,7 @@ defineExpose({
   loadReferenceFiles,
   appendReferenceFiles,
   focusPrompt,
+  currentGroupId,
 })
 </script>
 
