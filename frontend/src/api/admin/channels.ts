@@ -178,5 +178,31 @@ export async function syncPricingModels(platform: string): Promise<SyncPricingMo
   return data
 }
 
-const channelsAPI = { list, getById, create, update, remove, getModelDefaultPricing, syncPricingModels }
+export interface SyncGroupSupportedModelsResult {
+  models: string[]
+  account_count: number
+  group_ids: number[]
+}
+
+/**
+ * Fetch model names supported by active accounts in the selected groups.
+ */
+export async function syncGroupSupportedModels(platform: string, groupIds: number[]): Promise<SyncGroupSupportedModelsResult> {
+  const { data } = await apiClient.post<SyncGroupSupportedModelsResult>('/admin/accounts/models/sync-group-supported', {
+    platform,
+    group_ids: groupIds
+  })
+  return data
+}
+
+const channelsAPI = {
+  list,
+  getById,
+  create,
+  update,
+  remove,
+  getModelDefaultPricing,
+  syncPricingModels,
+  syncGroupSupportedModels
+}
 export default channelsAPI

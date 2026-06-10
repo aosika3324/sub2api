@@ -11,6 +11,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -164,6 +165,11 @@ type CheckMixedChannelRequest struct {
 	Platform  string  `json:"platform" binding:"required"`
 	GroupIDs  []int64 `json:"group_ids"`
 	AccountID *int64  `json:"account_id"`
+}
+
+type syncGroupSupportedModelsRequest struct {
+	Platform string  `json:"platform" binding:"required"`
+	GroupIDs []int64 `json:"group_ids" binding:"required,min=1"`
 }
 
 // AccountWithConcurrency extends Account with real-time concurrency info
@@ -2102,6 +2108,132 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 	}
 
 	response.Success(c, models)
+}
+
+// SyncGroupSupportedModels returns models supported by active accounts in selected groups.
+// POST /api/v1/admin/accounts/models/sync-group-supported
+func (h *AccountHandler) SyncGroupSupportedModels(c *gin.Context) {
+	var req syncGroupSupportedModelsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	platform := strings.ToLower(strings.TrimSpace(req.Platform))
+	if !isSupportedAccountModelPlatform(platform) {
+		response.BadRequest(c, "Unsupported platform")
+		return
+	}
+
+	groupIDs := normalizeInt64IDList(req.GroupIDs)
+	if len(groupIDs) == 0 {
+		response.BadRequest(c, "group_ids is required")
+		return
+	}
+
+	modelSet := make(map[string]struct{})
+	seenAccountIDs := make(map[int64]struct{})
+	ctx := c.Request.Context()
+
+	for _, groupID := range groupIDs {
+		accounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, platform, "", "", "", groupID, "", "name", "asc")
+		if err != nil {
+			response.InternalError(c, "Failed to list group accounts")
+			return
+		}
+		for _, account := range accounts {
+			if account.ID <= 0 {
+				continue
+			}
+			if account.Platform != platform || account.Status != service.StatusActive {
+				continue
+			}
+			if _, ok := seenAccountIDs[account.ID]; ok {
+				continue
+			}
+			seenAccountIDs[account.ID] = struct{}{}
+			for _, model := range accountSupportedModelIDs(&account) {
+				modelSet[model] = struct{}{}
+			}
+		}
+	}
+
+	models := make([]string, 0, len(modelSet))
+	for model := range modelSet {
+		models = append(models, model)
+	}
+	sort.Strings(models)
+
+	response.Success(c, gin.H{
+		"models":        models,
+		"account_count": len(seenAccountIDs),
+		"group_ids":     groupIDs,
+	})
+}
+
+func isSupportedAccountModelPlatform(platform string) bool {
+	switch platform {
+	case service.PlatformAnthropic, service.PlatformOpenAI, service.PlatformGemini, service.PlatformAntigravity:
+		return true
+	default:
+		return false
+	}
+}
+
+func accountSupportedModelIDs(account *service.Account) []string {
+	if account == nil {
+		return nil
+	}
+
+	models := make(map[string]struct{})
+	add := func(model string) {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			return
+		}
+		models[model] = struct{}{}
+	}
+	addMapping := func(mapping map[string]string) bool {
+		if len(mapping) == 0 {
+			return false
+		}
+		for model := range mapping {
+			add(model)
+		}
+		return true
+	}
+
+	switch account.Platform {
+	case service.PlatformOpenAI:
+		if account.IsOpenAIPassthroughEnabled() || !addMapping(account.GetModelMapping()) {
+			for _, model := range openai.DefaultModels {
+				add(model.ID)
+			}
+		}
+	case service.PlatformGemini:
+		if account.IsOAuth() || !addMapping(account.GetModelMapping()) {
+			for _, model := range geminicli.DefaultModels {
+				add(model.ID)
+			}
+		}
+	case service.PlatformAntigravity:
+		for _, model := range antigravity.DefaultModels() {
+			add(model.ID)
+		}
+	case service.PlatformAnthropic:
+		if account.IsOAuth() || !addMapping(account.GetModelMapping()) {
+			for _, model := range claude.DefaultModels {
+				add(model.ID)
+			}
+		}
+	}
+
+	out := make([]string, 0, len(models))
+	for model := range models {
+		out = append(out, model)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // SyncUpstreamModels handles syncing live supported models from an account's upstream.

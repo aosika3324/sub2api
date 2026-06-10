@@ -2646,9 +2646,16 @@ export default {
          unnamed: 'Unnamed',
          syncLatestModels: 'Sync Latest Models',
          syncingModels: 'Syncing...',
-         syncModelsSuccess: 'Synced {count} new model(s)',
+         syncModelsSuccess: 'Synced {count} new model(s); official prices filled for {priced}',
          syncModelsAlreadyUpToDate: 'Models already up to date',
-         syncModelsError: 'Failed to sync models'
+         syncModelsError: 'Failed to sync models',
+         syncGroupSupportedModels: 'Sync Group Account Models',
+         syncingGroupModels: 'Syncing account models...',
+         syncGroupModelsNoGroups: 'Select linked groups first',
+         syncGroupModelsNoAccounts: 'No account models found in the selected groups',
+         syncGroupModelsSuccess: 'Synced {count} model(s) from {accounts} account(s); official prices filled for {priced}',
+         syncGroupModelsAlreadyUpToDate: 'Group account models are already in pricing rules',
+         syncGroupModelsError: 'Failed to sync group account models'
        }
      },
 

@@ -2723,9 +2723,16 @@ export default {
         unnamed: '未命名',
         syncLatestModels: '同步最新模型',
         syncingModels: '同步中...',
-        syncModelsSuccess: '已同步 {count} 个新模型',
+        syncModelsSuccess: '已同步 {count} 个新模型，其中 {priced} 个已填入官方价格',
         syncModelsAlreadyUpToDate: '模型列表已是最新',
-        syncModelsError: '同步模型失败'
+        syncModelsError: '同步模型失败',
+        syncGroupSupportedModels: '同步分组账号支持的模型',
+        syncingGroupModels: '同步账号模型中...',
+        syncGroupModelsNoGroups: '请先选择关联分组',
+        syncGroupModelsNoAccounts: '已选分组下没有可同步的账号模型',
+        syncGroupModelsSuccess: '已从 {accounts} 个账号同步 {count} 个模型，其中 {priced} 个已填入官方价格',
+        syncGroupModelsAlreadyUpToDate: '分组账号模型已全部在定价规则中',
+        syncGroupModelsError: '同步分组账号模型失败'
       }
     },
 

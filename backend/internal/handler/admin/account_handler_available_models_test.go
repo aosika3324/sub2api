@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -67,6 +68,14 @@ func setupSyncUpstreamModelsRouter(adminSvc service.AdminService, upstream servi
 	)
 	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, accountTestSvc, nil, nil, nil, nil, nil)
 	router.POST("/api/v1/admin/accounts/:id/models/sync-upstream", handler.SyncUpstreamModels)
+	return router
+}
+
+func setupSyncGroupSupportedModelsRouter(adminSvc service.AdminService) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/models/sync-group-supported", handler.SyncGroupSupportedModels)
 	return router
 }
 
@@ -194,4 +203,112 @@ func TestAccountHandlerSyncUpstreamModels_UpstreamErrorDoesNotExposeBody(t *test
 	require.Equal(t, http.StatusBadGateway, rec.Code)
 	require.Contains(t, rec.Body.String(), "Upstream model list request failed with HTTP 502")
 	require.NotContains(t, rec.Body.String(), "SECRET_TOKEN")
+}
+
+func TestAccountHandlerSyncGroupSupportedModels_CollectsActiveGroupModels(t *testing.T) {
+	svc := newStubAdminService()
+	svc.accounts = []service.Account{
+		{
+			ID:       1,
+			Name:     "openai-one",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeAPIKey,
+			Status:   service.StatusActive,
+			Credentials: map[string]any{
+				"model_mapping": map[string]any{
+					"gpt-5": "gpt-5.1",
+				},
+			},
+		},
+		{
+			ID:       2,
+			Name:     "openai-two",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Status:   service.StatusActive,
+			Credentials: map[string]any{
+				"model_mapping": map[string]any{
+					"gpt-4o": "gpt-4o",
+				},
+			},
+		},
+		{
+			ID:       3,
+			Name:     "inactive-openai",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeAPIKey,
+			Status:   service.StatusDisabled,
+			Credentials: map[string]any{
+				"model_mapping": map[string]any{
+					"gpt-disabled": "gpt-disabled",
+				},
+			},
+		},
+		{
+			ID:       4,
+			Name:     "gemini",
+			Platform: service.PlatformGemini,
+			Type:     service.AccountTypeAPIKey,
+			Status:   service.StatusActive,
+			Credentials: map[string]any{
+				"model_mapping": map[string]any{
+					"gemini-2.5-pro": "gemini-2.5-pro",
+				},
+			},
+		},
+	}
+	router := setupSyncGroupSupportedModelsRouter(svc)
+
+	body := []byte(`{"platform":"openai","group_ids":[2,1,2]}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/models/sync-group-supported", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Data struct {
+			Models       []string `json:"models"`
+			AccountCount int      `json:"account_count"`
+			GroupIDs     []int64  `json:"group_ids"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, []string{"gpt-4o", "gpt-5"}, resp.Data.Models)
+	require.Equal(t, 2, resp.Data.AccountCount)
+	require.Equal(t, []int64{1, 2}, resp.Data.GroupIDs)
+	require.Equal(t, 2, svc.lastListAccounts.calls)
+	require.Equal(t, "openai", svc.lastListAccounts.platform)
+	require.Equal(t, "name", svc.lastListAccounts.sortBy)
+}
+
+func TestAccountHandlerSyncGroupSupportedModels_DefaultsForUnmappedOAuth(t *testing.T) {
+	svc := newStubAdminService()
+	svc.accounts = []service.Account{
+		{
+			ID:       8,
+			Name:     "openai-oauth",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Status:   service.StatusActive,
+		},
+	}
+	router := setupSyncGroupSupportedModelsRouter(svc)
+
+	body := []byte(`{"platform":"openai","group_ids":[1]}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/models/sync-group-supported", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Data struct {
+			Models []string `json:"models"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Contains(t, resp.Data.Models, "gpt-5.5")
 }
