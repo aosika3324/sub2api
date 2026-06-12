@@ -56,9 +56,21 @@ const (
 	defaultOpenAIImageTestPrompt = "Generate a cute orange cat astronaut sticker on a clean pastel background."
 )
 
-// isOpenAIImageModel checks if the model is an OpenAI image generation model (e.g. gpt-image-2).
+// isOpenAIImageModel checks if the model is an OpenAI image generation model
+// (e.g. gpt-image-2). It also recognizes explicit third-party upstream image
+// model names (e.g. image2) so the test button can probe accounts whose model
+// mapping targets them.
 func isOpenAIImageModel(model string) bool {
-	return strings.HasPrefix(strings.ToLower(model), "gpt-image-")
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	if strings.HasPrefix(normalized, "gpt-image-") {
+		return true
+	}
+	switch normalized {
+	case "image2":
+		return true
+	default:
+		return false
+	}
 }
 
 // AccountTestService handles account testing operations
@@ -510,8 +522,11 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		return s.testOpenAICompactConnection(c, account, testModelID)
 	}
 
-	// Route to image generation test if an image model is selected
-	if isOpenAIImageModel(testModelID) {
+	// Route to image generation test if an image model is selected. Check both
+	// the requested model (e.g. gpt-image-2) and the mapped upstream model (e.g.
+	// image2) so the test works whether the user selects the alias or the mapping
+	// target directly.
+	if isOpenAIImageModel(modelID) || isOpenAIImageModel(testModelID) {
 		imagePrompt := strings.TrimSpace(prompt)
 		if imagePrompt == "" {
 			imagePrompt = defaultOpenAIImageTestPrompt

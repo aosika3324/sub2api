@@ -586,8 +586,13 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		return nil, err
 	}
 	upstreamModel := resolveOpenAIForwardModel(account, requestModel, "")
-	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
-		return nil, err
+	// requestModel is already validated above as an image model, so this path is
+	// only reached by genuine image requests. The upstream model is the account's
+	// configured mapping target (e.g. gpt-image-2 -> image2 for a third-party
+	// upstream); trust it and only guard against an empty mapping rather than
+	// re-applying the gpt-image- whitelist, which would reject valid custom names.
+	if strings.TrimSpace(upstreamModel) == "" {
+		return nil, fmt.Errorf("images endpoint requires an image model")
 	}
 	logger.LegacyPrintf(
 		"service.openai_gateway",
