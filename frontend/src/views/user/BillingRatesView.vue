@@ -1,7 +1,10 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <!-- ============ Hero ============ -->
+      <!-- ============ Cost estimator ============ -->
+      <BillingEstimator v-if="!loading && estimatorModels.length > 0" :models="estimatorModels" />
+
+      <!-- ============ Hero / explainer ============ -->
       <section class="card overflow-hidden">
         <div class="flex flex-col gap-4 p-5 xl:flex-row xl:items-start xl:justify-between">
           <div class="min-w-0">
@@ -51,9 +54,6 @@
           </button>
         </div>
       </section>
-
-      <!-- ============ Cost estimator ============ -->
-      <BillingEstimator v-if="!loading && estimatorModels.length > 0" :models="estimatorModels" />
 
       <!-- ============ Toolbar ============ -->
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

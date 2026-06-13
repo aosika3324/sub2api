@@ -1143,6 +1143,7 @@ export default {
 
   billingRates: {
     title: 'Pricing',
+    description: 'See what each model costs you — your discount already applied',
     explainerEyebrow: 'Transparent pricing',
     explainerTitle: 'See exactly what each model costs you',
     explainerDescription: 'Every model you can use, with your discount already applied. The price you see is the price you pay.',

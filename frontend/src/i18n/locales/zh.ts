@@ -1147,6 +1147,7 @@ export default {
 
   billingRates: {
     title: '价格说明',
+    description: '看清每个模型要花多少钱，专属优惠已算好',
     explainerEyebrow: '价格透明',
     explainerTitle: '看清每个模型要花多少钱',
     explainerDescription: '这里列出你能用的每个模型的实际价格，已经算好你的专属优惠，看到多少就是付多少。',
