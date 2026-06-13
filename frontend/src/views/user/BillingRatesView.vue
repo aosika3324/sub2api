@@ -1,357 +1,253 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
+      <!-- ============ Hero ============ -->
       <section class="card overflow-hidden">
-        <div class="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
-          <div class="border-b border-gray-100 p-5 dark:border-dark-700 lg:border-b-0 lg:border-r">
-            <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div class="flex flex-col gap-4 p-5 xl:flex-row xl:items-start xl:justify-between">
+          <div class="min-w-0">
+            <div class="flex items-start gap-3">
+              <div class="rounded-lg bg-accent-100 p-2 dark:bg-accent-900/30">
+                <Icon name="dollar" size="md" class="text-accent-600 dark:text-accent-300" />
+              </div>
               <div class="min-w-0">
-                <div class="flex items-start gap-3">
-                  <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
-                    <Icon name="calculator" size="md" class="text-amber-600 dark:text-amber-300" />
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">
-                      {{ t('billingRates.explainerEyebrow') }}
-                    </p>
-                    <h2 class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                      {{ t('billingRates.explainerTitle') }}
-                    </h2>
-                  </div>
-                </div>
-                <p class="mt-3 max-w-3xl text-sm leading-6 text-gray-500 dark:text-gray-400">
-                  {{ t('billingRates.explainerDescription') }}
+                <p class="text-xs font-semibold uppercase tracking-wide text-accent-600 dark:text-accent-300">
+                  {{ t('billingRates.explainerEyebrow') }}
                 </p>
-              </div>
-              <button
-                @click="loadRates"
-                :disabled="loading"
-                class="btn btn-secondary w-full shrink-0 xl:w-auto"
-                :title="t('common.refresh')"
-              >
-                <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
-                <span class="ml-2">{{ t('billingRates.refresh') }}</span>
-              </button>
-            </div>
-
-            <div class="mt-5 rounded-lg border border-gray-100 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-800/50">
-              <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {{ t('billingRates.formulaTitle') }}
-              </p>
-              <div class="mt-3 grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
-                <div>
-                  <div class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ t('billingRates.formulaBase') }}
-                  </div>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.formulaBaseHint') }}
-                  </p>
-                </div>
-                <span class="hidden text-sm font-semibold text-gray-400 dark:text-gray-500 md:block">×</span>
-                <div>
-                  <div class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                    {{ t('billingRates.formulaMultiplier') }}
-                  </div>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.formulaMultiplierHint') }}
-                  </p>
-                </div>
-                <Icon name="arrowRight" size="sm" class="hidden text-gray-400 dark:text-gray-500 md:block" />
-                <div>
-                  <div class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ t('billingRates.formulaResult') }}
-                  </div>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.formulaResultHint') }}
-                  </p>
-                </div>
+                <h2 class="mt-1 text-lg font-semibold text-[var(--ui-text)]">
+                  {{ t('billingRates.explainerTitle') }}
+                </h2>
               </div>
             </div>
+            <p class="mt-3 max-w-2xl text-sm leading-6 text-[var(--ui-muted)]">
+              {{ t('billingRates.explainerDescription') }}
+            </p>
 
-            <div class="mt-4 grid gap-3 md:grid-cols-3">
-              <div class="flex gap-3 rounded-lg border border-gray-100 p-3 dark:border-dark-700">
-                <Icon name="badge" size="md" class="mt-0.5 shrink-0 text-violet-500 dark:text-violet-300" />
-                <div>
-                  <div class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ t('billingRates.rulePriorityTitle') }}
-                  </div>
-                  <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.rulePriorityText') }}
-                  </p>
-                </div>
-              </div>
-              <div class="flex gap-3 rounded-lg border border-gray-100 p-3 dark:border-dark-700">
-                <Icon name="sparkles" size="md" class="mt-0.5 shrink-0 text-pink-500 dark:text-pink-300" />
-                <div>
-                  <div class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ t('billingRates.ruleImageTitle') }}
-                  </div>
-                  <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.ruleImageText') }}
-                  </p>
-                </div>
-              </div>
-              <div class="flex gap-3 rounded-lg border border-gray-100 p-3 dark:border-dark-700">
-                <Icon name="clock" size="md" class="mt-0.5 shrink-0 text-sky-500 dark:text-sky-300" />
-                <div>
-                  <div class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ t('billingRates.ruleSnapshotTitle') }}
-                  </div>
-                  <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.ruleSnapshotText') }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <aside class="p-5">
-            <div class="flex items-center justify-between gap-3">
-              <div>
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                  {{ t('billingRates.currentAccess') }}
-                </h3>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t('billingRates.currentAccessHint') }}
-                </p>
-              </div>
-              <span class="rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                {{ t('billingRates.liveRates') }}
+            <!-- Best saving highlight -->
+            <div v-if="bestSavingPercent > 0" class="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-900/20">
+              <Icon name="sparkles" size="sm" class="text-emerald-600 dark:text-emerald-300" />
+              <span class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                {{ t('billingRates.yourBestSaving', { percent: bestSavingPercent }) }}
               </span>
             </div>
 
-            <div class="mt-4 grid grid-cols-2 gap-3">
-              <div class="border-t border-gray-100 pt-3 dark:border-dark-700">
-                <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('billingRates.accessibleGroups') }}</div>
-                <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ formatCount(groups.length) }}</div>
-              </div>
-              <div class="border-t border-gray-100 pt-3 dark:border-dark-700">
-                <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('billingRates.visibleModels') }}</div>
-                <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ formatCount(models.length) }}</div>
-              </div>
-              <div class="border-t border-gray-100 pt-3 dark:border-dark-700">
-                <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('billingRates.customRates') }}</div>
-                <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ formatCount(customRateCount) }}</div>
-              </div>
-              <div class="border-t border-gray-100 pt-3 dark:border-dark-700">
-                <div class="text-xs text-gray-500 dark:text-gray-400">{{ t('billingRates.platforms') }}</div>
-                <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ formatCount(platformCount) }}</div>
-              </div>
-            </div>
-
-            <div v-if="lowestStandardGroup" class="mt-4 border-t border-gray-100 pt-4 dark:border-dark-700">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.lowestStandardRate') }}
-                  </p>
-                  <p class="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                    {{ formatRate(lowestStandardGroup.effective_multiplier) }}
-                  </p>
-                </div>
-                <GroupBadge
-                  :name="lowestStandardGroup.name"
-                  :platform="lowestStandardGroup.platform as GroupPlatform"
-                  :subscription-type="(lowestStandardGroup.subscription_type || 'standard') as SubscriptionType"
-                  :rate-multiplier="lowestStandardGroup.default_rate_multiplier"
-                  :user-rate-multiplier="lowestStandardGroup.custom_rate_multiplier ?? null"
-                  always-show-rate
-                />
-              </div>
-              <p class="mt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                {{ lowestImageGroup && lowestImageGroup.id !== lowestStandardGroup.id
-                  ? t('billingRates.lowestImageRateHint', { rate: formatRate(lowestImageGroup.effective_image_multiplier), group: lowestImageGroup.name })
-                  : t('billingRates.lowestStandardRateHint') }}
+            <!-- How price works (collapsed) -->
+            <details class="mt-4 max-w-2xl rounded-lg border border-[var(--ui-border)]">
+              <summary class="cursor-pointer select-none px-4 py-2.5 text-sm font-medium text-[var(--ui-text)]">
+                {{ t('billingRates.howPriceWorks') }}
+              </summary>
+              <p class="border-t border-[var(--ui-border)] px-4 py-3 text-xs leading-5 text-[var(--ui-muted)]">
+                {{ t('billingRates.howPriceWorksText') }}
               </p>
-            </div>
-            <div v-else class="mt-4 border-t border-gray-100 pt-4 text-sm text-gray-500 dark:border-dark-700 dark:text-gray-400">
-              {{ t('billingRates.emptyGroups') }}
-            </div>
-          </aside>
+            </details>
+          </div>
+
+          <button
+            @click="loadRates"
+            :disabled="loading"
+            class="btn btn-secondary w-full shrink-0 xl:w-auto"
+          >
+            <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
+            <span class="ml-2">{{ t('billingRates.refresh') }}</span>
+          </button>
         </div>
       </section>
 
-      <section class="space-y-4">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 class="text-base font-semibold text-gray-900 dark:text-white">
-              {{ t('billingRates.modelCompareTitle') }}
-            </h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {{ t('billingRates.modelCompareDescription') }}
+      <!-- ============ Cost estimator ============ -->
+      <BillingEstimator v-if="!loading && estimatorModels.length > 0" :models="estimatorModels" />
+
+      <!-- ============ Toolbar ============ -->
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="relative w-full sm:max-w-sm">
+          <Icon name="search" size="md" class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ui-faint)]" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="t('billingRates.searchPlaceholder')"
+            class="input pl-10"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Platform filter -->
+          <div v-if="platforms.length > 1" class="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              :class="selectedPlatform === ''
+                ? 'bg-accent-500 text-white'
+                : 'border border-[var(--ui-border)] text-[var(--ui-muted)] hover:bg-[var(--ui-surface-muted)]'"
+              @click="selectedPlatform = ''"
+            >
+              {{ t('billingRates.allPlatforms') }}
+            </button>
+            <button
+              v-for="p in platforms"
+              :key="p"
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium uppercase transition-colors"
+              :class="selectedPlatform === p
+                ? 'bg-accent-500 text-white'
+                : 'border border-[var(--ui-border)] text-[var(--ui-muted)] hover:bg-[var(--ui-surface-muted)]'"
+              @click="selectedPlatform = selectedPlatform === p ? '' : p"
+            >
+              <PlatformIcon :platform="p as GroupPlatform" size="xs" />
+              {{ p }}
+            </button>
+          </div>
+
+          <!-- Sort -->
+          <select v-model="sortMode" class="input w-auto" :aria-label="t('billingRates.sortLabel')">
+            <option value="cheapest">{{ t('billingRates.sortCheapest') }}</option>
+            <option value="name">{{ t('billingRates.sortNameAsc') }}</option>
+          </select>
+
+          <RouterLink to="/usage" class="btn btn-secondary justify-center">
+            <Icon name="chart" size="md" />
+            <span class="ml-2">{{ t('billingRates.viewUsage') }}</span>
+          </RouterLink>
+        </div>
+      </div>
+
+      <!-- ============ Loading skeleton ============ -->
+      <div v-if="loading" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div v-for="i in 6" :key="i" class="card p-5">
+          <div class="h-5 w-32 animate-pulse rounded bg-[var(--ui-surface-muted)]"></div>
+          <div class="mt-3 h-4 w-48 animate-pulse rounded bg-[var(--ui-surface-muted)]"></div>
+          <div class="mt-4 h-8 w-full animate-pulse rounded bg-[var(--ui-surface-muted)]"></div>
+        </div>
+      </div>
+
+      <!-- ============ Empty states ============ -->
+      <div v-else-if="filteredModelGroups.length === 0" class="card px-5 py-12 text-center">
+        <Icon name="inbox" size="xl" class="mx-auto mb-3 text-[var(--ui-faint)]" />
+        <p class="text-sm text-[var(--ui-muted)]">
+          {{ searchQuery.trim() ? t('billingRates.noMatches', { q: searchQuery.trim() }) : t('billingRates.emptyModels') }}
+        </p>
+        <button v-if="searchQuery.trim()" class="btn btn-secondary mt-4" @click="searchQuery = ''">
+          {{ t('billingRates.clearSearch') }}
+        </button>
+      </div>
+
+      <!-- ============ Model card grid ============ -->
+      <div v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <article
+          v-for="modelGroup in filteredModelGroups"
+          :key="modelGroup.model"
+          class="card relative flex flex-col overflow-hidden"
+        >
+          <!-- Best value ribbon -->
+          <div
+            v-if="modelGroup.model === bestValueModel"
+            class="absolute right-0 top-0 rounded-bl-lg bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
+          >
+            {{ t('billingRates.bestValue') }}
+          </div>
+
+          <!-- Header -->
+          <div class="border-b border-[var(--ui-border)] px-5 py-4">
+            <div class="flex items-start gap-2 pr-16">
+              <h3 class="min-w-0 break-words text-base font-semibold text-[var(--ui-text)]">
+                {{ modelGroup.model }}
+              </h3>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <span
+                v-for="platform in modelGroup.platforms"
+                :key="platform"
+                :class="['inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium uppercase', platformClass(platform)]"
+              >
+                <PlatformIcon :platform="platform as GroupPlatform" size="xs" />
+                {{ platform }}
+              </span>
+            </div>
+            <p class="mt-2 text-sm text-[var(--ui-muted)]">{{ priceSummary(modelGroup.best.effective_pricing) }}</p>
+          </div>
+
+          <!-- Body: your price -->
+          <div class="flex-1 px-5 py-4">
+            <div class="text-xs font-medium text-[var(--ui-muted)]">{{ t('billingRates.yourPriceLabel') }}</div>
+            <div class="mt-2">
+              <PricingLines :lines="strongPricingLines(modelGroup.best.effective_pricing)" :empty="t('billingRates.noPricing')" strong />
+            </div>
+
+            <!-- Saving badge -->
+            <div class="mt-3 flex flex-wrap items-center gap-1.5">
+              <span
+                v-if="savingPercent(modelGroup.best.applied_multiplier) > 0"
+                class="rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+              >
+                {{ t('billingRates.savingBadge', { percent: savingPercent(modelGroup.best.applied_multiplier) }) }}
+              </span>
+              <span
+                v-else-if="savingPercent(modelGroup.best.applied_multiplier) < 0"
+                class="rounded bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
+              >
+                {{ t('billingRates.premiumBadge', { percent: -savingPercent(modelGroup.best.applied_multiplier) }) }}
+              </span>
+              <span v-else class="rounded bg-[var(--ui-surface-muted)] px-2 py-1 text-xs font-medium text-[var(--ui-muted)]">
+                {{ t('billingRates.standardBadge') }}
+              </span>
+            </div>
+
+            <p v-if="modelGroup.rows.length > 1" class="mt-2 text-xs text-[var(--ui-faint)]">
+              {{ t('billingRates.moreVariants', { count: modelGroup.rows.length - 1 }) }}
             </p>
           </div>
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div class="relative w-full sm:w-80">
-              <Icon
-                name="search"
-                size="md"
-                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-              />
-              <input
-                v-model="searchQuery"
-                type="text"
-                :placeholder="t('billingRates.searchPlaceholder')"
-                class="input pl-10"
-              />
-            </div>
-            <RouterLink to="/usage" class="btn btn-secondary justify-center">
-              <Icon name="chart" size="md" />
-              <span class="ml-2">{{ t('billingRates.viewUsage') }}</span>
-            </RouterLink>
-          </div>
-        </div>
 
-        <div class="rounded-lg border border-amber-100 bg-amber-50/70 px-5 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
-          <div class="flex items-start gap-2">
-            <Icon name="infoCircle" size="sm" class="mt-0.5 flex-shrink-0" />
-            <span>{{ t('billingRates.formulaHint') }}</span>
-          </div>
-        </div>
+          <!-- Billing details (progressive disclosure) -->
+          <details class="border-t border-[var(--ui-border)]">
+            <summary class="cursor-pointer select-none px-5 py-3 text-xs font-medium text-[var(--ui-muted)] hover:text-[var(--ui-text)]">
+              {{ t('billingRates.billingDetails') }}
+            </summary>
+            <div class="space-y-3 border-t border-[var(--ui-border)] px-5 py-4">
+              <p class="text-xs text-[var(--ui-faint)]">{{ t('billingRates.whyThisPrice') }}</p>
 
-        <div v-if="loading" class="card px-5 py-10 text-center">
-          <Icon name="refresh" size="lg" class="inline-block animate-spin text-gray-400" />
-        </div>
-        <div v-else-if="filteredModelGroups.length === 0" class="card px-5 py-12 text-center">
-          <Icon name="inbox" size="xl" class="mx-auto mb-3 text-gray-400" />
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            {{ modelEmptyTitle }}
-          </p>
-          <p v-if="!searchQuery.trim()" class="mt-1 text-xs text-gray-400 dark:text-gray-500">
-            {{ t('billingRates.emptyModelsHint') }}
-          </p>
-        </div>
-        <div v-else class="space-y-4">
-          <article
-            v-for="modelGroup in filteredModelGroups"
-            :key="modelGroup.model"
-            class="card overflow-hidden"
-          >
-            <div class="flex flex-col gap-4 border-b border-gray-100 px-5 py-4 dark:border-dark-700 xl:flex-row xl:items-start xl:justify-between">
-              <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                    {{ modelGroup.model }}
-                  </h3>
-                  <span class="rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                    {{ t('billingRates.modelLowestMultiplier', { rate: formatRate(modelGroup.minMultiplier) }) }}
-                  </span>
-                </div>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {{ t('billingRates.modelVariantSummary', { count: modelGroup.rows.length, groups: modelGroup.groupCount }) }}
-                </p>
-              </div>
-              <div class="flex flex-wrap gap-1.5">
-                <span
-                  v-for="platform in modelGroup.platforms"
-                  :key="platform"
-                  :class="[
-                    'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium uppercase',
-                    platformClass(platform)
-                  ]"
-                >
-                  <PlatformIcon
-                    :platform="platform as GroupPlatform"
-                    size="xs"
-                  />
-                  {{ platform }}
-                </span>
-              </div>
-            </div>
-
-            <div class="divide-y divide-gray-100 dark:divide-dark-800">
               <div
                 v-for="(row, index) in modelGroup.rows"
-                :key="`${row.channel_name}-${row.platform}-${row.group.id}-${row.model}-${index}`"
-                class="grid gap-4 px-5 py-4 transition-colors hover:bg-gray-50/50 dark:hover:bg-dark-800/40 lg:grid-cols-[minmax(210px,1.05fr)_minmax(190px,1fr)_minmax(170px,0.85fr)_minmax(180px,0.9fr)]"
+                :key="`${row.group.id}-${row.multiplier_type}-${index}`"
+                class="rounded-lg border border-[var(--ui-border)] p-3"
               >
-                <div class="min-w-0">
-                  <div class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.columns.group') }}
-                  </div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <GroupBadge
-                      :name="row.group.name"
-                      :platform="row.group.platform as GroupPlatform"
-                      :subscription-type="(row.group.subscription_type || 'standard') as SubscriptionType"
-                      :rate-multiplier="row.group.default_rate_multiplier"
-                      :user-rate-multiplier="row.group.custom_rate_multiplier ?? null"
-                      always-show-rate
-                    />
-                  </div>
-                  <div class="mt-2 flex flex-wrap gap-1.5">
-                    <span class="rounded bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                      {{ formatRate(row.applied_multiplier) }}
-                    </span>
-                    <span
-                      v-if="row.applied_multiplier === modelGroup.minMultiplier"
-                      class="rounded bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
-                    >
-                      {{ t('billingRates.modelBestRate') }}
-                    </span>
-                    <span
-                      class="rounded px-2 py-1 text-xs font-semibold"
-                      :class="row.multiplier_type === 'image'
-                        ? 'bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-200'"
-                    >
-                      {{ multiplierTypeLabel(row.multiplier_type) }}
-                    </span>
-                  </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <GroupBadge
+                    :name="row.group.name"
+                    :platform="row.group.platform as GroupPlatform"
+                    :subscription-type="(row.group.subscription_type || 'standard') as SubscriptionType"
+                    :rate-multiplier="row.group.default_rate_multiplier"
+                    :user-rate-multiplier="row.group.custom_rate_multiplier ?? null"
+                    always-show-rate
+                  />
+                  <span
+                    v-if="row.multiplier_type === 'image'"
+                    class="rounded bg-pink-50 px-2 py-0.5 text-xs font-medium text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
+                  >
+                    {{ t('billingRates.advanced.variantImage') }}
+                  </span>
+                  <span class="text-xs text-[var(--ui-faint)]">
+                    {{ t('billingRates.advanced.coefficient') }}: {{ formatRate(row.applied_multiplier) }}
+                  </span>
                 </div>
 
-                <div>
-                  <div class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.columns.billedPrice') }}
+                <div class="mt-2 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <div class="mb-1 text-xs font-medium text-[var(--ui-muted)]">{{ t('billingRates.columns.billedPrice') }}</div>
+                    <PricingLines :lines="pricingLines(row.effective_pricing)" :empty="t('billingRates.noPricing')" strong />
                   </div>
-                  <PricingLines :lines="pricingLines(row.effective_pricing)" :empty="t('billingRates.noPricing')" strong />
-                </div>
-
-                <div>
-                  <div class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.columns.basePrice') }}
-                  </div>
-                  <PricingLines :lines="pricingLines(row.base_pricing)" :empty="t('billingRates.noPricing')" />
-                  <div class="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                    {{ pricingSourceLabel(row.pricing_source) }}
-                  </div>
-                </div>
-
-                <div class="min-w-0">
-                  <div class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('billingRates.columns.channel') }}
-                  </div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span
-                      :class="[
-                        'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium uppercase',
-                        platformClass(row.platform)
-                      ]"
-                    >
-                      <PlatformIcon
-                        v-if="row.platform"
-                        :platform="row.platform as GroupPlatform"
-                        size="xs"
-                      />
-                      {{ row.platform || '-' }}
-                    </span>
-                    <span
-                      class="inline-flex rounded px-2 py-0.5 text-xs font-medium"
-                      :class="getBillingModeBadgeClass(row.base_pricing?.billing_mode)"
-                    >
-                      {{ getBillingModeLabel(row.base_pricing?.billing_mode, t) }}
-                    </span>
-                  </div>
-                  <div class="mt-2 font-medium text-gray-900 dark:text-white">{{ row.channel_name }}</div>
-                  <div v-if="row.channel_description" class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                    {{ row.channel_description }}
+                  <div>
+                    <div class="mb-1 text-xs font-medium text-[var(--ui-muted)]">{{ t('billingRates.columns.basePrice') }}</div>
+                    <PricingLines :lines="pricingLines(row.base_pricing)" :empty="t('billingRates.noPricing')" struck />
+                    <div class="mt-1 text-xs text-[var(--ui-faint)]">{{ pricingSourceLabel(row.pricing_source) }}</div>
                   </div>
                 </div>
               </div>
             </div>
-          </article>
-        </div>
-      </section>
+          </details>
+        </article>
+      </div>
+
+      <!-- Footer note -->
+      <p v-if="!loading && filteredModelGroups.length > 0" class="px-1 text-xs text-[var(--ui-faint)]">
+        {{ t('billingRates.footerNote') }}
+      </p>
     </div>
   </AppLayout>
 </template>
@@ -363,6 +259,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
+import BillingEstimator, { type EstimatorModel } from '@/components/user/BillingEstimator.vue'
 import billingRatesAPI, {
   type UserBillingRateGroup,
   type UserBillingRateModel
@@ -373,7 +270,6 @@ import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { formatScaled } from '@/utils/pricing'
 import { formatMultiplier } from '@/utils/formatters'
-import { getBillingModeBadgeClass, getBillingModeLabel } from '@/utils/billingMode'
 import { platformBadgeClass } from '@/utils/platformColors'
 import {
   BILLING_MODE_IMAGE,
@@ -384,40 +280,30 @@ import {
 const PricingLines = defineComponent({
   name: 'PricingLines',
   props: {
-    lines: {
-      type: Array as () => string[],
-      required: true
-    },
-    empty: {
-      type: String,
-      required: true
-    },
-    strong: {
-      type: Boolean,
-      default: false
-    }
+    lines: { type: Array as () => string[], required: true },
+    empty: { type: String, required: true },
+    strong: { type: Boolean, default: false },
+    struck: { type: Boolean, default: false }
   },
   setup(props) {
     return () => {
       if (props.lines.length === 0) {
-        return h('span', { class: 'text-gray-400 dark:text-gray-500' }, props.empty)
+        return h('span', { class: 'text-[var(--ui-faint)]' }, props.empty)
       }
       return h(
         'div',
         { class: 'space-y-1' },
         props.lines.map((line) =>
-          h(
-            'div',
-            {
-              class: [
-                'whitespace-nowrap text-xs',
-                props.strong
-                  ? 'font-semibold text-emerald-700 dark:text-emerald-300'
-                  : 'text-gray-700 dark:text-gray-300'
-              ]
-            },
-            line
-          )
+          h('div', {
+            class: [
+              'whitespace-nowrap text-xs',
+              props.strong
+                ? 'font-semibold text-emerald-700 dark:text-emerald-300'
+                : props.struck
+                  ? 'text-[var(--ui-faint)] line-through'
+                  : 'text-[var(--ui-muted)]'
+            ]
+          }, line)
         )
       )
     }
@@ -431,67 +317,110 @@ const groups = ref<UserBillingRateGroup[]>([])
 const models = ref<UserBillingRateModel[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
+const selectedPlatform = ref('')
+const sortMode = ref<'cheapest' | 'name'>('cheapest')
 let abortController: AbortController | null = null
 
 interface ModelRateGroup {
   model: string
   rows: UserBillingRateModel[]
+  best: UserBillingRateModel
   minMultiplier: number
-  groupCount: number
   platforms: string[]
 }
 
-const customRateCount = computed(() =>
-  groups.value.filter((group) => group.custom_rate_multiplier != null).length
+// Distinct platforms across all visible models (for the filter pills).
+const platforms = computed(() =>
+  Array.from(new Set(models.value.map((m) => m.platform).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' })
+  )
 )
 
-const platformCount = computed(() => {
-  const platforms = new Set(groups.value.map((group) => group.platform).filter(Boolean))
-  return platforms.size
+// Lowest standard multiplier across accessible groups → headline saving.
+const bestSavingPercent = computed(() => {
+  const lowest = groups.value.reduce<number | null>((min, g) => {
+    if (min == null || g.effective_multiplier < min) return g.effective_multiplier
+    return min
+  }, null)
+  return lowest == null ? 0 : Math.max(0, Math.round((1 - lowest) * 100))
 })
-
-const lowestStandardGroup = computed(() => lowestBy(groups.value, 'effective_multiplier'))
-const lowestImageGroup = computed(() => lowestBy(groups.value, 'effective_image_multiplier'))
 
 const filteredModelGroups = computed<ModelRateGroup[]>(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const rows = q ? models.value.filter((row) => modelRateMatchesSearch(row, q)) : models.value
-  const byModel = new Map<string, UserBillingRateModel[]>()
+  let rows = models.value
+  if (selectedPlatform.value) rows = rows.filter((r) => r.platform === selectedPlatform.value)
+  if (q) rows = rows.filter((r) => modelRateMatchesSearch(r, q))
 
+  const byModel = new Map<string, UserBillingRateModel[]>()
   for (const row of rows) {
     const modelName = row.model || '-'
     const bucket = byModel.get(modelName)
-    if (bucket) {
-      bucket.push(row)
-    } else {
-      byModel.set(modelName, [row])
-    }
+    if (bucket) bucket.push(row)
+    else byModel.set(modelName, [row])
   }
 
-  return Array.from(byModel.entries())
-    .map(([model, modelRows]) => {
-      const sortedRows = [...modelRows].sort(compareModelRateRows)
-      return {
-        model,
-        rows: sortedRows,
-        minMultiplier: sortedRows[0]?.applied_multiplier ?? 0,
-        groupCount: new Set(sortedRows.map((row) => row.group.id)).size,
-        platforms: Array.from(new Set(sortedRows.map((row) => row.platform).filter(Boolean))).sort((a, b) =>
-          a.localeCompare(b, undefined, { sensitivity: 'base' })
-        )
-      }
+  const result = Array.from(byModel.entries()).map(([model, modelRows]) => {
+    const sortedRows = [...modelRows].sort(compareModelRateRows)
+    const best = sortedRows[0]
+    return {
+      model,
+      rows: sortedRows,
+      best,
+      minMultiplier: best?.applied_multiplier ?? 0,
+      platforms: Array.from(new Set(sortedRows.map((r) => r.platform).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: 'base' })
+      )
+    }
+  })
+
+  if (sortMode.value === 'name') {
+    result.sort((a, b) => a.model.localeCompare(b.model, undefined, { sensitivity: 'base' }))
+  } else {
+    // Cheapest first by best effective output price; models without a comparable
+    // price sink to the bottom.
+    result.sort((a, b) => {
+      const ca = comparablePrice(a.best.effective_pricing)
+      const cb = comparablePrice(b.best.effective_pricing)
+      if (ca == null && cb == null) return a.model.localeCompare(b.model, undefined, { sensitivity: 'base' })
+      if (ca == null) return 1
+      if (cb == null) return -1
+      return ca - cb
     })
+  }
+  return result
+})
+
+// The cheapest model overall (by comparable price) → "best value" ribbon.
+const bestValueModel = computed(() => {
+  let best: { model: string; price: number } | null = null
+  for (const g of filteredModelGroups.value) {
+    const price = comparablePrice(g.best.effective_pricing)
+    if (price == null) continue
+    if (!best || price < best.price) best = { model: g.model, price }
+  }
+  return best?.model ?? ''
+})
+
+// One estimable entry per model (its best/cheapest variant) for the estimator.
+// Built from the FULL model list — not the filtered grid — so the estimator
+// stays a standalone "what will I spend" tool that search/platform filters
+// never shrink or hide.
+const estimatorModels = computed<EstimatorModel[]>(() => {
+  const byModel = new Map<string, UserBillingRateModel>()
+  for (const row of models.value) {
+    const name = row.model || '-'
+    const current = byModel.get(name)
+    if (!current || row.applied_multiplier < current.applied_multiplier) {
+      byModel.set(name, row)
+    }
+  }
+  return Array.from(byModel.entries())
+    .map(([model, row]) => ({ model, pricing: row.effective_pricing }))
     .sort((a, b) => a.model.localeCompare(b.model, undefined, { sensitivity: 'base' }))
 })
 
-const modelEmptyTitle = computed(() =>
-  searchQuery.value.trim() ? t('billingRates.noMatches') : t('billingRates.emptyModels')
-)
-
 async function loadRates() {
-  if (abortController) {
-    abortController.abort()
-  }
+  if (abortController) abortController.abort()
   const current = new AbortController()
   abortController = current
   loading.value = true
@@ -504,9 +433,7 @@ async function loadRates() {
     if (current.signal.aborted) return
     appStore.showError(extractApiErrorMessage(err, t('billingRates.loadFailed')))
   } finally {
-    if (abortController === current) {
-      loading.value = false
-    }
+    if (abortController === current) loading.value = false
   }
 }
 
@@ -514,71 +441,90 @@ function formatRate(value: number): string {
   return `${formatMultiplier(value)}x`
 }
 
-function formatCount(value: number): string {
-  return value.toLocaleString()
+// round((1 - multiplier) * 100): positive = discount, negative = premium.
+function savingPercent(multiplier: number): number {
+  return Math.round((1 - multiplier) * 100)
 }
 
-function lowestBy(
-  source: UserBillingRateGroup[],
-  key: 'effective_multiplier' | 'effective_image_multiplier'
-): UserBillingRateGroup | null {
-  return source.reduce<UserBillingRateGroup | null>((lowest, group) => {
-    if (!lowest || group[key] < lowest[key]) {
-      return group
-    }
-    return lowest
-  }, null)
+// A single comparable USD figure for sorting (prefers output token price).
+// A single comparable cost yardstick across billing modes: the cost of one
+// representative request (1k input + 3k output tokens for token models, one
+// charge for per-request/image models). This makes token/per_request/image
+// models rankable on the same scale and keeps the "best value" ribbon and the
+// estimator's "cheapest" in agreement (both use the same assumptions).
+const COMPARE_INPUT_TOKENS = 1000
+const COMPARE_OUTPUT_TOKENS = 3000
+
+function comparablePrice(pricing: UserSupportedModelPricing | null): number | null {
+  if (!pricing) return null
+  if (pricing.billing_mode === BILLING_MODE_TOKEN) {
+    if (pricing.input_price == null && pricing.output_price == null) return null
+    return COMPARE_INPUT_TOKENS * (pricing.input_price ?? 0) + COMPARE_OUTPUT_TOKENS * (pricing.output_price ?? 0)
+  }
+  if (pricing.billing_mode === BILLING_MODE_PER_REQUEST) return pricing.per_request_price ?? null
+  if (pricing.billing_mode === BILLING_MODE_IMAGE) {
+    return pricing.image_output_price ?? pricing.per_request_price ?? null
+  }
+  return null
 }
 
 function platformClass(platform: string): string {
   if (!platform) {
-    return 'border-gray-200 bg-gray-50 text-gray-700 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300'
+    return 'border-[var(--ui-border)] bg-[var(--ui-surface-muted)] text-[var(--ui-muted)]'
   }
   return platformBadgeClass(platform)
 }
 
 function modelRateMatchesSearch(row: UserBillingRateModel, query: string): boolean {
-  return [
-    row.channel_name,
-    row.channel_description,
-    row.platform,
-    row.group.name,
-    row.group.platform,
-    row.model,
-    getBillingModeLabel(row.base_pricing?.billing_mode, t),
-    pricingSourceLabel(row.pricing_source)
-  ]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(query))
+  return [row.model, row.platform].filter(Boolean).some((v) => String(v).toLowerCase().includes(query))
 }
 
 function compareModelRateRows(a: UserBillingRateModel, b: UserBillingRateModel): number {
-  const multiplierDiff = a.applied_multiplier - b.applied_multiplier
-  if (multiplierDiff !== 0) return multiplierDiff
+  const diff = a.applied_multiplier - b.applied_multiplier
+  if (diff !== 0) return diff
+  return `${a.group.name}`.localeCompare(`${b.group.name}`, undefined, { sensitivity: 'base' })
+}
 
-  const left = `${a.group.name} ${a.channel_name} ${a.platform}`
-  const right = `${b.group.name} ${b.channel_name} ${b.platform}`
-  return left.localeCompare(right, undefined, { sensitivity: 'base' })
+// One-line price summary for a card header.
+function priceSummary(pricing: UserSupportedModelPricing | null): string {
+  if (!pricing) return t('billingRates.noPricing')
+  if (pricing.billing_mode === BILLING_MODE_TOKEN) {
+    return t('billingRates.priceSummaryToken', {
+      input: formatScaled(pricing.input_price, 1_000_000),
+      output: formatScaled(pricing.output_price, 1_000_000)
+    })
+  }
+  if (pricing.billing_mode === BILLING_MODE_IMAGE) {
+    return t('billingRates.priceSummaryImage', {
+      price: formatScaled(pricing.image_output_price ?? pricing.per_request_price, 1)
+    })
+  }
+  if (pricing.billing_mode === BILLING_MODE_PER_REQUEST) {
+    return t('billingRates.priceSummaryPerRequest', { price: formatScaled(pricing.per_request_price, 1) })
+  }
+  return ''
+}
+
+// The two headline prices (input/output) for token models; full set for others.
+function strongPricingLines(pricing: UserSupportedModelPricing | null): string[] {
+  if (!pricing) return []
+  if (pricing.billing_mode === BILLING_MODE_TOKEN) {
+    const lines: string[] = []
+    pushPrice(lines, t('billingRates.input'), pricing.input_price, 1_000_000, t('billingRates.perMillion'))
+    pushPrice(lines, t('billingRates.output'), pricing.output_price, 1_000_000, t('billingRates.perMillion'))
+    return lines
+  }
+  return pricingLines(pricing)
 }
 
 function pricingSourceLabel(source: string): string {
   switch (source) {
-    case 'channel':
-      return t('billingRates.pricingSourceChannel')
-    case 'litellm':
-      return t('billingRates.pricingSourceLiteLLM')
-    case 'fallback':
-      return t('billingRates.pricingSourceFallback')
-    case 'display':
-      return t('billingRates.pricingSourceDisplay')
-    default:
-      return source || t('billingRates.pricingSourceUnknown')
+    case 'channel': return t('billingRates.pricingSourceChannel')
+    case 'litellm': return t('billingRates.pricingSourceLiteLLM')
+    case 'fallback': return t('billingRates.pricingSourceFallback')
+    case 'display': return t('billingRates.pricingSourceDisplay')
+    default: return source || t('billingRates.pricingSourceUnknown')
   }
-}
-
-function multiplierTypeLabel(type: string): string {
-  if (type === 'image') return t('billingRates.multiplierImage')
-  return t('billingRates.multiplierStandard')
 }
 
 function pricingLines(pricing: UserSupportedModelPricing | null): string[] {
@@ -614,8 +560,5 @@ function pushPrice(lines: string[], label: string, value: number | null, scale: 
 }
 
 onMounted(loadRates)
-
-onBeforeUnmount(() => {
-  abortController?.abort()
-})
+onBeforeUnmount(() => abortController?.abort())
 </script>
