@@ -1,7 +1,7 @@
 <template>
   <div v-if="!isDesktopViewport" class="space-y-3">
     <template v-if="loading">
-      <div v-for="i in 5" :key="i" class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
+      <div v-for="i in 5" :key="i" class="rounded-lg border p-4" style="border-color: var(--ui-border); background: var(--ui-surface)">
         <div class="space-y-3">
           <div v-for="column in dataColumns" :key="column.key" class="flex justify-between">
             <div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
@@ -15,7 +15,7 @@
     </template>
 
     <template v-else-if="!data || data.length === 0">
-      <div class="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-dark-700 dark:bg-dark-900">
+      <div class="rounded-lg border p-12 text-center" style="border-color: var(--ui-border); background: var(--ui-surface)">
         <slot name="empty">
           <div class="flex flex-col items-center">
             <Icon
@@ -35,7 +35,8 @@
       <div
         v-for="(row, index) in sortedData"
         :key="resolveRowKey(row, index)"
-        class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900"
+        class="rounded-lg border p-4"
+        style="border-color: var(--ui-border); background: var(--ui-surface)"
       >
         <div class="space-y-3">
           <div
@@ -69,8 +70,8 @@
       'is-scrollable': isScrollable
     }"
   >
-    <table class="w-full min-w-max divide-y divide-gray-200 dark:divide-dark-700">
-      <thead class="table-header bg-gray-50 dark:bg-dark-800">
+    <table class="w-full min-w-max divide-y" style="border-color: var(--ui-border)">
+      <thead class="table-header" style="background: var(--ui-surface-muted)">
         <tr>
           <th
             v-for="(column, index) in columns"
@@ -118,7 +119,7 @@
           </th>
         </tr>
       </thead>
-      <tbody class="table-body divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
+      <tbody class="table-body divide-y" style="border-color: var(--ui-border); background: var(--ui-surface)">
         <!-- Loading skeleton -->
         <tr v-if="loading" v-for="i in 5" :key="i">
           <td v-for="column in columns" :key="column.key" :class="['whitespace-nowrap py-4', getAdaptivePaddingClass()]">
@@ -162,7 +163,7 @@
             :data-row-id="resolveRowKey(sortedData[virtualRow.index], virtualRow.index)"
             :data-index="virtualRow.index"
             :ref="measureElement"
-            class="hover:bg-gray-50 dark:hover:bg-dark-800"
+            class="datatable-row"
           >
             <td
               v-for="(column, colIndex) in columns"
@@ -811,6 +812,11 @@ tbody .sticky-col {
 
 .dark tbody .sticky-col {
   background-color: var(--ui-surface);
+}
+
+/* 行 hover：与 sticky 列 hover 用同一 token，避免整行与固定列出现两种底色 */
+tbody tr.datatable-row:hover {
+  background-color: var(--ui-surface-muted);
 }
 
 /* hover 状态保持 */
