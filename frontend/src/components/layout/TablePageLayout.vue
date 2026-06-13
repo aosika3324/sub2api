@@ -64,7 +64,11 @@ onUnmounted(() => {
   border-radius: 8px;
   border: 1px solid var(--ui-border);
   background: var(--ui-surface);
-  box-shadow: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+:global(.dark) .table-scroll-container {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .table-scroll-container :deep(.table-wrapper) {

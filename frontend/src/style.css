@@ -797,11 +797,11 @@
   }
 
   .dark {
-    --ui-bg: #1f1c19;
-    --ui-surface: #2a2622;
-    --ui-surface-muted: #332e29;
-    --ui-border: #45403a;
-    --ui-border-strong: #5a5248;
+    --ui-bg: #14110d;
+    --ui-surface: #29241d;
+    --ui-surface-muted: #322c23;
+    --ui-border: #3d372f;
+    --ui-border-strong: #524b40;
     --ui-text: #f5f2ea;
     --ui-muted: #b5ac9c;
     --ui-faint: #847a6b;
@@ -973,14 +973,25 @@
     border-radius: 8px;
     border: 1px solid var(--ui-border);
     background: var(--ui-surface);
-    box-shadow: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     backdrop-filter: none;
+  }
+
+  .dark .card,
+  .dark .glass-card,
+  .dark .card-glass,
+  .dark .stat-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
 
   .card-hover:hover {
     transform: none;
     border-color: var(--ui-border-strong);
-    box-shadow: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .card-hover:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
   }
 
   .card-header,
