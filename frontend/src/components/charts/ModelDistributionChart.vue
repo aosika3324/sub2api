@@ -125,7 +125,7 @@
                 @click="toggleBreakdown('model', model.model)"
               >
                 <td
-                  class="max-w-[100px] truncate py-1.5 font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                  class="max-w-[100px] truncate py-1.5 font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300"
                   :title="model.model"
                 >
                   <span class="inline-flex items-center gap-1">
@@ -331,18 +331,18 @@ const enableRankingView = computed(() => props.enableRankingView)
 const activeView = ref<'model_distribution' | 'spending_ranking'>('model_distribution')
 
 const chartColors = [
-  '#3b82f6',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#8b5cf6',
-  '#ec4899',
-  '#14b8a6',
-  '#f97316',
-  '#6366f1',
-  '#84cc16',
-  '#06b6d4',
-  '#a855f7'
+  '#E2664B',
+  '#E8A33D',
+  '#C15A36',
+  '#6E9B7E',
+  '#D9B23C',
+  '#A6431E',
+  '#CC8862',
+  '#4F8C7D',
+  '#EC9477',
+  '#B5781E',
+  '#B34A2E',
+  '#C9A24E'
 ]
 
 const displayModelStats = computed(() => {
@@ -382,7 +382,7 @@ const rankingChartData = computed(() => {
   if (otherRankingItem.value) {
     labels.push(t('admin.dashboard.spendingRankingOther'))
     data.push(otherRankingItem.value.actual_cost)
-    backgroundColor.push('#94a3b8')
+    backgroundColor.push('#B3A89B')
   }
 
   return {

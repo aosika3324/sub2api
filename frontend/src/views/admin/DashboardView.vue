@@ -12,8 +12,8 @@
           <!-- Total API Keys -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-                <Icon name="key" size="md" class="text-blue-600 dark:text-blue-400" :stroke-width="2" />
+              <div class="rounded-lg bg-accent-100 p-2 dark:bg-accent-900/30">
+                <Icon name="key" size="md" class="text-accent-600 dark:text-accent-400" :stroke-width="2" />
               </div>
               <div>
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -136,8 +136,8 @@
           <!-- Total Tokens -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-indigo-100 p-2 dark:bg-indigo-900/30">
-                <Icon name="database" size="md" class="text-indigo-600 dark:text-indigo-400" :stroke-width="2" />
+              <div class="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
+                <Icon name="database" size="md" class="text-orange-600 dark:text-orange-400" :stroke-width="2" />
               </div>
               <div>
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -172,8 +172,8 @@
           <!-- Performance (RPM/TPM) -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-violet-100 p-2 dark:bg-violet-900/30">
-                <Icon name="bolt" size="md" class="text-violet-600 dark:text-violet-400" :stroke-width="2" />
+              <div class="rounded-lg bg-rose-100 p-2 dark:bg-rose-900/30">
+                <Icon name="bolt" size="md" class="text-rose-600 dark:text-rose-400" :stroke-width="2" />
               </div>
               <div class="flex-1">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -186,7 +186,7 @@
                   <span class="text-xs text-gray-500 dark:text-gray-400">RPM</span>
                 </div>
                 <div class="flex items-baseline gap-2">
-                  <p class="text-sm font-semibold text-violet-600 dark:text-violet-400">
+                  <p class="text-sm font-semibold text-rose-600 dark:text-rose-400">
                     {{ formatTokens(stats.tpm) }}
                   </p>
                   <span class="text-xs text-gray-500 dark:text-gray-400">TPM</span>
@@ -393,8 +393,8 @@ const isDarkMode = computed(() => {
 
 // Chart colors
 const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#374151',
-  grid: isDarkMode.value ? '#374151' : '#e5e7eb'
+  text: isDarkMode.value ? '#D6D3CD' : '#57534E',
+  grid: isDarkMode.value ? '#3D3934' : '#ECE9E4'
 }))
 
 // Line chart options (for user trend chart)
@@ -491,18 +491,18 @@ const userTrendChartData = computed(() => {
 
   const sortedDates = Array.from(allDates).sort()
   const colors = [
-    '#3b82f6',
-    '#10b981',
-    '#f59e0b',
-    '#ef4444',
-    '#8b5cf6',
-    '#ec4899',
-    '#14b8a6',
-    '#f97316',
-    '#6366f1',
-    '#84cc16',
-    '#06b6d4',
-    '#a855f7'
+    '#E2664B',
+    '#E8A33D',
+    '#C15A36',
+    '#6E9B7E',
+    '#D9B23C',
+    '#A6431E',
+    '#CC8862',
+    '#4F8C7D',
+    '#EC9477',
+    '#B5781E',
+    '#B34A2E',
+    '#C9A24E'
   ]
 
   const datasets = Array.from(userGroups.values()).map((group, idx) => ({

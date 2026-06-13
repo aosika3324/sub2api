@@ -92,7 +92,7 @@
                 class="border-t border-gray-100 cursor-pointer transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-dark-700/40"
                 @click="toggleBreakdown(item.endpoint)"
               >
-                <td class="max-w-[180px] truncate py-1.5 font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" :title="item.endpoint">
+                <td class="max-w-[180px] truncate py-1.5 font-medium text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300" :title="item.endpoint">
                   <span class="inline-flex items-center gap-1">
                     <svg v-if="expandedKey === item.endpoint" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     <svg v-else class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -209,18 +209,18 @@ const toggleBreakdown = async (endpoint: string) => {
 }
 
 const chartColors = [
-  '#3b82f6',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#8b5cf6',
-  '#ec4899',
-  '#14b8a6',
-  '#f97316',
-  '#6366f1',
-  '#84cc16',
-  '#06b6d4',
-  '#a855f7'
+  '#E2664B',
+  '#E8A33D',
+  '#C15A36',
+  '#6E9B7E',
+  '#D9B23C',
+  '#A6431E',
+  '#CC8862',
+  '#4F8C7D',
+  '#EC9477',
+  '#B5781E',
+  '#B34A2E',
+  '#C9A24E'
 ]
 
 const displayEndpointStats = computed(() => {

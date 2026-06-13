@@ -50,10 +50,10 @@
     </header>
 
     <main>
-      <section class="mx-auto max-w-6xl px-5 pb-24 pt-20 md:pb-32 md:pt-28">
-        <div class="max-w-4xl">
+      <section class="hero-section mx-auto max-w-6xl px-5 pb-24 pt-20 md:pb-32 md:pt-28">
+        <div class="relative z-10 max-w-4xl">
           <p class="mb-6 text-sm font-medium text-[var(--ui-muted)]">{{ t('home.heroEyebrow') }}</p>
-          <h1 class="max-w-4xl text-4xl font-semibold leading-[1.06] sm:text-5xl md:text-7xl">
+          <h1 class="hero-title max-w-4xl text-4xl font-semibold leading-[1.06] sm:text-5xl md:text-7xl">
             {{ t('home.heroTitle') }}
           </h1>
           <p class="mt-8 max-w-2xl text-lg leading-8 text-[var(--ui-muted)] md:text-xl">
@@ -63,7 +63,7 @@
           <div class="mt-9 flex flex-col gap-3 sm:flex-row">
             <router-link
               :to="isAuthenticated ? dashboardPath : '/login'"
-              class="inline-flex h-11 items-center justify-center rounded-md bg-[var(--ui-text)] px-5 text-sm font-semibold text-[var(--ui-bg)]"
+              class="cta-btn inline-flex h-11 items-center justify-center rounded-md bg-[var(--ui-text)] px-5 text-sm font-semibold text-[var(--ui-bg)]"
             >
               {{ isAuthenticated ? t('home.goToDashboard') : t('home.getStarted') }}
               <Icon name="arrowRight" size="sm" class="ml-2" :stroke-width="2" />
@@ -80,8 +80,14 @@
           </div>
         </div>
 
-        <div class="mt-20 grid border-y border-[var(--ui-border)] md:grid-cols-3">
-          <div v-for="item in valueRows" :key="item.title" class="value-cell">
+        <div class="relative z-10 mt-20 grid border-y border-[var(--ui-border)] md:grid-cols-3">
+          <div
+            v-for="(item, i) in valueRows"
+            :key="item.title"
+            v-reveal
+            class="value-cell reveal"
+            :style="{ transitionDelay: i * 70 + 'ms' }"
+          >
             <p class="text-sm font-semibold">{{ item.title }}</p>
             <p class="mt-3 text-sm leading-6 text-[var(--ui-muted)]">{{ item.description }}</p>
           </div>
@@ -101,7 +107,13 @@
           </div>
 
           <div class="space-y-3">
-            <article v-for="feature in featureCards" :key="feature.title" class="product-row">
+            <article
+              v-for="(feature, i) in featureCards"
+              :key="feature.title"
+              v-reveal
+              class="product-row reveal"
+              :style="{ transitionDelay: i * 70 + 'ms' }"
+            >
               <div class="product-icon">
                 <Icon :name="feature.icon" size="sm" />
               </div>
@@ -128,14 +140,14 @@
         </div>
 
         <div class="grid gap-4 lg:grid-cols-2">
-          <div class="work-panel">
+          <div ref="codePanelRef" v-reveal class="work-panel reveal">
             <div class="mb-6 flex items-center justify-between">
               <span class="text-sm font-semibold">{{ t('home.workflow.codeTitle') }}</span>
               <Icon name="terminal" size="sm" class="text-[var(--ui-muted)]" />
             </div>
-            <pre class="work-code"><code>{{ codeSample }}</code></pre>
+            <pre class="work-code"><code>{{ typedCode }}<span class="term-cursor" aria-hidden="true"></span></code></pre>
           </div>
-          <div class="work-panel">
+          <div v-reveal class="work-panel reveal" :style="{ transitionDelay: '90ms' }">
             <div class="mb-6 flex items-center justify-between">
               <span class="text-sm font-semibold">{{ t('home.workflow.imageTitle') }}</span>
               <Icon name="sparkles" size="sm" class="text-[var(--ui-muted)]" />
@@ -153,7 +165,13 @@
       <section class="border-y border-[var(--ui-border)] bg-[var(--ui-surface)]">
         <div class="mx-auto max-w-6xl px-5 py-16">
           <div class="grid gap-4 md:grid-cols-5">
-            <div v-for="provider in providers" :key="provider.name" class="provider-row">
+            <div
+              v-for="(provider, i) in providers"
+              :key="provider.name"
+              v-reveal
+              class="provider-row reveal"
+              :style="{ transitionDelay: i * 60 + 'ms' }"
+            >
               <span class="provider-initial">{{ provider.initial }}</span>
               <div>
                 <p class="text-sm font-semibold">{{ provider.name }}</p>
@@ -174,7 +192,7 @@
           </p>
           <router-link
             :to="isAuthenticated ? dashboardPath : '/register'"
-            class="mt-8 inline-flex h-11 items-center rounded-md bg-[var(--ui-text)] px-5 text-sm font-semibold text-[var(--ui-bg)]"
+            class="cta-btn mt-8 inline-flex h-11 items-center rounded-md bg-[var(--ui-text)] px-5 text-sm font-semibold text-[var(--ui-bg)]"
           >
             {{ isAuthenticated ? t('home.goToDashboard') : t('home.cta.button') }}
             <Icon name="arrowRight" size="sm" class="ml-2" :stroke-width="2" />
@@ -197,8 +215,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, type Directive } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useIntersectionObserver } from '@vueuse/core'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -207,6 +226,11 @@ import WechatServiceButton from '@/components/common/WechatServiceButton.vue'
 const { t } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
+
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 type IconName = InstanceType<typeof Icon>['$props']['name']
 
@@ -254,6 +278,73 @@ const codeSample = [
   '  input: "simplify this billing table"',
   '})'
 ].join('\n')
+
+// Typewriter: types codeSample once the panel scrolls into view (or shows it
+// immediately when reduced motion is preferred).
+const codePanelRef = ref<HTMLElement | null>(null)
+const typedCode = ref(prefersReducedMotion ? codeSample : '')
+let typeTimer: ReturnType<typeof setInterval> | null = null
+let typingStarted = false
+
+function startTyping() {
+  if (typingStarted || prefersReducedMotion) return
+  typingStarted = true
+  let i = 0
+  typeTimer = setInterval(() => {
+    i += 1
+    typedCode.value = codeSample.slice(0, i)
+    if (i >= codeSample.length && typeTimer) {
+      clearInterval(typeTimer)
+      typeTimer = null
+    }
+  }, 18)
+}
+
+if (!prefersReducedMotion) {
+  const { stop } = useIntersectionObserver(
+    codePanelRef,
+    ([entry]) => {
+      if (entry?.isIntersecting) {
+        startTyping()
+        stop()
+      }
+    },
+    { threshold: 0.3 }
+  )
+}
+
+// v-reveal: fade+slide a block in when it enters the viewport (once). Honors
+// reduced-motion by revealing immediately without observing.
+const revealObservers = new WeakMap<Element, () => void>()
+const vReveal: Directive<HTMLElement> = {
+  mounted(el) {
+    if (prefersReducedMotion) {
+      el.classList.add('is-visible')
+      return
+    }
+    const { stop } = useIntersectionObserver(
+      el,
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          el.classList.add('is-visible')
+          stop()
+          revealObservers.delete(el)
+        }
+      },
+      { threshold: 0.15 }
+    )
+    revealObservers.set(el, stop)
+  },
+  unmounted(el) {
+    revealObservers.get(el)?.()
+    revealObservers.delete(el)
+  }
+}
+
+onBeforeUnmount(() => {
+  if (typeTimer) clearInterval(typeTimer)
+})
+
 const promptLines = computed(() => [
   { label: t('home.workflow.prompt'), value: t('home.workflow.promptValue') },
   { label: t('home.workflow.model'), value: t('home.workflow.modelValue') },
@@ -289,6 +380,147 @@ onMounted(() => {
 <style scoped>
 .home-page {
   letter-spacing: 0;
+  --home-coral: #d97757;
+}
+
+:global(.dark) .home-page {
+  --home-coral: #e8896b;
+}
+
+/* ---- Hero headline animated coral sheen ---- */
+.hero-title {
+  color: var(--ui-text);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .hero-title {
+    background: linear-gradient(
+      110deg,
+      var(--ui-text) 0%,
+      var(--ui-text) 55%,
+      var(--home-coral) 80%,
+      var(--ui-accent) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: heroSheen 8s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes heroSheen {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+/* ---- Drifting dot-grid texture behind the hero ---- */
+.hero-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(var(--ui-border) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 30% 0%, #000 0%, transparent 70%);
+  mask-image: radial-gradient(ellipse 80% 60% at 30% 0%, #000 0%, transparent 70%);
+  opacity: 0.6;
+  animation: gridDrift 40s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes gridDrift {
+  to {
+    background-position: 22px 22px;
+  }
+}
+
+/* ---- Terminal cursor ---- */
+.term-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #f5f2ea;
+  animation: termBlink 1.06s steps(1) infinite;
+}
+
+@keyframes termBlink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- Scroll-triggered reveal ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---- CTA arrow nudge + coral-tinted shadow ---- */
+.cta-btn {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cta-btn:hover {
+  box-shadow: 0 6px 18px -8px var(--home-coral);
+}
+
+.cta-btn :deep(svg) {
+  transition: transform 0.2s ease;
+}
+
+.cta-btn:hover :deep(svg) {
+  transform: translateX(3px);
+}
+
+/* ---- Reduced-motion guard ---- */
+@media (prefers-reduced-motion: reduce) {
+  .hero-title {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+  .hero-section::before {
+    animation: none;
+  }
+  .term-cursor {
+    opacity: 1;
+    animation: none;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .cta-btn,
+  .cta-btn :deep(svg),
+  .product-row,
+  .work-panel,
+  .provider-row {
+    transition: none;
+  }
 }
 
 .quiet-icon {
@@ -322,6 +554,17 @@ onMounted(() => {
   border-radius: 8px;
   background: var(--ui-surface);
   padding: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.product-row:hover {
+  transform: translateY(-2px);
+  border-color: var(--ui-border-strong);
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.18);
+}
+
+:global(.dark) .product-row:hover {
+  box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.6);
 }
 
 .product-icon {
@@ -333,6 +576,12 @@ onMounted(() => {
   border-radius: 6px;
   border: 1px solid var(--ui-border);
   color: var(--ui-muted);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.product-row:hover .product-icon {
+  border-color: var(--ui-accent);
+  color: var(--ui-accent);
 }
 
 .work-panel {
@@ -342,6 +591,17 @@ onMounted(() => {
   border-radius: 8px;
   background: var(--ui-surface);
   padding: 20px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.work-panel:hover {
+  transform: translateY(-2px);
+  border-color: var(--ui-border-strong);
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.18);
+}
+
+:global(.dark) .work-panel:hover {
+  box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.6);
 }
 
 .work-code {
@@ -387,6 +647,17 @@ onMounted(() => {
   border: 1px solid var(--ui-border);
   border-radius: 8px;
   padding: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.provider-row:hover {
+  transform: translateY(-2px);
+  border-color: var(--ui-border-strong);
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.18);
+}
+
+:global(.dark) .provider-row:hover {
+  box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.6);
 }
 
 .provider-initial {

@@ -265,7 +265,8 @@
   }
 
   .stat-icon-primary {
-    @apply bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400;
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
   }
 
   .stat-icon-success {
@@ -529,7 +530,7 @@
   }
 
   .toast-info {
-    @apply border-l-primary-500;
+    border-left-color: var(--ui-accent);
   }
 
   /* ============ 侧边栏 ============ */
@@ -571,7 +572,7 @@
   .sidebar-link-active {
     background: var(--ui-surface-muted);
     color: var(--ui-text);
-    box-shadow: inset 2px 0 0 var(--ui-text);
+    box-shadow: inset 2px 0 0 var(--ui-accent);
   }
 
   .sidebar-section {
@@ -780,34 +781,34 @@
 /* Product design reset: restrained, high-clarity surfaces inspired by modern AI tools. */
 @layer base {
   :root {
-    --ui-bg: #f7f7f4;
+    --ui-bg: #faf9f5;
     --ui-surface: #ffffff;
-    --ui-surface-muted: #f1f0ec;
-    --ui-border: #dedbd3;
-    --ui-border-strong: #c9c4ba;
-    --ui-text: #171613;
+    --ui-surface-muted: #f2ede3;
+    --ui-border: #e5ddcf;
+    --ui-border-strong: #cdc3b0;
+    --ui-text: #1c1a16;
     --ui-muted: #6d685f;
     --ui-faint: #9a948a;
-    --ui-accent: #2f756a;
-    --ui-accent-soft: #e4f1ed;
+    --ui-accent: #c96442;
+    --ui-accent-soft: #f6e7e0;
     --ui-danger: #b42318;
-    --ui-success: #21725d;
+    --ui-success: #357a52;
     --ui-warning: #9a5b13;
   }
 
   .dark {
-    --ui-bg: #11100e;
-    --ui-surface: #1a1916;
-    --ui-surface-muted: #22201d;
-    --ui-border: #34312c;
-    --ui-border-strong: #49443d;
+    --ui-bg: #1f1c19;
+    --ui-surface: #2a2622;
+    --ui-surface-muted: #332e29;
+    --ui-border: #45403a;
+    --ui-border-strong: #5a5248;
     --ui-text: #f5f2ea;
-    --ui-muted: #aaa49a;
-    --ui-faint: #777168;
-    --ui-accent: #8ccfc0;
-    --ui-accent-soft: rgba(140, 207, 192, 0.12);
-    --ui-danger: #ff9b8f;
-    --ui-success: #9bd8c6;
+    --ui-muted: #b5ac9c;
+    --ui-faint: #847a6b;
+    --ui-accent: #e08a6b;
+    --ui-accent-soft: rgba(224, 138, 107, 0.16);
+    --ui-danger: #f26159;
+    --ui-success: #a7d4a0;
     --ui-warning: #efc27a;
   }
 
@@ -822,7 +823,7 @@
   }
 
   ::selection {
-    background: rgba(47, 117, 106, 0.18);
+    background: rgba(201, 100, 66, 0.2);
     color: var(--ui-text);
   }
 }
@@ -841,7 +842,32 @@
     transform: none;
   }
 
-  .btn-primary,
+  /* Primary action carries the coral brand color in both modes.
+     Light: #b85539 keeps white text at ~5:1 (AA for normal text). */
+  .btn-primary {
+    background: #b85539;
+    color: #fff;
+    border-color: #b85539;
+    box-shadow: none;
+  }
+
+  .btn-primary:hover {
+    background: #9a4530;
+    border-color: #9a4530;
+    box-shadow: none;
+  }
+
+  .dark .btn-primary {
+    background: var(--ui-accent);
+    color: #2a1a12;
+    border-color: var(--ui-accent);
+  }
+
+  .dark .btn-primary:hover {
+    background: #ec9d80;
+    border-color: #ec9d80;
+  }
+
   .btn-success,
   .btn-warning {
     background: var(--ui-text);
@@ -850,7 +876,6 @@
     box-shadow: none;
   }
 
-  .btn-primary:hover,
   .btn-success:hover,
   .btn-warning:hover {
     background: #34312c;
@@ -858,7 +883,6 @@
     box-shadow: none;
   }
 
-  .dark .btn-primary,
   .dark .btn-success,
   .dark .btn-warning {
     background: #f5f2ea;
@@ -866,7 +890,6 @@
     border-color: #f5f2ea;
   }
 
-  .dark .btn-primary:hover,
   .dark .btn-success:hover,
   .dark .btn-warning:hover {
     background: #fffaf0;
@@ -927,8 +950,8 @@
   }
 
   .input:focus {
-    border-color: var(--ui-text);
-    box-shadow: 0 0 0 3px rgba(47, 117, 106, 0.12);
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 0 3px rgba(201, 100, 66, 0.15);
   }
 
   .input-label {
@@ -1001,7 +1024,16 @@
     padding: 0.125rem 0.45rem;
   }
 
-  .badge-primary,
+  .badge-primary {
+    border-color: rgba(201, 100, 66, 0.22);
+    background: rgba(201, 100, 66, 0.08);
+    color: #b85539;
+  }
+
+  .dark .badge-primary {
+    color: var(--ui-accent);
+  }
+
   .badge-gray,
   .badge-purple {
     background: var(--ui-surface-muted);
@@ -1068,13 +1100,17 @@
   }
 
   .switch-active {
-    background: var(--ui-text);
+    background: var(--ui-accent);
   }
 
   .code {
     border: 1px solid var(--ui-border);
     background: var(--ui-surface-muted);
-    color: var(--ui-text);
+    color: #b85539;
+  }
+
+  .dark .code {
+    color: var(--ui-accent);
   }
 
   .code-block {
