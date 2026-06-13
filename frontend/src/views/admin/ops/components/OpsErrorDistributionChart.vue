@@ -23,7 +23,7 @@ const { t } = useI18n()
 
 const isDarkMode = computed(() => document.documentElement.classList.contains('dark'))
 const colors = computed(() => ({
-  blue: '#3b82f6',
+  blue: '#E2664B',
   red: '#ef4444',
   orange: '#f59e0b',
   gray: '#9ca3af',
@@ -100,9 +100,9 @@ const options = computed(() => ({
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: isDarkMode.value ? '#1f2937' : '#ffffff',
-      titleColor: isDarkMode.value ? '#f3f4f6' : '#111827',
-      bodyColor: isDarkMode.value ? '#d1d5db' : '#4b5563'
+      backgroundColor: isDarkMode.value ? '#2a2622' : '#ffffff',
+      titleColor: isDarkMode.value ? '#f5f2ea' : '#1c1a16',
+      bodyColor: isDarkMode.value ? '#d6d3cd' : '#57514a'
     }
   }
 }))

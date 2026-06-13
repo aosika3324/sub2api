@@ -45,6 +45,37 @@ export default {
           800: '#2b2925',
           900: '#1d1b18',
           950: '#11100e'
+        },
+        // Override Tailwind's default COOL (blue-tinted) neutral palettes with a
+        // warm neutral aligned to the Claude coral/clay theme. Hundreds of
+        // components use bg-gray-*/text-gray-*/border-gray-* (and slate-*) for
+        // surfaces, text and borders; without this they read cold against the
+        // warm --ui-* tokens (e.g. the slate-blue table header).
+        gray: {
+          50: '#faf9f5',
+          100: '#f2ede3',
+          200: '#e5ddcf',
+          300: '#d4cbbb',
+          400: '#a8a094',
+          500: '#78716a',
+          600: '#57514a',
+          700: '#403b35',
+          800: '#2a2622',
+          900: '#1c1a16',
+          950: '#131110'
+        },
+        slate: {
+          50: '#faf9f5',
+          100: '#f2ede3',
+          200: '#e5ddcf',
+          300: '#d4cbbb',
+          400: '#a8a094',
+          500: '#78716a',
+          600: '#57514a',
+          700: '#403b35',
+          800: '#2a2622',
+          900: '#1c1a16',
+          950: '#131110'
         }
       },
       fontFamily: {
