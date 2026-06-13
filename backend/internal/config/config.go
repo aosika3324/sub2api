@@ -684,6 +684,34 @@ const (
 	ImageConcurrencyOverflowModeWait   = "wait"
 )
 
+// ImageStudioConfig holds image-studio (in-app JWT path) specific knobs.
+type ImageStudioConfig struct {
+	// MaxConcurrentPerUser: 单个用户允许同时进行的绘图工作台生成数。
+	// <=0 表示不限制（默认 2，既防单用户挤占全局并发，也收窄计费预检窗口避免透支）。
+	MaxConcurrentPerUser int `mapstructure:"max_concurrent_per_user"`
+	// Storage: 图像存储后端，"local"（默认，本机磁盘）或 "s3"（对象存储，支持多实例共享）。
+	Storage string `mapstructure:"storage"`
+	// S3: storage="s3" 时的对象存储连接配置。
+	S3 ImageStudioS3Config `mapstructure:"s3"`
+}
+
+// ImageStudioS3Config configures the S3-compatible object storage backend for
+// image-studio assets (used when ImageStudioConfig.Storage == "s3").
+type ImageStudioS3Config struct {
+	Endpoint        string `mapstructure:"endpoint"`          // e.g. https://<account>.r2.cloudflarestorage.com
+	Region          string `mapstructure:"region"`            // R2 用 "auto"
+	Bucket          string `mapstructure:"bucket"`            //
+	AccessKeyID     string `mapstructure:"access_key_id"`     //
+	SecretAccessKey string `mapstructure:"secret_access_key"` //
+	Prefix          string `mapstructure:"prefix"`            // key 前缀，如 "image-studio/"
+	ForcePathStyle  bool   `mapstructure:"force_path_style"`  //
+}
+
+const (
+	ImageStudioStorageLocal = "local"
+	ImageStudioStorageS3    = "s3"
+)
+
 // GatewayConfig API网关相关配置
 type GatewayConfig struct {
 	// 等待上游响应头的超时时间（秒），0表示无超时
@@ -725,6 +753,8 @@ type GatewayConfig struct {
 	OpenAIHTTP2 GatewayOpenAIHTTP2Config `mapstructure:"openai_http2"`
 	// ImageConcurrency: 图片生成独立并发限制配置（默认关闭）
 	ImageConcurrency ImageConcurrencyConfig `mapstructure:"image_concurrency"`
+	// ImageStudio: 应用内绘图工作台（JWT 路径）专属配置
+	ImageStudio ImageStudioConfig `mapstructure:"image_studio"`
 
 	// HTTP 上游连接池配置（性能优化：支持高并发场景调优）
 	// MaxIdleConns: 所有主机的最大空闲连接总数
@@ -1881,6 +1911,8 @@ func setDefaults() {
 	viper.SetDefault("gateway.image_concurrency.overflow_mode", ImageConcurrencyOverflowModeReject)
 	viper.SetDefault("gateway.image_concurrency.wait_timeout_seconds", 30)
 	viper.SetDefault("gateway.image_concurrency.max_waiting_requests", 100)
+	viper.SetDefault("gateway.image_studio.max_concurrent_per_user", 2)
+	viper.SetDefault("gateway.image_studio.storage", ImageStudioStorageLocal)
 	viper.SetDefault("gateway.antigravity_fallback_cooldown_minutes", 1)
 	viper.SetDefault("gateway.antigravity_extra_retries", 10)
 	viper.SetDefault("gateway.max_body_size", int64(256*1024*1024))

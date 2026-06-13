@@ -10,17 +10,79 @@ export default {
     login: 'Login',
     getStarted: 'Get Started',
     goToDashboard: 'Go to Dashboard',
+    navSubtitle: 'API for creative AI teams',
+    heroEyebrow: 'Sub2API for code, image, and model routing',
+    heroTitle: 'One API for AI coding, image generation, and model routing',
     // User-focused value proposition
-    heroSubtitle: 'One Key, All AI Models',
-    heroDescription: 'No need to manage multiple subscriptions. Access Claude, GPT, Gemini and more with a single API key',
+    heroSubtitle: 'One API key for code and image generation',
+    heroDescription: 'Connect Claude, GPT, Gemini, and image-capable models through one workflow. Developers manage one key; teams get clear quota, billing, and reliability controls.',
+    values: {
+      oneKey: {
+        title: 'One key',
+        description: 'Abstract multiple model providers behind one API and reduce account, endpoint, and credential switching.'
+      },
+      routing: {
+        title: 'Reliable routing',
+        description: 'Schedule requests by model, account pool, and rate-limit state so code and image jobs keep moving.'
+      },
+      cost: {
+        title: 'Clear cost',
+        description: 'Quota, usage, billing, and multipliers stay visible for solo creators and small teams.'
+      }
+    },
+    product: {
+      eyebrow: 'Product system',
+      title: 'Not another wrapper. A layer for AI infrastructure.',
+      description: 'Sub2API brings model access, routing, billing, and usage governance into one product. The landing page explains the system; the dashboard turns it into daily workflow.'
+    },
+    workflow: {
+      eyebrow: 'Workflow',
+      title: 'Code and images governed by the same interface',
+      description: 'The same API key can power coding, image work, usage analytics, and backend routing. The interface can stay quiet because the product is clear.',
+      codeTitle: 'Code request',
+      imageTitle: 'Image request',
+      prompt: 'Prompt',
+      promptValue: 'A minimal AI product interface with clear input, model choice, job state, and usage records.',
+      model: 'Model',
+      modelValue: 'Route by task to Claude, GPT, Gemini, or an image model.',
+      policy: 'Control',
+      policyValue: 'Quota, multipliers, account pools, and failover are enforced by the platform.'
+    },
     tags: {
       subscriptionToApi: 'Subscription to API',
-      stickySession: 'Session Persistence',
-      realtimeBilling: 'Pay As You Go'
+      stickySession: 'Code generation',
+      realtimeBilling: 'Image generation'
+    },
+    showcase: {
+      title: 'AI creation workspace',
+      code: {
+        title: 'AI writes code',
+        subtitle: 'From specs and refactors to debugging, every request uses the same key.',
+        line1: 'POST /v1/messages  # generate Vue component',
+        line2: 'route.model = claude / gpt / gemini',
+        line3: 'stream.done  code, notes, tests returned'
+      },
+      image: {
+        title: 'AI creates images',
+        subtitle: 'Describe the frame with prompt, size, and style controls instead of static assets.',
+        promptLabel: 'Prompt',
+        prompt: 'A warm off-white AI workspace with code and image prompts side by side, mint status lines, and clay action accents.'
+      },
+      palette: {
+        ink: 'Ink',
+        clay: 'Clay',
+        mint: 'Mint',
+        sky: 'Sky'
+      }
+    },
+    metrics: {
+      key: 'Unified key',
+      models: 'Model routing',
+      workflow: 'Creation workflow'
     },
     // Pain points section
     painPoints: {
-      title: 'Sound Familiar?',
+      title: 'From solo creation to small-team production, one API can manage models, quota, and generation jobs.',
       items: {
         expensive: {
           title: 'High Subscription Costs',
@@ -42,16 +104,16 @@ export default {
     },
     // Solutions section
     solutions: {
-      title: 'We Solve These Problems',
-      subtitle: 'Three simple steps to stress-free AI access'
+      title: 'AI creation infrastructure',
+      subtitle: 'Code, image, routing'
     },
     features: {
-      unifiedGateway: 'One-Click Access',
-      unifiedGatewayDesc: 'Get a single API key to call all connected AI models. No separate applications needed.',
-      multiAccount: 'Always Reliable',
-      multiAccountDesc: 'Smart routing across multiple upstream accounts with automatic failover. Say goodbye to errors.',
-      balanceQuota: 'Pay What You Use',
-      balanceQuotaDesc: 'Usage-based billing with quota limits. Full visibility into team consumption.'
+      unifiedGateway: 'Unified coding models',
+      unifiedGatewayDesc: 'Call Claude, GPT, Gemini, and more through one API for coding, debugging, explanations, and automation.',
+      multiAccount: 'Reliable image routing',
+      multiAccountDesc: 'Treat image requests as observable jobs with model routing, failover, and usage tracking built in.',
+      balanceQuota: 'Quota and billing control',
+      balanceQuotaDesc: 'Usage-based billing with quota limits and detailed records, so team consumption stays visible.'
     },
     // Comparison section
     comparison: {
@@ -101,9 +163,9 @@ export default {
     },
     // CTA section
     cta: {
-      title: 'Ready to Get Started?',
-      description: 'Sign up now and get free trial credits to experience seamless AI access',
-      button: 'Sign Up Free'
+      title: 'Bring AI creation into your workflow',
+      description: 'Fewer account switches, clearer costs, and more reliable code and image generation.',
+      button: 'Start using the API'
     },
     footer: {
       allRightsReserved: 'All rights reserved.'
@@ -1087,9 +1149,37 @@ export default {
     accessibleGroups: 'Accessible Groups',
     visibleModels: 'Visible Models',
     customRates: 'Custom Rates',
+    platforms: 'Platforms',
+    explainerEyebrow: 'Billing transparency',
+    explainerTitle: 'Check the multiplier first, then the model unit price',
+    explainerDescription: 'Your effective unit price is calculated from the channel base price and the multiplier currently applied to your group. Review your group multiplier first, then search the model table for exact channel and model pricing.',
     formulaTitle: 'Formula',
     formula: 'Base unit price × effective multiplier = multiplied unit price',
+    formulaBase: 'Base unit price',
+    formulaBaseHint: 'From channel pricing or the default model catalog',
+    formulaMultiplier: 'Effective multiplier',
+    formulaMultiplierHint: 'Custom multiplier first; otherwise the group default',
+    formulaResult: 'Multiplied unit price',
+    formulaResultHint: 'The billable unit price shown in the model table',
     formulaHint: 'This page shows the unit price table visible right now. Each request’s final charge is saved in Usage with the request-time tokens, image count, service tier, and multiplier snapshot.',
+    rulePriorityTitle: 'Multiplier priority',
+    rulePriorityText: 'A custom multiplier takes priority; otherwise the group default is used.',
+    ruleImageTitle: 'Image billing',
+    ruleImageText: 'When image-independent billing is enabled, image models use the image multiplier.',
+    ruleSnapshotTitle: 'Request snapshot',
+    ruleSnapshotText: 'Each request stores the multiplier and usage at request time for later review in Usage.',
+    currentAccess: 'Current Access',
+    currentAccessHint: 'Calculated from your current account permissions',
+    liveRates: 'Live',
+    lowestStandardRate: 'Lowest Standard Multiplier',
+    lowestStandardRateHint: 'The model table shows multiplied prices based on the matching group multiplier.',
+    lowestImageRateHint: 'The lowest image multiplier is {rate}, from {group}.',
+    imageIndependentSummary: '{count} groups use an image-specific multiplier',
+    modelCompareTitle: 'Compare Rates by Model',
+    modelCompareDescription: 'Each model is shown once, then expanded by group to compare effective multipliers, base prices, and multiplied unit prices.',
+    modelLowestMultiplier: 'Lowest {rate}',
+    modelVariantSummary: '{count} prices · {groups} groups',
+    modelBestRate: 'Lowest',
     groupsTitle: 'Group Multipliers',
     groupsDescription: 'A custom multiplier overrides the group default. When image-independent billing is enabled, image models use the image multiplier.',
     modelsTitle: 'Model Rates',
@@ -1453,9 +1543,19 @@ export default {
     countChip: 'Count: {count}',
     count: 'Count',
     cost: 'Cost',
+    estimatedCost: 'Estimated cost',
     untitled: 'Untitled',
     noImages: 'No images',
     generationFailed: 'Generation failed',
+    errorCodes: {
+      no_account: 'No generation account is available right now. Please try again shortly.',
+      no_images: 'The upstream returned no images. Please retry.',
+      content_blocked: 'Content was blocked by moderation. Adjust the prompt or reference image and retry.',
+      interrupted: 'Generation was interrupted (the service may have restarted). Please retry.',
+      upstream_error: 'Generation failed. Please retry.',
+      busy: 'Too many generation requests. Please try again shortly.',
+      storage_error: 'Failed to save the image. Please retry.',
+    },
     imageLoadFailed: 'Image failed to load',
     imageLoading: 'Loading image',
     cachedUrlFallback: 'Cached URL',
@@ -2662,7 +2762,8 @@ export default {
          syncGroupSupportedModels: 'Sync Group Account Models',
          syncingGroupModels: 'Syncing account models...',
          syncGroupModelsNoGroups: 'Select linked groups first',
-         syncGroupModelsNoAccounts: 'No account models found in the selected groups',
+         syncGroupModelsNoAccounts: 'No accounts are linked to the selected groups',
+         syncGroupModelsNoModels: 'The {accounts} account(s) in the selected groups have no syncable models. Check account model mappings or account types.',
          syncGroupModelsSuccess: 'Synced {count} model(s) from {accounts} account(s); official prices filled for {priced}',
          syncGroupModelsAlreadyUpToDate: 'Group account models are already in pricing rules',
          syncGroupModelsError: 'Failed to sync group account models'

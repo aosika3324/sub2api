@@ -10,17 +10,79 @@ export default {
     login: '登录',
     getStarted: '立即开始',
     goToDashboard: '进入控制台',
-    // 新增：面向用户的价值主张
-    heroSubtitle: '一个密钥，畅用多个 AI 模型',
-    heroDescription: '无需管理多个订阅账号，一站式接入 Claude、GPT、Gemini 等主流 AI 服务',
+    navSubtitle: '面向 AI 创作团队的 API',
+    heroEyebrow: 'Sub2API for code, image and model routing',
+    heroTitle: '一把 API，连接 AI 编码、图像生成与模型调度',
+    // 面向用户的价值主张
+    heroSubtitle: '一把 API Key，连接代码与图像生成',
+    heroDescription: '把 Claude、GPT、Gemini 与图像模型接入同一套工作流。开发者只管理一把密钥，团队则获得清楚的额度、账单和稳定性控制。',
+    values: {
+      oneKey: {
+        title: '一把密钥',
+        description: '把多个模型供应商抽象成统一 API，减少账号、端点和凭证切换。'
+      },
+      routing: {
+        title: '稳定路由',
+        description: '按模型、账号池和限流状态调度请求，让代码和图像任务更可持续。'
+      },
+      cost: {
+        title: '成本清晰',
+        description: '额度、用量、账单和倍率统一可见，适合个人创作和小团队协作。'
+      }
+    },
+    product: {
+      eyebrow: 'Product system',
+      title: '不是另一个壳，而是一层 AI 基础设施',
+      description: 'Sub2API 把模型接入、调度、计费和用量治理放在同一个产品里。首页负责说明能力，控制台负责把这些能力变成日常工作流。'
+    },
+    workflow: {
+      eyebrow: 'Workflow',
+      title: '代码与图像，用同一套接口治理',
+      description: '同一把 API Key 可以进入编码、图片、用量统计和后台调度。视觉上不需要假装复杂，产品本身要足够清楚。',
+      codeTitle: 'Code request',
+      imageTitle: 'Image request',
+      prompt: 'Prompt',
+      promptValue: '极简 AI 产品界面，清晰的输入、模型选择、任务状态与用量记录。',
+      model: 'Model',
+      modelValue: '按任务路由到 Claude、GPT、Gemini 或图像模型。',
+      policy: 'Control',
+      policyValue: '额度、倍率、账号池和失败切换由平台统一执行。'
+    },
     tags: {
       subscriptionToApi: '订阅转 API',
-      stickySession: '会话保持',
-      realtimeBilling: '按量计费'
+      stickySession: '代码生成',
+      realtimeBilling: '图像生成'
+    },
+    showcase: {
+      title: 'AI 创作工作台',
+      code: {
+        title: 'AI 编写代码',
+        subtitle: '从需求、重构到调试，统一走同一把密钥。',
+        line1: 'POST /v1/messages  # 生成 Vue 组件',
+        line2: 'route.model = claude / gpt / gemini',
+        line3: 'stream.done  代码、说明、测试建议已返回'
+      },
+      image: {
+        title: 'AI 生成图片',
+        subtitle: '用提示词、尺寸和风格参数描述画面，而不是依赖静态素材。',
+        promptLabel: 'Prompt',
+        prompt: '一个暖白色 AI 工作台界面，代码窗口与图像提示词并排，青绿色状态线条，琥珀色重点操作。'
+      },
+      palette: {
+        ink: 'Ink',
+        clay: 'Clay',
+        mint: 'Mint',
+        sky: 'Sky'
+      }
+    },
+    metrics: {
+      key: '统一密钥',
+      models: '模型路由',
+      workflow: '创作工作流'
     },
     // 用户痛点区块
     painPoints: {
-      title: '你是否也遇到这些问题？',
+      title: '从个人创作到小团队协作，都可以用同一套 API 管理模型、额度与生成任务。',
       items: {
         expensive: {
           title: '订阅费用高',
@@ -42,16 +104,16 @@ export default {
     },
     // 解决方案区块
     solutions: {
-      title: '我们帮你解决',
-      subtitle: '简单三步，开始省心使用 AI'
+      title: 'AI 创作基础设施',
+      subtitle: 'Code, image, routing'
     },
     features: {
-      unifiedGateway: '一键接入',
-      unifiedGatewayDesc: '获取一个 API 密钥，即可调用所有已接入的 AI 模型，无需分别申请。',
-      multiAccount: '稳定可靠',
-      multiAccountDesc: '智能调度多个上游账号，自动切换和负载均衡，告别频繁报错。',
-      balanceQuota: '用多少付多少',
-      balanceQuotaDesc: '按实际使用量计费，支持设置配额上限，团队用量一目了然。'
+      unifiedGateway: '代码模型统一接入',
+      unifiedGatewayDesc: '同一套 API 调 Claude、GPT、Gemini 等模型，适合编码、调试、解释和自动化工作流。',
+      multiAccount: '图像生成稳定调度',
+      multiAccountDesc: '把图像请求作为可观测的任务来管理，支持模型路由、失败切换和用量追踪。',
+      balanceQuota: '额度与账单可控',
+      balanceQuotaDesc: '按实际使用量计费，支持配额上限和明细查询，团队消耗不用靠猜。'
     },
     // 优势对比
     comparison: {
@@ -101,9 +163,9 @@ export default {
     },
     // CTA 区块
     cta: {
-      title: '准备好开始了吗？',
-      description: '注册即可获得免费试用额度，体验一站式 AI 服务',
-      button: '免费注册'
+      title: '把 AI 创作接入你的工作流',
+      description: '更少账号切换，更清楚的成本，更稳定的代码与图像生成。',
+      button: '开始使用 API'
     },
     footer: {
       allRightsReserved: '保留所有权利。'
@@ -1091,9 +1153,37 @@ export default {
     accessibleGroups: '可用分组',
     visibleModels: '可见模型',
     customRates: '专属倍率',
+    platforms: '平台',
+    explainerEyebrow: '计费透明',
+    explainerTitle: '先看倍率，再看模型单价',
+    explainerDescription: '你的实际单价由渠道基础单价和当前生效倍率共同决定。先确认自己可用的分组倍率，再在模型费率里按渠道、模型搜索具体价格。',
     formulaTitle: '计费公式',
     formula: '基础单价 × 生效倍率 = 倍率后单价',
+    formulaBase: '基础单价',
+    formulaBaseHint: '来自渠道定价或默认模型价格',
+    formulaMultiplier: '生效倍率',
+    formulaMultiplierHint: '专属倍率优先，没有则用分组默认倍率',
+    formulaResult: '倍率后单价',
+    formulaResultHint: '模型明细表中展示的可计费单位价格',
     formulaHint: '当前页展示的是此刻可见的单位价格表；每次请求的最终扣费会按请求时的 token、图片数量、服务层级和倍率快照保存在使用记录里。',
+    rulePriorityTitle: '倍率优先级',
+    rulePriorityText: '有专属倍率时优先生效；否则使用分组默认倍率。',
+    ruleImageTitle: '图片单独计费',
+    ruleImageText: '分组开启图片独立倍率后，图片模型按图片倍率计算。',
+    ruleSnapshotTitle: '请求快照',
+    ruleSnapshotText: '每次请求都会记录当时的倍率和用量，方便回到使用记录核对。',
+    currentAccess: '当前可用范围',
+    currentAccessHint: '按你当前账号权限实时计算',
+    liveRates: '实时',
+    lowestStandardRate: '最低标准倍率',
+    lowestStandardRateHint: '模型明细会按该倍率展示倍率后单价。',
+    lowestImageRateHint: '图片最低倍率为 {rate}，来自 {group}。',
+    imageIndependentSummary: '{count} 个分组启用了图片独立倍率',
+    modelCompareTitle: '按模型对比费率',
+    modelCompareDescription: '同一个模型只展示一次，展开即可按分组查看生效倍率、基础价格和倍率后单价。',
+    modelLowestMultiplier: '最低 {rate}',
+    modelVariantSummary: '{count} 条价格 · {groups} 个分组',
+    modelBestRate: '最低',
     groupsTitle: '分组倍率',
     groupsDescription: '专属倍率会覆盖分组默认倍率；图片独立倍率开启时，图片模型会使用图片倍率。',
     modelsTitle: '模型费率',
@@ -1457,9 +1547,19 @@ export default {
     countChip: '数量：{count}',
     count: '数量',
     cost: '消耗',
+    estimatedCost: '预计消耗',
     untitled: '未命名',
     noImages: '暂无图片',
     generationFailed: '生成失败',
+    errorCodes: {
+      no_account: '暂无可用的生成账号，请稍后重试。',
+      no_images: '上游未返回图片，请重试。',
+      content_blocked: '内容未通过安全审核，请调整提示词或参考图后重试。',
+      interrupted: '生成被中断（服务可能已重启），请重试。',
+      upstream_error: '生成失败，请重试。',
+      busy: '生成请求过于频繁，请稍后重试。',
+      storage_error: '图片保存失败，请重试。',
+    },
     imageLoadFailed: '图片加载失败',
     imageLoading: '图片加载中',
     cachedUrlFallback: '缓存链接',
@@ -2747,7 +2847,8 @@ export default {
         syncGroupSupportedModels: '同步分组账号支持的模型',
         syncingGroupModels: '同步账号模型中...',
         syncGroupModelsNoGroups: '请先选择关联分组',
-        syncGroupModelsNoAccounts: '已选分组下没有可同步的账号模型',
+        syncGroupModelsNoAccounts: '已选分组下没有账号，请先把账号绑定到该分组',
+        syncGroupModelsNoModels: '已选分组下 {accounts} 个账号没有可同步的模型，请检查账号模型映射或账号类型',
         syncGroupModelsSuccess: '已从 {accounts} 个账号同步 {count} 个模型，其中 {priced} 个已填入官方价格',
         syncGroupModelsAlreadyUpToDate: '分组账号模型已全部在定价规则中',
         syncGroupModelsError: '同步分组账号模型失败'

@@ -13,6 +13,7 @@ const mockDeleteConversation = vi.fn()
 const mockListConversationGenerations = vi.fn()
 const mockListGenerations = vi.fn()
 const mockGetGeneration = vi.fn()
+const mockBatchGetGenerations = vi.fn()
 const mockDeleteGeneration = vi.fn()
 const mockClearHistory = vi.fn()
 
@@ -26,6 +27,7 @@ vi.mock('@/api/imageStudio', () => ({
     listConversationGenerations: (...args: any[]) => mockListConversationGenerations(...args),
     listGenerations: (...args: any[]) => mockListGenerations(...args),
     getGeneration: (...args: any[]) => mockGetGeneration(...args),
+    batchGetGenerations: (...args: any[]) => mockBatchGetGenerations(...args),
     deleteGeneration: (...args: any[]) => mockDeleteGeneration(...args),
     clearHistory: (...args: any[]) => mockClearHistory(...args),
   },
@@ -560,7 +562,7 @@ describe('useImageStudioStore', () => {
   })
 
   describe('refreshPendingGenerations', () => {
-    it('updates pending rows from the status endpoint', async () => {
+    it('updates pending rows from the batch status endpoint', async () => {
       const store = useImageStudioStore()
       store.generations = [
         {
@@ -575,24 +577,54 @@ describe('useImageStudioStore', () => {
           image_count: 0,
           status: 'pending',
           cost: 0,
-          created_at: '2026-06-07T00:00:00Z',
+          created_at: new Date().toISOString(),
         },
       ]
-      mockGetGeneration.mockResolvedValue({
-        ...store.generations[0],
-        status: 'succeeded',
-        image_count: 1,
-        images: ['/assets/42/0'],
-      })
+      mockBatchGetGenerations.mockResolvedValue([
+        {
+          ...store.generations[0],
+          status: 'succeeded',
+          image_count: 1,
+          images: ['/assets/42/0'],
+        },
+      ])
 
       await store.refreshPendingGenerations()
 
-      expect(mockGetGeneration).toHaveBeenCalledWith(42)
+      expect(mockBatchGetGenerations).toHaveBeenCalledWith([42])
       expect(store.generations[0]).toMatchObject({
         status: 'succeeded',
         image_count: 1,
         images: ['/assets/42/0'],
       })
+    })
+
+    it('fails a stale pending row locally when the server no longer returns it', async () => {
+      const store = useImageStudioStore()
+      store.generations = [
+        {
+          id: 7,
+          conversation_id: 1,
+          group_id: 10,
+          prompt: 'old',
+          model: 'gpt-image-2',
+          size: '1K',
+          quality: 'high',
+          n: 1,
+          image_count: 0,
+          status: 'pending',
+          cost: 0,
+          // Older than the 20-minute stale threshold.
+          created_at: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+        },
+      ]
+      // The batch endpoint omits the row (deleted/expired server-side).
+      mockBatchGetGenerations.mockResolvedValue([])
+
+      await store.refreshPendingGenerations()
+
+      expect(store.generations[0].status).toBe('failed')
+      expect(store.generations[0].error_code).toBe('interrupted')
     })
   })
 

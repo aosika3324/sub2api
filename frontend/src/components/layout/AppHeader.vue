@@ -1,6 +1,6 @@
 <template>
-  <header class="glass sticky top-0 z-30 border-b border-gray-200/50 dark:border-dark-700/50">
-    <div class="flex h-16 items-center justify-between px-4 md:px-6">
+  <header class="sticky top-0 z-30 border-b border-[var(--ui-border)] bg-[var(--ui-bg)]">
+    <div class="flex h-14 items-center justify-between px-4 md:px-6">
       <!-- Left: Mobile Menu Toggle + Page Title -->
       <div class="flex items-center gap-4">
         <button
@@ -12,10 +12,10 @@
         </button>
 
         <div class="hidden lg:block">
-          <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
+          <h1 class="text-sm font-semibold text-[var(--ui-text)]">
             {{ pageTitle }}
           </h1>
-          <p v-if="pageDescription" class="text-xs text-gray-500 dark:text-dark-400">
+          <p v-if="pageDescription" class="text-xs text-[var(--ui-muted)]">
             {{ pageDescription }}
           </p>
         </div>
@@ -32,7 +32,7 @@
           :href="docUrl"
           target="_blank"
           rel="noopener noreferrer"
-          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+          class="flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-[var(--ui-muted)] transition-colors hover:bg-[var(--ui-surface-muted)] hover:text-[var(--ui-text)]"
         >
           <Icon name="book" size="sm" />
           <span class="hidden sm:inline">{{ t('nav.docs') }}</span>
@@ -47,8 +47,8 @@
         <!-- Balance Display (clickable → recharge when available) -->
         <div
           v-if="user"
-          class="hidden items-center gap-2 rounded-xl bg-primary-50 px-3 py-1.5 dark:bg-primary-900/20 sm:flex"
-          :class="rechargeVisible ? 'cursor-pointer transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/40' : ''"
+          class="hidden items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-1.5 sm:flex"
+          :class="rechargeVisible ? 'cursor-pointer transition-colors hover:bg-[var(--ui-surface-muted)]' : ''"
           :role="rechargeVisible ? 'button' : undefined"
           :tabindex="rechargeVisible ? 0 : undefined"
           :title="rechargeVisible ? t('nav.recharge') : undefined"
@@ -56,7 +56,7 @@
           @keydown.enter="rechargeVisible && openRecharge()"
         >
           <svg
-            class="h-4 w-4 text-primary-600 dark:text-primary-400"
+            class="h-4 w-4 text-[var(--ui-muted)]"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -68,7 +68,7 @@
               d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"
             />
           </svg>
-          <span class="text-sm font-semibold text-primary-700 dark:text-primary-300">
+          <span class="text-sm font-semibold text-[var(--ui-text)]">
             ${{ user.balance?.toFixed(2) || '0.00' }}
           </span>
         </div>
@@ -78,7 +78,7 @@
           v-if="user && rechargeVisible"
           type="button"
           @click="openRecharge"
-          class="hidden items-center gap-1 rounded-xl bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-700 sm:flex"
+          class="hidden min-h-9 items-center gap-1 rounded-lg bg-[var(--ui-text)] px-3 py-1.5 text-sm font-medium text-[var(--ui-bg)] transition-colors hover:opacity-90 sm:flex"
         >
           {{ t('nav.recharge') }}
         </button>
@@ -87,10 +87,10 @@
         <div v-if="user" class="relative" ref="dropdownRef">
           <button
             @click="toggleDropdown"
-            class="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-dark-800"
+            class="flex min-h-9 items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-[var(--ui-surface-muted)]"
             aria-label="User Menu"
           >
-            <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-sm font-medium text-white shadow-sm">
+            <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-[var(--ui-text)] text-sm font-medium text-[var(--ui-bg)]">
               <img
                 v-if="avatarUrl"
                 :src="avatarUrl"
@@ -100,10 +100,10 @@
               <span v-else>{{ userInitials }}</span>
             </div>
             <div class="hidden text-left md:block">
-              <div class="text-sm font-medium text-gray-900 dark:text-white">
+              <div class="text-sm font-medium text-[var(--ui-text)]">
                 {{ displayName }}
               </div>
-              <div class="text-xs capitalize text-gray-500 dark:text-dark-400">
+              <div class="text-xs capitalize text-[var(--ui-muted)]">
                 {{ user.role }}
               </div>
             </div>

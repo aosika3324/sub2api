@@ -64,11 +64,23 @@ func RegisterUserRoutes(
 				imageStudio.DELETE("/conversations/:id", h.ImageStudio.DeleteConversation)
 				imageStudio.GET("/conversations/:id/generations", h.ImageStudio.ListConversationGenerations)
 				imageStudio.GET("/generations", h.ImageStudio.ListGenerations)
+				// Distinct top-level segment (not /generations/batch) so a static
+				// segment never collides with the /generations/:id param route under
+				// gin's httprouter.
+				imageStudio.GET("/generations-batch", h.ImageStudio.BatchGetGenerations)
 				imageStudio.GET("/generations/:id", h.ImageStudio.GetGeneration)
 				imageStudio.DELETE("/generations/:id", h.ImageStudio.DeleteGeneration)
 				imageStudio.DELETE("/history", h.ImageStudio.ClearHistory)
 				imageStudio.GET("/assets/:genID/:idx", h.ImageStudio.GetAsset)
 				imageStudio.GET("/input-assets/:genID/:idx", h.ImageStudio.GetInputAsset)
+			}
+
+			editableFiles := user.Group("/editable-files")
+			{
+				editableFiles.POST("/tasks", h.EditableFile.CreateTask)
+				editableFiles.GET("/tasks", h.EditableFile.ListTasks)
+				editableFiles.GET("/tasks/:id", h.EditableFile.GetTask)
+				editableFiles.GET("/tasks/:id/artifacts", h.EditableFile.ListArtifacts)
 			}
 		}
 

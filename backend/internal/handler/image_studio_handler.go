@@ -24,10 +24,11 @@ import (
 // service.ImageStore satisfy these.
 // ---------------------------------------------------------------------------
 
-// imageStudioGenerator runs an in-app (JWT) image generation.
+// imageStudioGenerator runs an in-app (JWT) image generation. Retention pruning
+// + stale-pending reclamation run on the service's own background ticker, so the
+// handler no longer drives them from the request path.
 type imageStudioGenerator interface {
 	StartGenerate(ctx context.Context, userID int64, in service.ImageStudioGenerateInput) (*service.ImageStudioStartResult, error)
-	PruneExpiredImagesThrottled()
 }
 
 // imageStudioStore reads stored image bytes back for the assets endpoint.
@@ -49,6 +50,7 @@ type imageStudioRepo interface {
 	ClearUserHistory(ctx context.Context, userID int64) ([]string, error)
 	GetGeneration(ctx context.Context, id int64) (*dbent.ImageGeneration, error)
 	ListGenerations(ctx context.Context, userID int64, conversationID *int64, page, size int) ([]*dbent.ImageGeneration, int, error)
+	ListGenerationsByIDs(ctx context.Context, userID int64, ids []int64) ([]*dbent.ImageGeneration, error)
 	DeleteGeneration(ctx context.Context, id int64) error
 }
 
@@ -86,7 +88,9 @@ const (
 	// the upstream per-part upload limit used by the images pipeline.
 	maxStudioInputImageBytes = 20 << 20
 	maxStudioInputImages     = 8
-	imageStudioGenerateTTL   = 15 * time.Minute
+	// maxStudioBatchIDs caps the number of generation IDs accepted by the batch
+	// status endpoint, bounding the query and response size.
+	maxStudioBatchIDs = 100
 )
 
 // ---------------------------------------------------------------------------
@@ -114,7 +118,10 @@ type generateImageResponse struct {
 	InputImages    []string `json:"input_images,omitempty"`
 	Status         string   `json:"status"`
 	Cost           float64  `json:"cost"`
-	Balance        float64  `json:"balance"`
+	// EstimatedCost is the pre-computed charge for the accepted (pending) job, so
+	// the UI can show the cost immediately instead of "0 until polled".
+	EstimatedCost float64 `json:"estimated_cost"`
+	Balance       float64 `json:"balance"`
 }
 
 type conversationResponse struct {
@@ -142,8 +149,11 @@ type generationResponse struct {
 	Width          *int     `json:"width,omitempty"`
 	Height         *int     `json:"height,omitempty"`
 	Error          string   `json:"error,omitempty"`
-	CreatedAt      string   `json:"created_at"`
-	ExpiresAt      string   `json:"expires_at"`
+	// ErrorCode is a stable machine-readable failure classifier the frontend maps
+	// to a localized message (the raw `error` stays for admin diagnostics).
+	ErrorCode string `json:"error_code,omitempty"`
+	CreatedAt string `json:"created_at"`
+	ExpiresAt string `json:"expires_at"`
 }
 
 type updateConversationRequest struct {
@@ -162,7 +172,6 @@ type createConversationRequest struct {
 // JSON body (text-to-image) or a multipart/form-data body carrying an "image"
 // reference file (image-to-image / edits).
 func (h *ImageStudioHandler) Generate(c *gin.Context) {
-	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -203,10 +212,10 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	in.UserAgent = c.GetHeader("User-Agent")
 	in.IPAddress = c.ClientIP()
 
-	generateCtx, cancel := context.WithTimeout(context.Background(), imageStudioGenerateTTL)
-	defer cancel()
-
-	result, err := h.studio.StartGenerate(generateCtx, subject.UserID, in)
+	// The validation/preflight phase (StartGenerate's synchronous part) runs under
+	// the request context so a client disconnect cancels it; the background image
+	// work runs under its own detached context inside the service.
+	result, err := h.studio.StartGenerate(c.Request.Context(), subject.UserID, in)
 	if err != nil {
 		h.respondGenerateError(c, err)
 		return
@@ -220,6 +229,7 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 		InputImages:    buildInputAssetURLs(result.GenerationID, len(result.InputImages)),
 		Status:         "pending",
 		Cost:           0,
+		EstimatedCost:  result.EstimatedCost,
 		Balance:        result.Balance,
 	})
 }
@@ -296,7 +306,6 @@ func (h *ImageStudioHandler) parseMultipartGenerate(c *gin.Context) (service.Ima
 
 // ListConversations handles GET /conversations (paginated).
 func (h *ImageStudioHandler) ListConversations(c *gin.Context) {
-	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -417,7 +426,6 @@ func (h *ImageStudioHandler) DeleteConversation(c *gin.Context) {
 
 // ListConversationGenerations handles GET /conversations/:id/generations (paginated).
 func (h *ImageStudioHandler) ListConversationGenerations(c *gin.Context) {
-	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -453,7 +461,6 @@ func (h *ImageStudioHandler) ListConversationGenerations(c *gin.Context) {
 
 // ListGenerations handles GET /generations (paginated gallery, all conversations).
 func (h *ImageStudioHandler) ListGenerations(c *gin.Context) {
-	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -469,9 +476,71 @@ func (h *ImageStudioHandler) ListGenerations(c *gin.Context) {
 	h.respondGenerations(c, items, total, page, pageSize)
 }
 
+// BatchGetGenerations handles GET /generations-batch?ids=1,2,3 — returns the
+// status of multiple generations in one round-trip, replacing the per-pending
+// N+1 polling. Ownership is enforced in the repo query; unknown/foreign IDs are
+// silently omitted from the result.
+func (h *ImageStudioHandler) BatchGetGenerations(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	ids, err := parseStudioBatchIDs(c.Query("ids"))
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if len(ids) == 0 {
+		response.Success(c, gin.H{"items": []generationResponse{}})
+		return
+	}
+
+	gens, err := h.repo.ListGenerationsByIDs(c.Request.Context(), subject.UserID, ids)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]generationResponse, 0, len(gens))
+	for _, gen := range gens {
+		out = append(out, toGenerationResponse(gen))
+	}
+	response.Success(c, gin.H{"items": out})
+}
+
+// parseStudioBatchIDs parses a comma-separated id list, dedupes, and caps it at
+// maxStudioBatchIDs. Empty/blank entries are ignored; a non-numeric entry errors.
+func parseStudioBatchIDs(raw string) ([]int64, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	seen := make(map[int64]struct{})
+	ids := make([]int64, 0)
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(part, 10, 64)
+		if err != nil || id <= 0 {
+			return nil, errors.New("invalid generation id in ids")
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+		if len(ids) >= maxStudioBatchIDs {
+			break
+		}
+	}
+	return ids, nil
+}
+
 // GetGeneration handles GET /generations/:id for progress/status polling.
 func (h *ImageStudioHandler) GetGeneration(c *gin.Context) {
-	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -561,7 +630,6 @@ func (h *ImageStudioHandler) DeleteGeneration(c *gin.Context) {
 // GetAsset handles GET /assets/:genID/:idx — streams a single stored image after
 // verifying ownership.
 func (h *ImageStudioHandler) GetAsset(c *gin.Context) {
-	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -617,7 +685,6 @@ func (h *ImageStudioHandler) GetAsset(c *gin.Context) {
 // GetInputAsset handles GET /input-assets/:genID/:idx — streams a single stored
 // user-provided reference image after verifying ownership.
 func (h *ImageStudioHandler) GetInputAsset(c *gin.Context) {
-	h.pruneExpiredImagesBestEffort()
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
@@ -692,6 +759,15 @@ func (h *ImageStudioHandler) respondGenerateError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrImageStudioGroupNotAllowed),
 		errors.Is(err, service.ErrImageStudioImageGenerationDisabled):
 		response.Forbidden(c, err.Error())
+	case errors.Is(err, service.ErrImageStudioContentBlocked):
+		// Use the moderation decision's status (e.g. 400/403) when carried,
+		// falling back to 403 (forbidden) for a plain sentinel.
+		status := http.StatusForbidden
+		var blocked interface{ StatusCode() int }
+		if errors.As(err, &blocked) && blocked.StatusCode() > 0 {
+			status = blocked.StatusCode()
+		}
+		response.Error(c, status, err.Error())
 	case errors.Is(err, service.ErrImageStudioConversationNotFound):
 		response.NotFound(c, "Conversation not found")
 	case errors.Is(err, service.ErrImageStudioBusy):
@@ -779,13 +855,6 @@ func applyStudioAssetCacheHeaders(c *gin.Context, gen *dbent.ImageGeneration, ke
 	return false
 }
 
-func (h *ImageStudioHandler) pruneExpiredImagesBestEffort() {
-	if h == nil || h.studio == nil {
-		return
-	}
-	h.studio.PruneExpiredImagesThrottled()
-}
-
 func studioAssetETagMatches(raw, etag string) bool {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -820,6 +889,10 @@ func toGenerationResponse(gen *dbent.ImageGeneration) generationResponse {
 	if gen.Error != nil {
 		errMsg = *gen.Error
 	}
+	errCode := ""
+	if gen.ErrorCode != nil {
+		errCode = *gen.ErrorCode
+	}
 	return generationResponse{
 		ID:             gen.ID,
 		ConversationID: gen.ConversationID,
@@ -838,6 +911,7 @@ func toGenerationResponse(gen *dbent.ImageGeneration) generationResponse {
 		Width:          gen.Width,
 		Height:         gen.Height,
 		Error:          errMsg,
+		ErrorCode:      errCode,
 		CreatedAt:      gen.CreatedAt.UTC().Format(timeRFC3339),
 		ExpiresAt:      gen.CreatedAt.Add(service.ImageStudioRetention).UTC().Format(timeRFC3339),
 	}

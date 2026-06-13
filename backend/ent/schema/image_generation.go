@@ -71,6 +71,14 @@ func (ImageGeneration) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "text"}),
+		// error_code is a stable machine-readable failure classifier
+		// (no_account/no_images/content_blocked/interrupted/upstream_error/busy)
+		// the frontend maps to a localized message. The raw, human-facing detail
+		// stays in `error` for admin diagnostics.
+		field.String("error_code").
+			MaxLen(40).
+			Optional().
+			Nillable(),
 	}
 }
 
@@ -79,5 +87,7 @@ func (ImageGeneration) Indexes() []ent.Index {
 		index.Fields("user_id"),
 		index.Fields("conversation_id"),
 		index.Fields("deleted_at"),
+		// Supports the stale-pending sweep: WHERE status = 'pending' AND created_at < cutoff.
+		index.Fields("status", "created_at"),
 	}
 }

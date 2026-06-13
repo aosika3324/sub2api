@@ -257,12 +257,19 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	studioImageGenerator := service.ProvideStudioImageGenerator(openAIGatewayService)
 	imageStudioRepository := repository.NewImageStudioRepository(client)
 	imageStoreRootDir := provideImageStoreRootDir()
-	imageStore := service.ProvideImageStore(imageStoreRootDir)
-	imageStudioService := service.ProvideImageStudioService(userService, apiKeyService, billingCacheService, studioImageGenerator, openAIGatewayService, subscriptionService, imageStudioRepository, imageStore, imageConcurrencyLimiter, configConfig)
+	imageStore, err := service.ProvideImageStore(imageStoreRootDir, configConfig)
+	if err != nil {
+		return nil, err
+	}
+	studioUserLimiter := repository.NewStudioUserLimiter(redisClient)
+	imageStudioService := service.ProvideImageStudioService(userService, apiKeyService, billingCacheService, studioImageGenerator, openAIGatewayService, subscriptionService, imageStudioRepository, imageStore, imageConcurrencyLimiter, contentModerationService, studioUserLimiter, configConfig)
 	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService, imageStudioRepository, imageStore)
+	editableFileRepository := repository.NewEditableFileRepository(client)
+	editableFileService := service.NewEditableFileService(editableFileRepository)
+	editableFileHandler := handler.NewEditableFileHandler(editableFileService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
-	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, imageStudioHandler, idempotencyCoordinator, idempotencyCleanupService)
+	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, imageStudioHandler, editableFileHandler, idempotencyCoordinator, idempotencyCleanupService)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService)
 	apiKeyAuthMiddleware := middleware.NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, configConfig)

@@ -41,6 +41,13 @@
         >
           ${{ generation.cost.toFixed(4) }}
         </span>
+        <span
+          v-else-if="isPending && estimatedCost != null"
+          class="chip chip-cost chip-cost-estimate"
+          :title="t('imageStudio.estimatedCost')"
+        >
+          ~${{ estimatedCost.toFixed(4) }}
+        </span>
         <span class="ml-auto text-xs text-gray-400 dark:text-dark-500">{{
           formattedTime
         }}</span>
@@ -212,7 +219,23 @@ const isSucceeded = computed(
 )
 
 const images = computed(() => props.generation.images ?? [])
-const failureMessage = computed(() => (props.generation.error ?? '').trim())
+// estimatedCost is shown on pending cards (the real charge replaces it on
+// success). null when the backend produced no estimate.
+const estimatedCost = computed(() => {
+  const v = props.generation.estimated_cost
+  return typeof v === 'number' && v > 0 ? v : null
+})
+// Prefer a localized message keyed by the stable error_code; fall back to the
+// raw upstream error string (admin-facing) only when no code is present.
+const failureMessage = computed(() => {
+  const code = (props.generation.error_code ?? '').trim()
+  if (code) {
+    const key = `imageStudio.errorCodes.${code}`
+    const localized = t(key)
+    if (localized !== key) return localized
+  }
+  return (props.generation.error ?? '').trim()
+})
 
 const now = ref(Date.now())
 let elapsedTimer: number | null = null
@@ -304,6 +327,9 @@ function formatElapsed(ms: number) {
 }
 .chip-cost {
   @apply bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400;
+}
+.chip-cost-estimate {
+  @apply bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400;
 }
 .chip-i2i {
   @apply bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300;

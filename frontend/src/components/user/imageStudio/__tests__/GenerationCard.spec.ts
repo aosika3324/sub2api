@@ -183,6 +183,35 @@ describe('GenerationCard', () => {
     expect((emitted![0][0] as ImageStudioGeneration).id).toBe(1)
   })
 
+  it('still shows the failure UI when only an error_code is present', () => {
+    // With no raw error string and only a code, the card must still render the
+    // failed state + retry (the localized message resolves via i18n at runtime).
+    const wrapper = mountCard(
+      makeGeneration({ status: 'failed', images: [], error: undefined, error_code: 'content_blocked' })
+    )
+    expect(wrapper.text()).toContain('imageStudio.generationFailed')
+    const retryBtn = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('imageStudio.retry'))
+    expect(retryBtn).toBeTruthy()
+  })
+
+  it('shows an estimated cost chip for a pending generation', () => {
+    const wrapper = mountCard(
+      makeGeneration({ status: 'pending', images: [], cost: 0, estimated_cost: 0.1234 })
+    )
+    // Estimated cost is prefixed with ~ to distinguish it from the final charge.
+    expect(wrapper.text()).toContain('~$0.1234')
+  })
+
+  it('shows the final cost (not the estimate) once succeeded', () => {
+    const wrapper = mountCard(
+      makeGeneration({ status: 'succeeded', cost: 0.08, estimated_cost: 0.1234 })
+    )
+    expect(wrapper.text()).toContain('$0.0800')
+    expect(wrapper.text()).not.toContain('~$')
+  })
+
   it('renders prompt and param chips', () => {
     const wrapper = mountCard(makeGeneration())
     expect(wrapper.text()).toContain('a serene lake at dawn')

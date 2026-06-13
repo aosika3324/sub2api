@@ -5,47 +5,46 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 主色调 - Teal/Cyan 青色系
+        // Product neutral palette. Keep `primary` API-compatible while moving
+        // the interface away from teal gradients and template-like glow.
         primary: {
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          950: '#042f2e'
+          50: '#f7f7f5',
+          100: '#eceae6',
+          200: '#dad6cf',
+          300: '#bdb7ad',
+          400: '#928b81',
+          500: '#5f5a52',
+          600: '#3f3b36',
+          700: '#2e2b27',
+          800: '#211f1c',
+          900: '#171613',
+          950: '#0d0c0a'
         },
-        // 辅助色 - 深蓝灰
         accent: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617'
+          50: '#eef8f5',
+          100: '#d7eee8',
+          200: '#b3ded4',
+          300: '#86c8ba',
+          400: '#58aa9b',
+          500: '#358b7d',
+          600: '#286f64',
+          700: '#245951',
+          800: '#204842',
+          900: '#1d3c38',
+          950: '#0c211e'
         },
-        // 深色模式背景
         dark: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617'
+          50: '#f8f8f7',
+          100: '#efeeec',
+          200: '#ddd9d4',
+          300: '#bdb7ad',
+          400: '#8f887e',
+          500: '#6c665f',
+          600: '#524d47',
+          700: '#3d3934',
+          800: '#2b2925',
+          900: '#1d1b18',
+          950: '#11100e'
         }
       },
       fontFamily: {
@@ -66,22 +65,21 @@ export default {
         serif: ['Fraunces', 'Georgia', '"Songti SC"', '"STSong"', 'serif']
       },
       boxShadow: {
-        glass: '0 8px 32px rgba(0, 0, 0, 0.08)',
-        'glass-sm': '0 4px 16px rgba(0, 0, 0, 0.06)',
-        glow: '0 0 20px rgba(20, 184, 166, 0.25)',
-        'glow-lg': '0 0 40px rgba(20, 184, 166, 0.35)',
-        card: '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
-        'card-hover': '0 10px 40px rgba(0, 0, 0, 0.08)',
+        glass: '0 1px 2px rgba(17, 16, 14, 0.04)',
+        'glass-sm': '0 1px 2px rgba(17, 16, 14, 0.04)',
+        glow: '0 1px 2px rgba(17, 16, 14, 0.04)',
+        'glow-lg': '0 1px 2px rgba(17, 16, 14, 0.04)',
+        card: '0 1px 2px rgba(17, 16, 14, 0.04)',
+        'card-hover': '0 8px 24px rgba(17, 16, 14, 0.06)',
         'inner-glow': 'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-primary': 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
-        'gradient-dark': 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+        'gradient-primary': 'linear-gradient(135deg, #171613 0%, #2e2b27 100%)',
+        'gradient-dark': 'linear-gradient(135deg, #1d1b18 0%, #11100e 100%)',
         'gradient-glass':
           'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-        'mesh-gradient':
-          'radial-gradient(at 40% 20%, rgba(20, 184, 166, 0.12) 0px, transparent 50%), radial-gradient(at 80% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%), radial-gradient(at 0% 50%, rgba(20, 184, 166, 0.08) 0px, transparent 50%)'
+        'mesh-gradient': 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 100%)'
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

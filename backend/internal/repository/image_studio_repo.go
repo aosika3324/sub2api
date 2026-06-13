@@ -14,6 +14,14 @@ type imageStudioRepository struct {
 	client *dbent.Client
 }
 
+// Generation status values mirrored from the service layer (the service owns the
+// canonical constants; these literals avoid a repository->service value import
+// just for two strings used in the stale-pending sweep).
+const (
+	genStatusPending = "pending"
+	genStatusFailed  = "failed"
+)
+
 // NewImageStudioRepository creates a new ImageStudioRepository backed by the given ent client.
 func NewImageStudioRepository(client *dbent.Client) service.ImageStudioRepository {
 	return &imageStudioRepository{client: client}
@@ -286,9 +294,11 @@ func (r *imageStudioRepository) pruneExpiredGenerations(ctx context.Context, cli
 	}
 
 	ids := make([]int64, 0, len(gens))
+	conversationIDs := make(map[int64]struct{})
 	var keys []string
 	for _, g := range gens {
 		ids = append(ids, g.ID)
+		conversationIDs[g.ConversationID] = struct{}{}
 		keys = append(keys, g.StorageKeys...)
 		keys = append(keys, g.InputStorageKeys...)
 	}
@@ -302,7 +312,40 @@ func (r *imageStudioRepository) pruneExpiredGenerations(ctx context.Context, cli
 		Save(ctx); err != nil {
 		return nil, 0, err
 	}
+	if err := r.softDeleteEmptyConversations(ctx, client, conversationIDs, now); err != nil {
+		return nil, 0, err
+	}
 	return keys, len(gens), nil
+}
+
+func (r *imageStudioRepository) softDeleteEmptyConversations(ctx context.Context, client *dbent.Client, conversationIDs map[int64]struct{}, deletedAt time.Time) error {
+	if len(conversationIDs) == 0 {
+		return nil
+	}
+	for conversationID := range conversationIDs {
+		count, err := client.ImageGeneration.Query().
+			Where(
+				imagegeneration.ConversationIDEQ(conversationID),
+				imagegeneration.DeletedAtIsNil(),
+			).
+			Count(ctx)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			continue
+		}
+		if _, err := client.ImageConversation.Update().
+			Where(
+				imageconversation.IDEQ(conversationID),
+				imageconversation.DeletedAtIsNil(),
+			).
+			SetDeletedAt(deletedAt).
+			Save(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // CreateGeneration persists a new image generation record built by the caller.
@@ -343,24 +386,27 @@ func (r *imageStudioRepository) CreateGeneration(ctx context.Context, g *dbent.I
 }
 
 // UpdateGenerationStatus updates result fields after a generation completes or fails.
-func (r *imageStudioRepository) UpdateGenerationStatus(ctx context.Context, id int64, status string, storageKeys []string, cost float64, imageCount, width, height int, errMsg string) error {
+func (r *imageStudioRepository) UpdateGenerationStatus(ctx context.Context, id int64, update service.GenerationStatusUpdate) error {
 	client := clientFromContext(ctx, r.client)
 	u := client.ImageGeneration.UpdateOneID(id).
-		SetStatus(status).
-		SetCost(cost).
-		SetImageCount(imageCount)
+		SetStatus(update.Status).
+		SetCost(update.Cost).
+		SetImageCount(update.ImageCount)
 
-	if len(storageKeys) > 0 {
-		u = u.SetStorageKeys(storageKeys)
+	if len(update.StorageKeys) > 0 {
+		u = u.SetStorageKeys(update.StorageKeys)
 	}
-	if width > 0 {
-		u = u.SetWidth(width)
+	if update.Width > 0 {
+		u = u.SetWidth(update.Width)
 	}
-	if height > 0 {
-		u = u.SetHeight(height)
+	if update.Height > 0 {
+		u = u.SetHeight(update.Height)
 	}
-	if errMsg != "" {
-		u = u.SetError(errMsg)
+	if update.ErrMsg != "" {
+		u = u.SetError(update.ErrMsg)
+	}
+	if update.ErrCode != "" {
+		u = u.SetErrorCode(update.ErrCode)
 	}
 
 	_, err := u.Save(ctx)
@@ -415,4 +461,63 @@ func (r *imageStudioRepository) ListGenerations(ctx context.Context, userID int6
 	}
 
 	return items, total, nil
+}
+
+// ListGenerationsByIDs returns the (non-soft-deleted, non-expired) generations
+// among ids owned by userID. Ownership is enforced in the query so a caller
+// cannot read another user's generations by guessing IDs.
+func (r *imageStudioRepository) ListGenerationsByIDs(ctx context.Context, userID int64, ids []int64) ([]*dbent.ImageGeneration, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	return r.activeGenerationQuery().
+		Where(
+			imagegeneration.UserIDEQ(userID),
+			imagegeneration.IDIn(ids...),
+		).
+		Order(dbent.Desc(imagegeneration.FieldID)).
+		All(ctx)
+}
+
+// FailStaleGenerations marks still-"pending" generations created before cutoff
+// as "failed", reclaiming rows orphaned by a process restart mid-generation.
+// Returns the number of rows updated. It does NOT touch storage (a stale pending
+// row produced no images) and is bounded by limit per call.
+func (r *imageStudioRepository) FailStaleGenerations(ctx context.Context, cutoff time.Time, limit int, errMsg, errCode string) (int, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	client := clientFromContext(ctx, r.client)
+	// Select a bounded batch of stale-pending IDs first, then update by ID. ent's
+	// Update().Where() has no LIMIT, so this keeps each sweep batch-sized.
+	ids, err := client.ImageGeneration.Query().
+		Where(
+			imagegeneration.DeletedAtIsNil(),
+			imagegeneration.StatusEQ(genStatusPending),
+			imagegeneration.CreatedAtLT(cutoff),
+		).
+		Order(dbent.Asc(imagegeneration.FieldID)).
+		Limit(limit).
+		IDs(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	u := client.ImageGeneration.Update().
+		Where(
+			imagegeneration.IDIn(ids...),
+			imagegeneration.DeletedAtIsNil(),
+			imagegeneration.StatusEQ(genStatusPending),
+		).
+		SetStatus(genStatusFailed)
+	if errMsg != "" {
+		u = u.SetError(errMsg)
+	}
+	if errCode != "" {
+		u = u.SetErrorCode(errCode)
+	}
+	return u.Save(ctx)
 }

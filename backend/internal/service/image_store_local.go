@@ -10,6 +10,20 @@ import (
 	"strings"
 )
 
+// imageStudioOutputKey builds the storage key for a produced (output) image.
+// Key format: user_{userID}/{genID}/{idx}.{ext}. Shared by the local and S3
+// stores so a generation's keys are identical regardless of backend.
+func imageStudioOutputKey(userID, genID int64, idx int, contentType string) string {
+	return fmt.Sprintf("user_%d/%d/%d.%s", userID, genID, idx, extForContentType(contentType))
+}
+
+// imageStudioInputKey builds the storage key for a user-provided (input/
+// reference) image. The "input/" segment keeps reference images from colliding
+// with output keys. Key format: user_{userID}/{genID}/input/{idx}.{ext}.
+func imageStudioInputKey(userID, genID int64, idx int, contentType string) string {
+	return fmt.Sprintf("user_%d/%d/input/%d.%s", userID, genID, idx, extForContentType(contentType))
+}
+
 // localImageStore is a disk-backed ImageStore implementation.
 // rootDir is injected by the caller; this struct never calls setup.GetDataDir.
 type localImageStore struct {
@@ -109,8 +123,7 @@ func (s *localImageStore) safeAbs(key string) (string, error) {
 // Put stores produced image data and returns the relative storage key.
 // Key format: user_{userID}/{genID}/{idx}.{ext}
 func (s *localImageStore) Put(_ context.Context, userID, genID int64, idx int, contentType string, data []byte) (string, error) {
-	key := fmt.Sprintf("user_%d/%d/%d.%s", userID, genID, idx, extForContentType(contentType))
-	return s.writeKey(key, data)
+	return s.writeKey(imageStudioOutputKey(userID, genID, idx, contentType), data)
 }
 
 // PutInput stores a user-provided (input/reference) image and returns the
@@ -118,8 +131,7 @@ func (s *localImageStore) Put(_ context.Context, userID, genID int64, idx int, c
 // The "input/" segment keeps reference images from colliding with output keys
 // while staying within rootDir (safeAbs containment still applies).
 func (s *localImageStore) PutInput(_ context.Context, userID, genID int64, idx int, contentType string, data []byte) (string, error) {
-	key := fmt.Sprintf("user_%d/%d/input/%d.%s", userID, genID, idx, extForContentType(contentType))
-	return s.writeKey(key, data)
+	return s.writeKey(imageStudioInputKey(userID, genID, idx, contentType), data)
 }
 
 // writeKey resolves key under rootDir (with traversal protection), creates the

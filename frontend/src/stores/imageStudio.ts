@@ -202,7 +202,9 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
         image_count: resp.images.length,
         status: isFinalSuccess ? 'succeeded' : (resp.status || 'pending'),
         error: resp.error,
+        error_code: resp.error_code,
         cost: resp.cost,
+        estimated_cost: resp.estimated_cost,
         created_at: new Date().toISOString(),
         images: resp.images,
         input_images: resp.input_images,
@@ -269,24 +271,58 @@ export const useImageStudioStore = defineStore('imageStudio', () => {
     return updated
   }
 
+  // A pending generation older than this (client clock) with no server progress
+  // is treated as failed locally so the UI stops polling a row the backend's
+  // stale-pending sweep will reclaim (or already has). Kept above the server's
+  // background TTL so it only ever fires for genuinely stuck rows.
+  const STALE_PENDING_MS = 20 * 60 * 1000
+
+  function markGenerationSucceededSideEffects(previousStatus: string, nextStatus: string): void {
+    if (previousStatus !== nextStatus && nextStatus === 'succeeded') {
+      const authStore = useAuthStore()
+      authStore.refreshUser().catch(() => {})
+    }
+  }
+
   async function refreshPendingGenerations(): Promise<void> {
     const pending = generations.value.filter(
       (g) => g.status === 'pending' || g.status === 'generating'
     )
     if (pending.length === 0) return
 
-    const updates = await Promise.allSettled(
-      pending.map((g) => imageStudioAPI.getGeneration(g.id))
-    )
-    for (const update of updates) {
-      if (update.status !== 'fulfilled') continue
-      const idx = generations.value.findIndex((g) => g.id === update.value.id)
-      if (idx !== -1) {
+    // Batch-fetch all pending statuses in a single request (replaces the per-row
+    // N+1 polling).
+    let updated: ImageStudioGeneration[] = []
+    try {
+      updated = await imageStudioAPI.batchGetGenerations(pending.map((g) => g.id))
+    } catch {
+      // Network hiccup: skip this tick, the interval will retry.
+      return
+    }
+
+    const byId = new Map(updated.map((g) => [g.id, g]))
+    const now = Date.now()
+
+    for (const p of pending) {
+      const idx = generations.value.findIndex((g) => g.id === p.id)
+      if (idx === -1) continue
+
+      const server = byId.get(p.id)
+      if (server) {
         const previousStatus = generations.value[idx].status
-        generations.value[idx] = update.value
-        if (previousStatus !== update.value.status && update.value.status === 'succeeded') {
-          const authStore = useAuthStore()
-          authStore.refreshUser().catch(() => {})
+        generations.value[idx] = server
+        markGenerationSucceededSideEffects(previousStatus, server.status)
+        continue
+      }
+
+      // Not returned by the batch (deleted/expired server-side) OR still pending
+      // past the stale threshold → fail it locally so polling stops.
+      const createdAt = Date.parse(generations.value[idx].created_at)
+      if (!Number.isNaN(createdAt) && now - createdAt > STALE_PENDING_MS) {
+        generations.value[idx] = {
+          ...generations.value[idx],
+          status: 'failed',
+          error_code: generations.value[idx].error_code || 'interrupted',
         }
       }
     }

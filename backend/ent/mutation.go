@@ -24018,6 +24018,7 @@ type ImageGenerationMutation struct {
 	height                   *int
 	addheight                *int
 	error                    *string
+	error_code               *string
 	clearedFields            map[string]struct{}
 	done                     bool
 	oldValue                 func(context.Context) (*ImageGeneration, error)
@@ -25078,6 +25079,55 @@ func (m *ImageGenerationMutation) ResetError() {
 	delete(m.clearedFields, imagegeneration.FieldError)
 }
 
+// SetErrorCode sets the "error_code" field.
+func (m *ImageGenerationMutation) SetErrorCode(s string) {
+	m.error_code = &s
+}
+
+// ErrorCode returns the value of the "error_code" field in the mutation.
+func (m *ImageGenerationMutation) ErrorCode() (r string, exists bool) {
+	v := m.error_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErrorCode returns the old "error_code" field's value of the ImageGeneration entity.
+// If the ImageGeneration object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ImageGenerationMutation) OldErrorCode(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErrorCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErrorCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErrorCode: %w", err)
+	}
+	return oldValue.ErrorCode, nil
+}
+
+// ClearErrorCode clears the value of the "error_code" field.
+func (m *ImageGenerationMutation) ClearErrorCode() {
+	m.error_code = nil
+	m.clearedFields[imagegeneration.FieldErrorCode] = struct{}{}
+}
+
+// ErrorCodeCleared returns if the "error_code" field was cleared in this mutation.
+func (m *ImageGenerationMutation) ErrorCodeCleared() bool {
+	_, ok := m.clearedFields[imagegeneration.FieldErrorCode]
+	return ok
+}
+
+// ResetErrorCode resets all changes to the "error_code" field.
+func (m *ImageGenerationMutation) ResetErrorCode() {
+	m.error_code = nil
+	delete(m.clearedFields, imagegeneration.FieldErrorCode)
+}
+
 // Where appends a list predicates to the ImageGenerationMutation builder.
 func (m *ImageGenerationMutation) Where(ps ...predicate.ImageGeneration) {
 	m.predicates = append(m.predicates, ps...)
@@ -25112,7 +25162,7 @@ func (m *ImageGenerationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ImageGenerationMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.created_at != nil {
 		fields = append(fields, imagegeneration.FieldCreatedAt)
 	}
@@ -25170,6 +25220,9 @@ func (m *ImageGenerationMutation) Fields() []string {
 	if m.error != nil {
 		fields = append(fields, imagegeneration.FieldError)
 	}
+	if m.error_code != nil {
+		fields = append(fields, imagegeneration.FieldErrorCode)
+	}
 	return fields
 }
 
@@ -25216,6 +25269,8 @@ func (m *ImageGenerationMutation) Field(name string) (ent.Value, bool) {
 		return m.Height()
 	case imagegeneration.FieldError:
 		return m.Error()
+	case imagegeneration.FieldErrorCode:
+		return m.ErrorCode()
 	}
 	return nil, false
 }
@@ -25263,6 +25318,8 @@ func (m *ImageGenerationMutation) OldField(ctx context.Context, name string) (en
 		return m.OldHeight(ctx)
 	case imagegeneration.FieldError:
 		return m.OldError(ctx)
+	case imagegeneration.FieldErrorCode:
+		return m.OldErrorCode(ctx)
 	}
 	return nil, fmt.Errorf("unknown ImageGeneration field %s", name)
 }
@@ -25404,6 +25461,13 @@ func (m *ImageGenerationMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetError(v)
+		return nil
+	case imagegeneration.FieldErrorCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErrorCode(v)
 		return nil
 	}
 	return fmt.Errorf("unknown ImageGeneration field %s", name)
@@ -25552,6 +25616,9 @@ func (m *ImageGenerationMutation) ClearedFields() []string {
 	if m.FieldCleared(imagegeneration.FieldError) {
 		fields = append(fields, imagegeneration.FieldError)
 	}
+	if m.FieldCleared(imagegeneration.FieldErrorCode) {
+		fields = append(fields, imagegeneration.FieldErrorCode)
+	}
 	return fields
 }
 
@@ -25583,6 +25650,9 @@ func (m *ImageGenerationMutation) ClearField(name string) error {
 		return nil
 	case imagegeneration.FieldError:
 		m.ClearError()
+		return nil
+	case imagegeneration.FieldErrorCode:
+		m.ClearErrorCode()
 		return nil
 	}
 	return fmt.Errorf("unknown ImageGeneration nullable field %s", name)
@@ -25648,6 +25718,9 @@ func (m *ImageGenerationMutation) ResetField(name string) error {
 		return nil
 	case imagegeneration.FieldError:
 		m.ResetError()
+		return nil
+	case imagegeneration.FieldErrorCode:
+		m.ResetErrorCode()
 		return nil
 	}
 	return fmt.Errorf("unknown ImageGeneration field %s", name)

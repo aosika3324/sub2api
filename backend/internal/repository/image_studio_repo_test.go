@@ -5,6 +5,7 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -277,6 +278,41 @@ func (s *ImageStudioRepoSuite) TestListGenerations_Pagination() {
 	s.Require().Len(items, 2)
 }
 
+func (s *ImageStudioRepoSuite) TestPruneExpiredGenerations_SoftDeletesEmptyConversations() {
+	u := s.mustCreateUser("prune-empty-conversation@test.com")
+	g := s.mustCreateGroup("prune-empty-conversation-group")
+	expiredOnlyConv, err := s.repo.CreateConversation(s.ctx, u.ID, "expired only")
+	s.Require().NoError(err)
+	mixedConv, err := s.repo.CreateConversation(s.ctx, u.ID, "mixed")
+	s.Require().NoError(err)
+
+	cutoff := time.Now().Add(-service.ImageStudioRetention)
+	expiredAt := cutoff.Add(-time.Hour)
+	freshAt := cutoff.Add(time.Hour)
+
+	s.mustCreateGenerationAt(u.ID, expiredOnlyConv.ID, g.ID, expiredAt, []string{"expired/out.png"}, []string{"expired/input.png"})
+	s.mustCreateGenerationAt(u.ID, mixedConv.ID, g.ID, expiredAt, []string{"mixed/old.png"}, nil)
+	s.mustCreateGenerationAt(u.ID, mixedConv.ID, g.ID, freshAt, []string{"mixed/new.png"}, nil)
+
+	keys, count, err := s.repo.PruneExpiredGenerations(s.ctx, cutoff, 200)
+	s.Require().NoError(err)
+	s.Require().Equal(2, count)
+	s.Require().ElementsMatch([]string{"expired/out.png", "expired/input.png", "mixed/old.png"}, keys)
+
+	_, err = s.repo.GetConversation(s.ctx, expiredOnlyConv.ID)
+	s.Require().Error(err, "conversation with only expired generations should be soft-deleted")
+
+	kept, err := s.repo.GetConversation(s.ctx, mixedConv.ID)
+	s.Require().NoError(err, "conversation with a fresh generation should stay active")
+	s.Require().Equal(mixedConv.ID, kept.ID)
+
+	gens, total, err := s.repo.ListGenerations(s.ctx, u.ID, &mixedConv.ID, 1, 10)
+	s.Require().NoError(err)
+	s.Require().Equal(1, total)
+	s.Require().Len(gens, 1)
+	s.Require().Equal([]string{"mixed/new.png"}, gens[0].StorageKeys)
+}
+
 func (s *ImageStudioRepoSuite) TestClearUserHistory_SoftDeletesOwnedRowsAndReturnsKeys() {
 	u1 := s.mustCreateUser("clear-history-u1@test.com")
 	u2 := s.mustCreateUser("clear-history-u2@test.com")
@@ -314,4 +350,31 @@ func (s *ImageStudioRepoSuite) TestClearUserHistory_SoftDeletesOwnedRowsAndRetur
 	s.Require().NoError(err)
 	s.Require().Equal(1, total)
 	s.Require().Len(gens, 1)
+}
+
+func (s *ImageStudioRepoSuite) mustCreateGenerationAt(userID, convID, groupID int64, createdAt time.Time, storageKeys, inputStorageKeys []string) *dbent.ImageGeneration {
+	s.T().Helper()
+	b := s.client.ImageGeneration.Create().
+		SetUserID(userID).
+		SetConversationID(convID).
+		SetGroupID(groupID).
+		SetPrompt("a cat on mars").
+		SetModel("gpt-image-2").
+		SetSize("1024x1024").
+		SetQuality("standard").
+		SetN(1).
+		SetImageCount(1).
+		SetStatus("succeeded").
+		SetCost(0).
+		SetCreatedAt(createdAt).
+		SetUpdatedAt(createdAt)
+	if len(storageKeys) > 0 {
+		b = b.SetStorageKeys(storageKeys)
+	}
+	if len(inputStorageKeys) > 0 {
+		b = b.SetInputStorageKeys(inputStorageKeys)
+	}
+	gen, err := b.Save(s.ctx)
+	s.Require().NoError(err)
+	return gen
 }

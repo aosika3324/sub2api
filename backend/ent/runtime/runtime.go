@@ -1130,6 +1130,10 @@ func init() {
 	imagegenerationDescCost := imagegenerationFields[10].Descriptor()
 	// imagegeneration.DefaultCost holds the default value on creation for the cost field.
 	imagegeneration.DefaultCost = imagegenerationDescCost.Default.(float64)
+	// imagegenerationDescErrorCode is the schema descriptor for error_code field.
+	imagegenerationDescErrorCode := imagegenerationFields[16].Descriptor()
+	// imagegeneration.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
+	imagegeneration.ErrorCodeValidator = imagegenerationDescErrorCode.Validators[0].(func(string) error)
 	paymentauditlogFields := schema.PaymentAuditLog{}.Fields()
 	_ = paymentauditlogFields
 	// paymentauditlogDescOrderID is the schema descriptor for order_id field.

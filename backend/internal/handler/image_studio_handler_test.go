@@ -68,8 +68,6 @@ func (s *studioGeneratorStub) StartGenerate(_ context.Context, userID int64, in 
 	}, nil
 }
 
-func (s *studioGeneratorStub) PruneExpiredImagesThrottled() {}
-
 type studioRepoStub struct {
 	generation   *dbent.ImageGeneration
 	conversation *dbent.ImageConversation
@@ -113,6 +111,17 @@ func (s *studioRepoStub) GetGeneration(_ context.Context, _ int64) (*dbent.Image
 }
 func (s *studioRepoStub) ListGenerations(_ context.Context, _ int64, _ *int64, _, _ int) ([]*dbent.ImageGeneration, int, error) {
 	return nil, 0, nil
+}
+func (s *studioRepoStub) ListGenerationsByIDs(_ context.Context, userID int64, ids []int64) ([]*dbent.ImageGeneration, error) {
+	if s.generation == nil {
+		return nil, s.getGenErr
+	}
+	for _, id := range ids {
+		if id == s.generation.ID && s.generation.UserID == userID {
+			return []*dbent.ImageGeneration{s.generation}, s.getGenErr
+		}
+	}
+	return nil, s.getGenErr
 }
 func (s *studioRepoStub) DeleteGeneration(_ context.Context, _ int64) error {
 	s.delGenCall++
@@ -616,4 +625,57 @@ func TestImageStudioClearHistory_DeletesReturnedFiles(t *testing.T) {
 	require.Equal(t, 1, repo.clearCall)
 	require.Equal(t, int64(7), repo.clearUserID)
 	require.ElementsMatch(t, []string{"out_a", "out_b", "input_a"}, store.deletedKeys)
+}
+
+// ---------------------------------------------------------------------------
+// BatchGetGenerations.
+// ---------------------------------------------------------------------------
+
+func TestImageStudioBatchGetGenerations_ReturnsOwned(t *testing.T) {
+	repo := &studioRepoStub{generation: &dbent.ImageGeneration{ID: 5, UserID: 7, Status: "succeeded"}}
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: repo, store: &studioStoreStub{}}
+
+	w, c := newStudioContext(http.MethodGet, "/generations-batch?ids=5,6", "")
+	setStudioAuth(c, 7)
+
+	h.BatchGetGenerations(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Contains(t, w.Body.String(), `"id":5`)
+}
+
+func TestImageStudioBatchGetGenerations_Unauthenticated401(t *testing.T) {
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: &studioRepoStub{}, store: &studioStoreStub{}}
+	w, c := newStudioContext(http.MethodGet, "/generations-batch?ids=1", "")
+	h.BatchGetGenerations(c)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestImageStudioBatchGetGenerations_InvalidIDs400(t *testing.T) {
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: &studioRepoStub{}, store: &studioStoreStub{}}
+	w, c := newStudioContext(http.MethodGet, "/generations-batch?ids=abc", "")
+	setStudioAuth(c, 7)
+	h.BatchGetGenerations(c)
+	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestImageStudioBatchGetGenerations_EmptyIDsReturnsEmpty(t *testing.T) {
+	h := &ImageStudioHandler{studio: &studioGeneratorStub{}, repo: &studioRepoStub{}, store: &studioStoreStub{}}
+	w, c := newStudioContext(http.MethodGet, "/generations-batch?ids=", "")
+	setStudioAuth(c, 7)
+	h.BatchGetGenerations(c)
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestParseStudioBatchIDs(t *testing.T) {
+	ids, err := parseStudioBatchIDs(" 1, 2 ,2, 3 ")
+	require.NoError(t, err)
+	require.Equal(t, []int64{1, 2, 3}, ids, "trims, parses, and dedupes")
+
+	_, err = parseStudioBatchIDs("1,x")
+	require.Error(t, err)
+
+	ids, err = parseStudioBatchIDs("")
+	require.NoError(t, err)
+	require.Empty(t, ids)
 }

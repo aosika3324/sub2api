@@ -1013,7 +1013,11 @@ async function syncGroupSupportedModels(sectionIdx: number) {
   try {
     const result = await adminAPI.channels.syncGroupSupportedModels(platform, section.group_ids)
     if (!result.models || result.models.length === 0) {
-      appStore.showWarning(t('admin.channels.form.syncGroupModelsNoAccounts'))
+      if ((result.account_count || 0) === 0) {
+        appStore.showWarning(t('admin.channels.form.syncGroupModelsNoAccounts'))
+      } else {
+        appStore.showWarning(t('admin.channels.form.syncGroupModelsNoModels', { accounts: result.account_count }))
+      }
       return
     }
     const appendResult = await appendNewPricingModels(sectionIdx, result.models)

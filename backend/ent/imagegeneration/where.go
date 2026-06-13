@@ -139,6 +139,11 @@ func Error(v string) predicate.ImageGeneration {
 	return predicate.ImageGeneration(sql.FieldEQ(FieldError, v))
 }
 
+// ErrorCode applies equality check predicate on the "error_code" field. It's identical to ErrorCodeEQ.
+func ErrorCode(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldEQ(FieldErrorCode, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.ImageGeneration {
 	return predicate.ImageGeneration(sql.FieldEQ(FieldCreatedAt, v))
@@ -1027,6 +1032,81 @@ func ErrorEqualFold(v string) predicate.ImageGeneration {
 // ErrorContainsFold applies the ContainsFold predicate on the "error" field.
 func ErrorContainsFold(v string) predicate.ImageGeneration {
 	return predicate.ImageGeneration(sql.FieldContainsFold(FieldError, v))
+}
+
+// ErrorCodeEQ applies the EQ predicate on the "error_code" field.
+func ErrorCodeEQ(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldEQ(FieldErrorCode, v))
+}
+
+// ErrorCodeNEQ applies the NEQ predicate on the "error_code" field.
+func ErrorCodeNEQ(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldNEQ(FieldErrorCode, v))
+}
+
+// ErrorCodeIn applies the In predicate on the "error_code" field.
+func ErrorCodeIn(vs ...string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldIn(FieldErrorCode, vs...))
+}
+
+// ErrorCodeNotIn applies the NotIn predicate on the "error_code" field.
+func ErrorCodeNotIn(vs ...string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldNotIn(FieldErrorCode, vs...))
+}
+
+// ErrorCodeGT applies the GT predicate on the "error_code" field.
+func ErrorCodeGT(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldGT(FieldErrorCode, v))
+}
+
+// ErrorCodeGTE applies the GTE predicate on the "error_code" field.
+func ErrorCodeGTE(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldGTE(FieldErrorCode, v))
+}
+
+// ErrorCodeLT applies the LT predicate on the "error_code" field.
+func ErrorCodeLT(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldLT(FieldErrorCode, v))
+}
+
+// ErrorCodeLTE applies the LTE predicate on the "error_code" field.
+func ErrorCodeLTE(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldLTE(FieldErrorCode, v))
+}
+
+// ErrorCodeContains applies the Contains predicate on the "error_code" field.
+func ErrorCodeContains(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldContains(FieldErrorCode, v))
+}
+
+// ErrorCodeHasPrefix applies the HasPrefix predicate on the "error_code" field.
+func ErrorCodeHasPrefix(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldHasPrefix(FieldErrorCode, v))
+}
+
+// ErrorCodeHasSuffix applies the HasSuffix predicate on the "error_code" field.
+func ErrorCodeHasSuffix(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldHasSuffix(FieldErrorCode, v))
+}
+
+// ErrorCodeIsNil applies the IsNil predicate on the "error_code" field.
+func ErrorCodeIsNil() predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldIsNull(FieldErrorCode))
+}
+
+// ErrorCodeNotNil applies the NotNil predicate on the "error_code" field.
+func ErrorCodeNotNil() predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldNotNull(FieldErrorCode))
+}
+
+// ErrorCodeEqualFold applies the EqualFold predicate on the "error_code" field.
+func ErrorCodeEqualFold(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldEqualFold(FieldErrorCode, v))
+}
+
+// ErrorCodeContainsFold applies the ContainsFold predicate on the "error_code" field.
+func ErrorCodeContainsFold(v string) predicate.ImageGeneration {
+	return predicate.ImageGeneration(sql.FieldContainsFold(FieldErrorCode, v))
 }
 
 // And groups predicates with the AND operator between them.

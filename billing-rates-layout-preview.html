@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>费率说明布局预览</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111e;
+      --panel: #101c2b;
+      --panel-2: #142233;
+      --line: #243449;
+      --line-soft: #1b2a3d;
+      --text: #ecf4ff;
+      --muted: #8fa0b5;
+      --soft: #c2cfdd;
+      --green: #30d4a0;
+      --green-bg: rgba(48, 212, 160, .13);
+      --amber: #f4bd50;
+      --amber-bg: rgba(244, 189, 80, .14);
+      --pink: #ff73b6;
+      --pink-bg: rgba(255, 115, 182, .12);
+      --violet: #a78bfa;
+      --violet-bg: rgba(167, 139, 250, .14);
+      --sky: #38bdf8;
+      --sky-bg: rgba(56, 189, 248, .12);
+      --radius: 8px;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #091422 0%, var(--bg) 44%, #050a14 100%);
+      color: var(--text);
+    }
+
+    .page {
+      width: min(1480px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .topbar, .section-head, .model-head, .rate-row {
+      display: flex;
+      gap: 18px;
+    }
+
+    .topbar {
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+
+    h1, h2, h3, p { margin: 0; letter-spacing: 0; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 18px; }
+    h3 { font-size: 17px; }
+    p { color: var(--muted); line-height: 1.7; }
+
+    .title p { margin-top: 8px; font-size: 14px; }
+
+    .balance {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(16, 28, 43, .78);
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .panel {
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: rgba(16, 28, 43, .94);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, .18);
+    }
+
+    .explainer {
+      display: grid;
+      grid-template-columns: 1.12fr .88fr;
+      overflow: hidden;
+      margin-bottom: 26px;
+    }
+
+    .explainer-main, .aside { padding: 24px; }
+    .explainer-main { border-right: 1px solid var(--line); }
+
+    .lead {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      font-weight: 900;
+    }
+
+    .icon.amber { color: var(--amber); background: var(--amber-bg); }
+    .icon.violet { color: var(--violet); background: var(--violet-bg); }
+    .icon.pink { color: var(--pink); background: var(--pink-bg); }
+    .icon.sky { color: var(--sky); background: var(--sky-bg); }
+
+    .eyebrow {
+      margin-bottom: 5px;
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .desc {
+      margin-top: 14px;
+      max-width: 760px;
+      font-size: 14px;
+    }
+
+    .formula {
+      margin-top: 22px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(20, 34, 51, .72);
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .formula-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      gap: 16px;
+      margin-top: 14px;
+    }
+
+    .formula-item strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .formula-item span {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .symbol {
+      color: #738398;
+      font-weight: 900;
+    }
+
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .rule {
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(9, 20, 34, .35);
+    }
+
+    .rule .icon {
+      width: 32px;
+      height: 32px;
+      font-size: 13px;
+    }
+
+    .rule b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .rule p {
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .aside-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .pill, .badge, .platform, .tag {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .pill {
+      min-height: 24px;
+      padding: 4px 8px;
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .stat {
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 28px;
+    }
+
+    .best-summary {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .best-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .rate {
+      margin-top: 3px;
+      color: var(--green);
+      font-size: 30px;
+      font-weight: 900;
+    }
+
+    .best-summary p {
+      margin-top: 12px;
+      font-size: 12px;
+    }
+
+    .section-head {
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .section-head p { margin-top: 7px; font-size: 14px; }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search, .button {
+      min-height: 42px;
+      border: 1px solid #40516a;
+      border-radius: var(--radius);
+      background: #1b283a;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      font-size: 13px;
+    }
+
+    .search { width: 330px; }
+    .button { color: var(--soft); font-weight: 800; }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border: 1px solid rgba(244, 189, 80, .28);
+      border-radius: var(--radius);
+      background: rgba(244, 189, 80, .10);
+      color: #f7d78a;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .model-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .model-card {
+      overflow: hidden;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: rgba(16, 28, 43, .94);
+    }
+
+    .model-head {
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .model-title {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .model-head p {
+      margin-top: 7px;
+      font-size: 13px;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      background: rgba(143, 160, 181, .14);
+      color: var(--soft);
+    }
+
+    .badge.good {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .platform {
+      padding: 4px 8px;
+      text-transform: uppercase;
+    }
+
+    .openai {
+      color: var(--green);
+      background: rgba(48, 212, 160, .12);
+      border: 1px solid rgba(48, 212, 160, .25);
+    }
+
+    .anthropic {
+      color: #ffad4d;
+      background: rgba(255, 173, 77, .12);
+      border: 1px solid rgba(255, 173, 77, .25);
+    }
+
+    .rate-list {
+      display: grid;
+      gap: 0;
+    }
+
+    .rate-row {
+      display: grid;
+      grid-template-columns: minmax(230px, 1fr) minmax(230px, 1.05fr) minmax(160px, .7fr) minmax(210px, .9fr);
+      align-items: start;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .rate-row:last-child { border-bottom: 0; }
+    .rate-row.best { background: rgba(48, 212, 160, .045); }
+
+    .cell-label {
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .group-name {
+      display: inline-flex;
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: rgba(48, 212, 160, .10);
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .group-name.anthropic {
+      color: #ffad4d;
+      background: rgba(255, 173, 77, .12);
+      border: 0;
+    }
+
+    .tag {
+      margin-left: 6px;
+      padding: 4px 7px;
+      background: rgba(143, 160, 181, .14);
+      color: var(--soft);
+    }
+
+    .tag.best {
+      background: var(--amber-bg);
+      color: #f8d784;
+    }
+
+    .price-line {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--soft);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .price-line.strong {
+      color: var(--green);
+      font-weight: 900;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .multiplier {
+      color: var(--green);
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .channel-name {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    @media (max-width: 1100px) {
+      .explainer { grid-template-columns: 1fr; }
+      .explainer-main { border-right: 0; border-bottom: 1px solid var(--line); }
+      .rules { grid-template-columns: 1fr; }
+      .rate-row { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 720px) {
+      .page { width: min(100vw - 24px, 1480px); padding-top: 18px; }
+      .topbar, .section-head, .model-head, .actions { align-items: stretch; flex-direction: column; }
+      .formula-grid, .rate-row { grid-template-columns: 1fr; }
+      .symbol { display: none; }
+      .search { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="title">
+        <h1>费率说明</h1>
+        <p>按模型聚合查看不同分组的生效倍率、基础单价与倍率后单价。</p>
+      </div>
+      <div class="balance">$984.86</div>
+    </header>
+
+    <section class="panel explainer">
+      <div class="explainer-main">
+        <div class="lead">
+          <div class="icon amber">¥</div>
+          <div>
+            <p class="eyebrow">计费透明</p>
+            <h2>先选模型，再比较分组倍率</h2>
+          </div>
+        </div>
+        <p class="desc">实际单价由模型基础价格和当前分组倍率共同决定。页面主体按模型排列，同一个模型只出现一次，下面按倍率从低到高展示不同分组的最终单价。</p>
+
+        <div class="formula">
+          <div class="label">计费公式</div>
+          <div class="formula-grid">
+            <div class="formula-item">
+              <strong>模型基础单价</strong>
+              <span>来自渠道定价或官方默认价格</span>
+            </div>
+            <div class="symbol">×</div>
+            <div class="formula-item">
+              <strong style="color:var(--green)">分组生效倍率</strong>
+              <span>专属倍率优先，否则使用分组默认倍率</span>
+            </div>
+            <div class="symbol">→</div>
+            <div class="formula-item">
+              <strong>倍率后单价</strong>
+              <span>用户真正需要关心的计费单位价格</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="rules">
+          <div class="rule">
+            <div class="icon violet">1</div>
+            <div><b>模型优先</b><p>先按模型聚合，避免同一模型在多个分组中反复出现。</p></div>
+          </div>
+          <div class="rule">
+            <div class="icon pink">2</div>
+            <div><b>最低高亮</b><p>每个模型的最低倍率行固定标记，用户不用心算。</p></div>
+          </div>
+          <div class="rule">
+            <div class="icon sky">3</div>
+            <div><b>渠道降级</b><p>渠道信息放到右侧辅助列，主视线留给分组和价格。</p></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="aside">
+        <div class="aside-head">
+          <div>
+            <h2>当前可用范围</h2>
+            <p style="margin-top:8px;font-size:12px;">按当前账号权限实时计算</p>
+          </div>
+          <span class="pill">实时</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>可用分组</span><strong>6</strong></div>
+          <div class="stat"><span>可见模型</span><strong>24</strong></div>
+          <div class="stat"><span>专属倍率</span><strong>1</strong></div>
+          <div class="stat"><span>平台</span><strong>2</strong></div>
+        </div>
+        <div class="best-summary">
+          <div class="best-row">
+            <div>
+              <div class="label">全局最低标准倍率</div>
+              <div class="rate">0.08x</div>
+            </div>
+            <span class="badge good">GPT Plus 0.08x</span>
+          </div>
+          <p>模型卡片会在每个模型内再次标出最低倍率，方便直接比较当前模型可走哪个分组。</p>
+        </div>
+      </aside>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div>
+          <h2>按模型对比费率</h2>
+          <p>同一个模型只展示一次，下面按分组查看生效倍率、基础价格和倍率后单价。</p>
+        </div>
+        <div class="actions">
+          <div class="search">搜索渠道、模型或分组...</div>
+          <div class="button">查看使用记录</div>
+        </div>
+      </div>
+
+      <div class="notice">当前页展示的是此刻可见的单位价格表；每次请求的最终扣费会按请求时的 token、图片数量、服务层级和倍率快照保存在使用记录里。</div>
+
+      <div class="model-stack">
+        <article class="model-card">
+          <div class="model-head">
+            <div>
+              <div class="model-title">
+                <h3>gpt-4.1</h3>
+                <span class="badge good">最低 0.08x</span>
+                <span class="badge">4 条价格 · 3 个分组</span>
+              </div>
+              <p>基础价参考：输入 $2.00 / 1M token，输出 $8.00 / 1M token</p>
+            </div>
+            <span class="platform openai">OPENAI</span>
+          </div>
+          <div class="rate-list">
+            <div class="rate-row best">
+              <div>
+                <div class="cell-label">分组</div>
+                <span class="group-name">GPT Plus 0.08x</span><span class="tag best">最低</span>
+                <div class="muted" style="margin-top:8px;">公开分组 · 标准倍率</div>
+              </div>
+              <div>
+                <div class="cell-label">倍率后单价</div>
+                <span class="price-line strong">输入: $0.16 / 1M token</span>
+                <span class="price-line strong">输出: $0.64 / 1M token</span>
+              </div>
+              <div>
+                <div class="cell-label">生效倍率</div>
+                <div class="multiplier">0.08x</div>
+              </div>
+              <div>
+                <div class="cell-label">渠道</div>
+                <div class="channel-name">OpenAI 主渠道</div>
+                <div class="muted">按 token · 渠道定价</div>
+              </div>
+            </div>
+            <div class="rate-row">
+              <div>
+                <div class="cell-label">分组</div>
+                <span class="group-name">GPT PLUS [备用] 0.11x</span>
+                <div class="muted" style="margin-top:8px;">公开分组 · 标准倍率</div>
+              </div>
+              <div>
+                <div class="cell-label">倍率后单价</div>
+                <span class="price-line strong">输入: $0.22 / 1M token</span>
+                <span class="price-line strong">输出: $0.88 / 1M token</span>
+              </div>
+              <div>
+                <div class="cell-label">生效倍率</div>
+                <div class="multiplier">0.11x</div>
+              </div>
+              <div>
+                <div class="cell-label">渠道</div>
+                <div class="channel-name">OpenAI 备用渠道</div>
+                <div class="muted">按 token · 同官方价</div>
+              </div>
+            </div>
+            <div class="rate-row">
+              <div>
+                <div class="cell-label">分组</div>
+                <span class="group-name">GPT Pro 0.32x</span><span class="tag">专属</span>
+                <div class="muted" style="margin-top:8px;">专属倍率覆盖默认 0.40x</div>
+              </div>
+              <div>
+                <div class="cell-label">倍率后单价</div>
+                <span class="price-line strong">输入: $0.64 / 1M token</span>
+                <span class="price-line strong">输出: $2.56 / 1M token</span>
+              </div>
+              <div>
+                <div class="cell-label">生效倍率</div>
+                <div class="multiplier">0.32x</div>
+              </div>
+              <div>
+                <div class="cell-label">渠道</div>
+                <div class="channel-name">OpenAI Pro 渠道</div>
+                <div class="muted">按 token · 渠道定价</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="model-card">
+          <div class="model-head">
+            <div>
+              <div class="model-title">
+                <h3>claude-sonnet-4-5</h3>
+                <span class="badge good">最低 0.60x</span>
+                <span class="badge">2 条价格 · 2 个分组</span>
+              </div>
+              <p>基础价参考：输入 $3.00 / 1M token，输出 $15.00 / 1M token</p>
+            </div>
+            <span class="platform anthropic">ANTHROPIC</span>
+          </div>
+          <div class="rate-list">
+            <div class="rate-row best">
+              <div>
+                <div class="cell-label">分组</div>
+                <span class="group-name anthropic">Claude [特价] 0.60x</span><span class="tag best">最低</span>
+                <div class="muted" style="margin-top:8px;">公开分组 · 标准倍率</div>
+              </div>
+              <div>
+                <div class="cell-label">倍率后单价</div>
+                <span class="price-line strong">输入: $1.80 / 1M token</span>
+                <span class="price-line strong">输出: $9.00 / 1M token</span>
+              </div>
+              <div>
+                <div class="cell-label">生效倍率</div>
+                <div class="multiplier">0.60x</div>
+              </div>
+              <div>
+                <div class="cell-label">渠道</div>
+                <div class="channel-name">Anthropic 特价渠道</div>
+                <div class="muted">按 token · 对照官方价</div>
+              </div>
+            </div>
+            <div class="rate-row">
+              <div>
+                <div class="cell-label">分组</div>
+                <span class="group-name anthropic">Claude [MAX] 2.20x</span>
+                <div class="muted" style="margin-top:8px;">公开分组 · 高配账号池</div>
+              </div>
+              <div>
+                <div class="cell-label">倍率后单价</div>
+                <span class="price-line strong">输入: $6.60 / 1M token</span>
+                <span class="price-line strong">输出: $33.00 / 1M token</span>
+              </div>
+              <div>
+                <div class="cell-label">生效倍率</div>
+                <div class="multiplier">2.20x</div>
+              </div>
+              <div>
+                <div class="cell-label">渠道</div>
+                <div class="channel-name">Anthropic Max 渠道</div>
+                <div class="muted">按 token · 渠道定价</div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="model-card">
+          <div class="model-head">
+            <div>
+              <div class="model-title">
+                <h3>gpt-image-1</h3>
+                <span class="badge good">最低 0.08x</span>
+                <span class="badge">2 条价格 · 2 个分组</span>
+              </div>
+              <p>图片模型会优先展示图片独立倍率；未开启时沿用标准倍率。</p>
+            </div>
+            <span class="platform openai">OPENAI</span>
+          </div>
+          <div class="rate-list">
+            <div class="rate-row best">
+              <div>
+                <div class="cell-label">分组</div>
+                <span class="group-name">GPT Plus 0.08x</span><span class="tag best">最低</span>
+                <div class="muted" style="margin-top:8px;">未配置图片独立价时回落到标准倍率</div>
+              </div>
+              <div>
+                <div class="cell-label">倍率后单价</div>
+                <span class="price-line strong">图片输出: $0.0032 / 张</span>
+              </div>
+              <div>
+                <div class="cell-label">生效倍率</div>
+                <div class="multiplier">0.08x</div>
+              </div>
+              <div>
+                <div class="cell-label">渠道</div>
+                <div class="channel-name">OpenAI 主渠道</div>
+                <div class="muted">按图片 · 展示定价</div>
+              </div>
+            </div>
+            <div class="rate-row">
+              <div>
+                <div class="cell-label">分组</div>
+                <span class="group-name">GPT Image 0.75x</span>
+                <div class="muted" style="margin-top:8px;">图片独立倍率</div>
+              </div>
+              <div>
+                <div class="cell-label">倍率后单价</div>
+                <span class="price-line strong">图片输出: $0.030 / 张</span>
+              </div>
+              <div>
+                <div class="cell-label">生效倍率</div>
+                <div class="multiplier">0.75x</div>
+              </div>
+              <div>
+                <div class="cell-label">渠道</div>
+                <div class="channel-name">OpenAI 图片渠道</div>
+                <div class="muted">按图片 · 渠道定价</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

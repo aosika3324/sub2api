@@ -180,6 +180,19 @@ export async function getGeneration(id: number): Promise<ImageStudioGeneration> 
 }
 
 /**
+ * Batch-fetch generation statuses in one round-trip (replaces per-pending N+1
+ * polling). Ownership is enforced server-side; unknown/foreign IDs are omitted.
+ */
+export async function batchGetGenerations(ids: number[]): Promise<ImageStudioGeneration[]> {
+  if (ids.length === 0) return []
+  const { data } = await apiClient.get<{ items: ImageStudioGeneration[] }>(
+    '/user/image-studio/generations-batch',
+    { params: { ids: ids.join(',') } }
+  )
+  return data.items ?? []
+}
+
+/**
  * Delete a generation by ID.
  */
 export async function deleteGeneration(id: number): Promise<void> {
@@ -310,6 +323,7 @@ export const imageStudioAPI = {
   listConversationGenerations,
   listGenerations,
   getGeneration,
+  batchGetGenerations,
   deleteGeneration,
   clearHistory,
   fetchAssetBlob,

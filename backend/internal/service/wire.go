@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -505,10 +506,23 @@ func ProvideAPIKeyService(
 // without colliding with other plain string providers.
 type ImageStoreRootDir string
 
-// ProvideImageStore builds the local disk-backed ImageStore for the image studio
-// and returns it as the ImageStore interface.
-func ProvideImageStore(rootDir ImageStoreRootDir) ImageStore {
-	return NewLocalImageStore(string(rootDir))
+// ProvideImageStore builds the image studio's ImageStore, selecting the backend
+// from cfg.Gateway.ImageStudio.Storage: "s3" for shared object storage (required
+// for multi-instance deployments) or "local" (default) for on-disk storage.
+func ProvideImageStore(rootDir ImageStoreRootDir, cfg *config.Config) (ImageStore, error) {
+	if cfg != nil && strings.EqualFold(strings.TrimSpace(cfg.Gateway.ImageStudio.Storage), config.ImageStudioStorageS3) {
+		s3cfg := cfg.Gateway.ImageStudio.S3
+		return NewS3ImageStore(context.Background(), S3ImageStoreConfig{
+			Endpoint:        s3cfg.Endpoint,
+			Region:          s3cfg.Region,
+			Bucket:          s3cfg.Bucket,
+			AccessKeyID:     s3cfg.AccessKeyID,
+			SecretAccessKey: s3cfg.SecretAccessKey,
+			Prefix:          s3cfg.Prefix,
+			ForcePathStyle:  s3cfg.ForcePathStyle,
+		})
+	}
+	return NewLocalImageStore(string(rootDir)), nil
 }
 
 // ProvideImageConcurrencyLimiter provides the (zero-value) image-generation
@@ -540,6 +554,8 @@ func ProvideImageStudioService(
 	repo ImageStudioRepository,
 	store ImageStore,
 	limiter *ImageConcurrencyLimiter,
+	moderation *ContentModerationService,
+	userLimiter StudioUserLimiter,
 	cfg *config.Config,
 ) *ImageStudioService {
 	return NewImageStudioService(ImageStudioServiceDeps{
@@ -553,9 +569,22 @@ func ProvideImageStudioService(
 		Subscriptions: subscriptionService,
 		Repo:          repo,
 		Store:         store,
+		Moderation:    studioModeratorOrNil(moderation),
+		UserLimiter:   userLimiter,
 		Limiter:       limiter,
 		Cfg:           cfg,
 	})
+}
+
+// studioModeratorOrNil adapts a possibly-nil *ContentModerationService to the
+// studioModerator port, keeping the interface value nil (not a non-nil interface
+// wrapping a nil pointer) when moderation is unavailable so the service's nil
+// check skips it cleanly.
+func studioModeratorOrNil(m *ContentModerationService) studioModerator {
+	if m == nil {
+		return nil
+	}
+	return m
 }
 
 // ProviderSet is the Wire provider set for all services

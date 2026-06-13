@@ -1971,7 +1971,11 @@ export interface ImageStudioGeneration {
   image_count: number
   status: string
   error?: string
+  /** Stable machine-readable failure classifier, mapped to a localized message. */
+  error_code?: string
   cost: number
+  /** Estimated cost shown on a pending card before the final charge is known. */
+  estimated_cost?: number
   created_at: string
   expires_at?: string
   images?: string[]
@@ -2007,8 +2011,17 @@ export interface GenerateImageStudioResponse {
   input_images?: string[]
   status?: string
   error?: string
+  /** Stable machine-readable failure classifier, mapped to a localized message. */
+  error_code?: string
   cost: number
+  /** Estimated cost for the accepted (pending) job, shown before the final charge. */
+  estimated_cost?: number
   balance: number
+}
+
+/** One generation status row from the batch poll endpoint. */
+export interface ImageStudioBatchResponse {
+  items: ImageStudioGeneration[]
 }
 
 // Payment types

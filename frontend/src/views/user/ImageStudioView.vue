@@ -729,12 +729,16 @@ onBeforeUnmount(() => {
 }
 
 .canvas-toolbar {
-  @apply mb-3 flex items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white/80 px-4 py-3 shadow-sm;
-  @apply dark:border-dark-700/50 dark:bg-dark-800/80;
+  @apply mb-3 flex items-center justify-between gap-3 px-4 py-3;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--ui-surface);
+  box-shadow: none;
 }
 
 .canvas-kicker {
-  @apply text-sm font-semibold text-gray-900 dark:text-white;
+  color: var(--ui-text);
+  @apply text-sm font-semibold;
 }
 
 .canvas-mode-pills {
@@ -742,29 +746,45 @@ onBeforeUnmount(() => {
 }
 
 .canvas-mode-pills span {
-  @apply rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600;
-  @apply dark:bg-dark-700 dark:text-gray-300;
+  @apply px-2 py-0.5 text-xs font-medium;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background: var(--ui-surface-muted);
+  color: var(--ui-muted);
 }
 
 .canvas-refresh {
-  @apply flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition-colors;
-  @apply hover:bg-primary-50 hover:text-primary-600;
-  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
-  @apply dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-primary-900/20 dark:hover:text-primary-300;
+  @apply flex h-9 w-9 flex-shrink-0 items-center justify-center transition-colors;
+  border: 1px solid var(--ui-border);
+  border-radius: 7px;
+  background: var(--ui-surface);
+  color: var(--ui-muted);
+}
+
+.canvas-refresh:hover {
+  background: var(--ui-surface-muted);
+  color: var(--ui-text);
 }
 
 .canvas-scroll {
-  @apply min-h-0 flex-1 scroll-pb-10 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50/40;
-  @apply dark:border-dark-700/50 dark:bg-dark-900;
+  @apply min-h-0 flex-1 scroll-pb-10 overflow-y-auto;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--ui-surface-muted);
 }
 
 .retention-banner {
-  @apply mb-3 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 shadow-sm;
-  @apply dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-100;
+  @apply mb-3 flex items-start gap-3 px-4 py-3;
+  border: 1px solid rgba(154, 91, 19, 0.22);
+  border-radius: 8px;
+  background: rgba(154, 91, 19, 0.07);
+  color: var(--ui-warning);
+  box-shadow: none;
 }
 
 .retention-banner-icon {
-  @apply mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-300;
+  @apply mt-0.5 flex-shrink-0;
+  color: var(--ui-warning);
 }
 
 .retention-banner-title {
@@ -772,7 +792,8 @@ onBeforeUnmount(() => {
 }
 
 .retention-banner-copy {
-  @apply mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-200/80;
+  @apply mt-0.5 text-xs leading-relaxed;
+  color: var(--ui-muted);
 }
 
 @media (min-width: 1024px) and (max-width: 1279px) {
@@ -796,8 +817,8 @@ onBeforeUnmount(() => {
 
 @media (min-width: 1280px) {
   .studio-page {
-    height: calc(100vh - 8rem);
-    max-height: calc(100vh - 8rem);
+    height: calc(100vh - 7rem);
+    max-height: calc(100vh - 7rem);
     overflow: hidden;
   }
 

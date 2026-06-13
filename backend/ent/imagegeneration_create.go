@@ -240,6 +240,20 @@ func (_c *ImageGenerationCreate) SetNillableError(v *string) *ImageGenerationCre
 	return _c
 }
 
+// SetErrorCode sets the "error_code" field.
+func (_c *ImageGenerationCreate) SetErrorCode(v string) *ImageGenerationCreate {
+	_c.mutation.SetErrorCode(v)
+	return _c
+}
+
+// SetNillableErrorCode sets the "error_code" field if the given value is not nil.
+func (_c *ImageGenerationCreate) SetNillableErrorCode(v *string) *ImageGenerationCreate {
+	if v != nil {
+		_c.SetErrorCode(*v)
+	}
+	return _c
+}
+
 // Mutation returns the ImageGenerationMutation object of the builder.
 func (_c *ImageGenerationCreate) Mutation() *ImageGenerationMutation {
 	return _c.mutation
@@ -383,6 +397,11 @@ func (_c *ImageGenerationCreate) check() error {
 	if _, ok := _c.mutation.Cost(); !ok {
 		return &ValidationError{Name: "cost", err: errors.New(`ent: missing required field "ImageGeneration.cost"`)}
 	}
+	if v, ok := _c.mutation.ErrorCode(); ok {
+		if err := imagegeneration.ErrorCodeValidator(v); err != nil {
+			return &ValidationError{Name: "error_code", err: fmt.Errorf(`ent: validator failed for field "ImageGeneration.error_code": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -485,6 +504,10 @@ func (_c *ImageGenerationCreate) createSpec() (*ImageGeneration, *sqlgraph.Creat
 	if value, ok := _c.mutation.Error(); ok {
 		_spec.SetField(imagegeneration.FieldError, field.TypeString, value)
 		_node.Error = &value
+	}
+	if value, ok := _c.mutation.ErrorCode(); ok {
+		_spec.SetField(imagegeneration.FieldErrorCode, field.TypeString, value)
+		_node.ErrorCode = &value
 	}
 	return _node, _spec
 }
@@ -835,6 +858,24 @@ func (u *ImageGenerationUpsert) UpdateError() *ImageGenerationUpsert {
 // ClearError clears the value of the "error" field.
 func (u *ImageGenerationUpsert) ClearError() *ImageGenerationUpsert {
 	u.SetNull(imagegeneration.FieldError)
+	return u
+}
+
+// SetErrorCode sets the "error_code" field.
+func (u *ImageGenerationUpsert) SetErrorCode(v string) *ImageGenerationUpsert {
+	u.Set(imagegeneration.FieldErrorCode, v)
+	return u
+}
+
+// UpdateErrorCode sets the "error_code" field to the value that was provided on create.
+func (u *ImageGenerationUpsert) UpdateErrorCode() *ImageGenerationUpsert {
+	u.SetExcluded(imagegeneration.FieldErrorCode)
+	return u
+}
+
+// ClearErrorCode clears the value of the "error_code" field.
+func (u *ImageGenerationUpsert) ClearErrorCode() *ImageGenerationUpsert {
+	u.SetNull(imagegeneration.FieldErrorCode)
 	return u
 }
 
@@ -1230,6 +1271,27 @@ func (u *ImageGenerationUpsertOne) UpdateError() *ImageGenerationUpsertOne {
 func (u *ImageGenerationUpsertOne) ClearError() *ImageGenerationUpsertOne {
 	return u.Update(func(s *ImageGenerationUpsert) {
 		s.ClearError()
+	})
+}
+
+// SetErrorCode sets the "error_code" field.
+func (u *ImageGenerationUpsertOne) SetErrorCode(v string) *ImageGenerationUpsertOne {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.SetErrorCode(v)
+	})
+}
+
+// UpdateErrorCode sets the "error_code" field to the value that was provided on create.
+func (u *ImageGenerationUpsertOne) UpdateErrorCode() *ImageGenerationUpsertOne {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.UpdateErrorCode()
+	})
+}
+
+// ClearErrorCode clears the value of the "error_code" field.
+func (u *ImageGenerationUpsertOne) ClearErrorCode() *ImageGenerationUpsertOne {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.ClearErrorCode()
 	})
 }
 
@@ -1791,6 +1853,27 @@ func (u *ImageGenerationUpsertBulk) UpdateError() *ImageGenerationUpsertBulk {
 func (u *ImageGenerationUpsertBulk) ClearError() *ImageGenerationUpsertBulk {
 	return u.Update(func(s *ImageGenerationUpsert) {
 		s.ClearError()
+	})
+}
+
+// SetErrorCode sets the "error_code" field.
+func (u *ImageGenerationUpsertBulk) SetErrorCode(v string) *ImageGenerationUpsertBulk {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.SetErrorCode(v)
+	})
+}
+
+// UpdateErrorCode sets the "error_code" field to the value that was provided on create.
+func (u *ImageGenerationUpsertBulk) UpdateErrorCode() *ImageGenerationUpsertBulk {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.UpdateErrorCode()
+	})
+}
+
+// ClearErrorCode clears the value of the "error_code" field.
+func (u *ImageGenerationUpsertBulk) ClearErrorCode() *ImageGenerationUpsertBulk {
+	return u.Update(func(s *ImageGenerationUpsert) {
+		s.ClearErrorCode()
 	})
 }
 

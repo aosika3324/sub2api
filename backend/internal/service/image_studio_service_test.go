@@ -148,6 +148,47 @@ func (s *studioUsageRecorderStub) RecordUsage(_ context.Context, in *OpenAIRecor
 	return s.err
 }
 
+// studioModeratorStub stubs content moderation.
+type studioModeratorStub struct {
+	decision *ContentModerationDecision
+	err      error
+	calls    int
+	lastBody []byte
+}
+
+func (s *studioModeratorStub) Check(_ context.Context, input ContentModerationCheckInput) (*ContentModerationDecision, error) {
+	s.calls++
+	s.lastBody = input.Body
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.decision != nil {
+		return s.decision, nil
+	}
+	return &ContentModerationDecision{Allowed: true, Action: ContentModerationActionAllow}, nil
+}
+
+// studioUserLimiterStub stubs the per-user in-flight limiter.
+type studioUserLimiterStub struct {
+	allow        bool
+	err          error
+	acquireCalls int
+	releaseCalls int
+	lastMax      int
+}
+
+func (s *studioUserLimiterStub) Acquire(_ context.Context, _ int64, max int, _ time.Duration) (func(), bool, error) {
+	s.acquireCalls++
+	s.lastMax = max
+	if s.err != nil {
+		return nil, false, s.err
+	}
+	if !s.allow {
+		return nil, false, nil
+	}
+	return func() { s.releaseCalls++ }, true, nil
+}
+
 // studioRepoStub is an in-memory ImageStudioRepository.
 type studioRepoStub struct {
 	mu            sync.Mutex
@@ -176,6 +217,7 @@ type studioStatusUpdate struct {
 	width       int
 	height      int
 	errMsg      string
+	errCode     string
 }
 
 func newStudioRepoStub() *studioRepoStub {
@@ -211,30 +253,79 @@ func (s *studioRepoStub) CreateGeneration(_ context.Context, g *dbent.ImageGener
 	s.nextGenID++
 	clone := *g
 	clone.ID = s.nextGenID
+	if clone.CreatedAt.IsZero() {
+		// Mirror the real repo's TimeMixin (created_at = NOW()) so the
+		// stale-pending sweep (cutoff = now - timeout) never reclaims a
+		// freshly-created row in tests.
+		clone.CreatedAt = time.Now()
+	}
 	s.generations[clone.ID] = &clone
 	return &clone, nil
 }
 
-func (s *studioRepoStub) UpdateGenerationStatus(_ context.Context, id int64, status string, storageKeys []string, cost float64, imageCount, width, height int, errMsg string) error {
+func (s *studioRepoStub) UpdateGenerationStatus(_ context.Context, id int64, update GenerationStatusUpdate) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.updateErr != nil {
 		return s.updateErr
 	}
 	s.statusUpdates = append(s.statusUpdates, studioStatusUpdate{
-		id: id, status: status, storageKeys: storageKeys, cost: cost, imageCount: imageCount, width: width, height: height, errMsg: errMsg,
+		id: id, status: update.Status, storageKeys: update.StorageKeys, cost: update.Cost,
+		imageCount: update.ImageCount, width: update.Width, height: update.Height,
+		errMsg: update.ErrMsg, errCode: update.ErrCode,
 	})
 	if g, ok := s.generations[id]; ok {
-		g.Status = status
-		g.StorageKeys = storageKeys
-		g.Cost = cost
-		g.ImageCount = imageCount
-		w, h, e := width, height, errMsg
+		g.Status = update.Status
+		g.StorageKeys = update.StorageKeys
+		g.Cost = update.Cost
+		g.ImageCount = update.ImageCount
+		w, h, e := update.Width, update.Height, update.ErrMsg
 		g.Width = &w
 		g.Height = &h
 		g.Error = &e
+		if update.ErrCode != "" {
+			ec := update.ErrCode
+			g.ErrorCode = &ec
+		}
 	}
 	return nil
+}
+
+// FailStaleGenerations marks pending generations older than cutoff as failed.
+func (s *studioRepoStub) FailStaleGenerations(_ context.Context, cutoff time.Time, limit int, errMsg, errCode string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if limit <= 0 {
+		limit = 200
+	}
+	count := 0
+	for _, g := range s.generations {
+		if count >= limit {
+			break
+		}
+		if g.Status != imageStudioStatusPending || !g.CreatedAt.Before(cutoff) {
+			continue
+		}
+		g.Status = imageStudioStatusFailed
+		em, ec := errMsg, errCode
+		g.Error = &em
+		g.ErrorCode = &ec
+		count++
+	}
+	return count, nil
+}
+
+// ListGenerationsByIDs returns the user's generations among ids.
+func (s *studioRepoStub) ListGenerationsByIDs(_ context.Context, userID int64, ids []int64) ([]*dbent.ImageGeneration, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]*dbent.ImageGeneration, 0, len(ids))
+	for _, id := range ids {
+		if g, ok := s.generations[id]; ok && g.UserID == userID {
+			out = append(out, g)
+		}
+	}
+	return out, nil
 }
 
 func (s *studioRepoStub) SetInputStorageKeys(_ context.Context, id int64, keys []string) error {
@@ -415,6 +506,8 @@ type studioFixture struct {
 	subs   *studioSubscriptionStub
 	repo   *studioRepoStub
 	store  *studioStoreStub
+	mod    *studioModeratorStub
+	ulim   *studioUserLimiterStub
 }
 
 func newStudioFixture(t *testing.T) *studioFixture {
@@ -440,6 +533,8 @@ func newStudioFixture(t *testing.T) *studioFixture {
 		subs:  &studioSubscriptionStub{},
 		repo:  newStudioRepoStub(),
 		store: &studioStoreStub{},
+		mod:   &studioModeratorStub{},
+		ulim:  &studioUserLimiterStub{allow: true},
 	}
 	f.svc = NewImageStudioService(ImageStudioServiceDeps{
 		Users:         f.users,
@@ -452,6 +547,8 @@ func newStudioFixture(t *testing.T) *studioFixture {
 		Subscriptions: f.subs,
 		Repo:          f.repo,
 		Store:         f.store,
+		Moderation:    f.mod,
+		UserLimiter:   f.ulim,
 	})
 	return f
 }
@@ -902,7 +999,10 @@ func TestImageStudioService_Generate_CostFromAuthoritativeResolver(t *testing.T)
 
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, 1, f.cost.calls, "cost computed via ComputeImageCostBreakdown")
+	// ComputeImageCostBreakdown is called twice via the same authoritative path:
+	// once for the pre-generation estimate (shown on the pending card) and once
+	// for the final charge. Both go through the resolver, never a parallel calc.
+	require.Equal(t, 2, f.cost.calls, "cost computed via ComputeImageCostBreakdown")
 	require.NotNil(t, f.cost.last)
 	require.InDelta(t, 1.23, res.Cost, 1e-9)
 
@@ -1211,4 +1311,133 @@ func TestGenerate_InputStoredEvenWhenGenerationFails(t *testing.T) {
 	require.Equal(t, "failed", last.status)
 	require.Equal(t, 0, f.store.putCalls)
 	require.Equal(t, 0, f.usage.calls, "must NOT bill when generation fails")
+}
+
+// ---------------------------------------------------------------------------
+// Hardening: content moderation, per-user limiter, estimate, stale-pending.
+// ---------------------------------------------------------------------------
+
+// A blocked moderation decision aborts before any row/storage/billing and
+// surfaces ErrImageStudioContentBlocked carrying the decision's status.
+func TestImageStudioService_Generate_ContentBlocked_FailFast(t *testing.T) {
+	f := newStudioFixture(t)
+	f.mod.decision = &ContentModerationDecision{
+		Blocked: true, Action: ContentModerationActionBlock,
+		Message: "blocked by policy", StatusCode: 400,
+	}
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.Error(t, err)
+	require.Nil(t, res)
+	require.ErrorIs(t, err, ErrImageStudioContentBlocked)
+	// Carries the moderation status for the handler.
+	var blocked interface{ StatusCode() int }
+	require.ErrorAs(t, err, &blocked)
+	require.Equal(t, 400, blocked.StatusCode())
+	// Nothing past moderation ran: no key ensure, no generation row, no billing.
+	require.Equal(t, 1, f.mod.calls)
+	require.Equal(t, 0, f.keys.calls, "must not ensure key after a block")
+	require.Equal(t, 0, f.gen.calls)
+	require.Equal(t, 0, f.usage.calls)
+	require.Equal(t, 0, len(f.repo.generations), "no generation row created")
+}
+
+// A moderation backend error fails open (request proceeds).
+func TestImageStudioService_Generate_ModerationError_FailsOpen(t *testing.T) {
+	f := newStudioFixture(t)
+	f.mod.err = errors.New("moderation upstream down")
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, 1, f.gen.calls, "generation proceeds when moderation errors")
+}
+
+// The pending card's estimated cost comes from the authoritative resolver.
+func TestImageStudioService_StartGenerate_ReturnsEstimatedCost(t *testing.T) {
+	f := newStudioFixture(t)
+	f.cost.breakdown = &CostBreakdown{ActualCost: 0.77, TotalCost: 0.77, BillingMode: string(BillingModeImage)}
+	// Block the background generation so the estimate is observed pre-completion.
+	releaseGeneration := make(chan struct{})
+	f.gen.block = releaseGeneration
+	defer close(releaseGeneration)
+
+	res, err := f.svc.StartGenerate(context.Background(), 1, studioInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.InDelta(t, 0.77, res.EstimatedCost, 1e-9)
+}
+
+// newStudioFixtureWithUserLimit wires a per-user limiter + cfg so the per-user
+// gate is active (the default fixture has nil cfg → gate disabled).
+func newStudioFixtureWithUserLimit(t *testing.T, max int, allow bool) *studioFixture {
+	t.Helper()
+	f := newStudioFixture(t)
+	f.ulim = &studioUserLimiterStub{allow: allow}
+	f.svc = NewImageStudioService(ImageStudioServiceDeps{
+		Users:         f.users,
+		Groups:        f.groups,
+		KeyEnsurer:    f.keys,
+		Eligibility:   f.elig,
+		Generator:     f.gen,
+		CostResolver:  f.cost,
+		UsageRecord:   f.usage,
+		Subscriptions: f.subs,
+		Repo:          f.repo,
+		Store:         f.store,
+		Moderation:    f.mod,
+		UserLimiter:   f.ulim,
+		Cfg: &config.Config{Gateway: config.GatewayConfig{
+			ImageStudio: config.ImageStudioConfig{MaxConcurrentPerUser: max},
+		}},
+	})
+	return f
+}
+
+// When the user is over their per-user cap, generation is rejected with busy and
+// nothing downstream runs.
+func TestImageStudioService_Generate_PerUserLimitExceeded_Busy(t *testing.T) {
+	f := newStudioFixtureWithUserLimit(t, 2, false)
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.Error(t, err)
+	require.Nil(t, res)
+	require.ErrorIs(t, err, ErrImageStudioBusy)
+	require.Equal(t, 1, f.ulim.acquireCalls)
+	require.Equal(t, 2, f.ulim.lastMax)
+	require.Equal(t, 0, f.gen.calls, "must not generate when over the per-user cap")
+	require.Equal(t, 0, len(f.repo.generations))
+}
+
+// A successful synchronous generation acquires then releases the per-user slot.
+func TestImageStudioService_Generate_PerUserSlot_AcquiredAndReleased(t *testing.T) {
+	f := newStudioFixtureWithUserLimit(t, 2, true)
+
+	res, err := f.svc.Generate(context.Background(), 1, studioInput(10))
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, 1, f.ulim.acquireCalls)
+	require.Equal(t, 1, f.ulim.releaseCalls, "slot released after sync generation")
+}
+
+// FailStaleGenerations (via the repo stub) reclaims pending rows older than the
+// cutoff, leaving fresh ones untouched.
+func TestStudioRepoStub_FailStaleGenerations(t *testing.T) {
+	s := newStudioRepoStub()
+	old := &dbent.ImageGeneration{ID: 1, UserID: 1, Status: imageStudioStatusPending, CreatedAt: time.Now().Add(-time.Hour)}
+	fresh := &dbent.ImageGeneration{ID: 2, UserID: 1, Status: imageStudioStatusPending, CreatedAt: time.Now()}
+	s.generations[1] = old
+	s.generations[2] = fresh
+
+	n, err := s.FailStaleGenerations(context.Background(), time.Now().Add(-30*time.Minute), 100, "interrupted", ImageStudioErrCodeInterrupted)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, imageStudioStatusFailed, old.Status)
+	require.Equal(t, imageStudioStatusPending, fresh.Status, "fresh pending untouched")
 }

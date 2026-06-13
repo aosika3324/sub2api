@@ -945,6 +945,7 @@ var (
 		{Name: "width", Type: field.TypeInt, Nullable: true},
 		{Name: "height", Type: field.TypeInt, Nullable: true},
 		{Name: "error", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "error_code", Type: field.TypeString, Nullable: true, Size: 40},
 	}
 	// ImageGenerationsTable holds the schema information for the "image_generations" table.
 	ImageGenerationsTable = &schema.Table{
@@ -966,6 +967,11 @@ var (
 				Name:    "imagegeneration_deleted_at",
 				Unique:  false,
 				Columns: []*schema.Column{ImageGenerationsColumns[3]},
+			},
+			{
+				Name:    "imagegeneration_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ImageGenerationsColumns[13], ImageGenerationsColumns[1]},
 			},
 		},
 	}

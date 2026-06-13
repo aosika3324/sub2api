@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mime/multipart"
@@ -80,6 +82,10 @@ type ImageStudioStartResult struct {
 	Mode           string
 	InputImages    []string
 	Balance        float64
+	// EstimatedCost is the pre-computed cost for the accepted job, shown on the
+	// pending card so the user sees the charge before the background work
+	// finishes. The authoritative cost is persisted on completion.
+	EstimatedCost float64
 }
 
 // StudioGeneratedImage is one produced image returned by the studio image
@@ -155,6 +161,26 @@ type studioSubscriptionResolver interface {
 	GetActiveSubscription(ctx context.Context, userID, groupID int64) (*UserSubscription, error)
 }
 
+// studioModerator runs content moderation on the studio prompt + reference
+// images before any row is created or balance touched. Satisfied by
+// *ContentModerationService. Optional: a nil moderator skips the check.
+type studioModerator interface {
+	Check(ctx context.Context, input ContentModerationCheckInput) (*ContentModerationDecision, error)
+}
+
+// StudioUserLimiter caps the number of concurrent in-flight studio generations
+// per user. It is the per-user complement to the process-wide
+// ImageConcurrencyLimiter: it both bounds a single user's fan-out (DoS/cost) and
+// narrows the billing pre-check window so concurrent requests cannot overdraw.
+// Optional: a nil limiter (e.g. Redis unavailable / unit tests) skips the gate.
+type StudioUserLimiter interface {
+	// Acquire reserves one in-flight slot for userID. When the user already holds
+	// max slots it returns ok=false (release nil). The returned release frees the
+	// slot and is safe to call exactly once; ttl bounds the slot's lifetime so a
+	// crashed process self-heals.
+	Acquire(ctx context.Context, userID int64, max int, ttl time.Duration) (release func(), ok bool, err error)
+}
+
 // ---------------------------------------------------------------------------
 // Typed errors.
 // ---------------------------------------------------------------------------
@@ -186,7 +212,48 @@ var (
 	// ErrImageStudioInvalidModel is returned when the selected image model is not
 	// enabled for the workbench.
 	ErrImageStudioInvalidModel = errors.New("image studio: invalid image model")
+	// ErrImageStudioContentBlocked is returned when content moderation blocks the
+	// prompt and/or reference images. It is created per-request (carrying the
+	// moderation message + status) via newImageStudioContentBlockedError.
+	ErrImageStudioContentBlocked = errors.New("image studio: content blocked by moderation")
 )
+
+// imageStudioContentBlockedError wraps ErrImageStudioContentBlocked with the
+// moderation decision's user-facing message and HTTP status, so the handler can
+// return the same status/message the gateway path would.
+type imageStudioContentBlockedError struct {
+	message    string
+	statusCode int
+}
+
+func (e *imageStudioContentBlockedError) Error() string {
+	if e == nil || strings.TrimSpace(e.message) == "" {
+		return ErrImageStudioContentBlocked.Error()
+	}
+	return e.message
+}
+
+func (e *imageStudioContentBlockedError) Is(target error) bool {
+	return target == ErrImageStudioContentBlocked
+}
+
+// StatusCode exposes the moderation HTTP status (0 when unset → handler default).
+func (e *imageStudioContentBlockedError) StatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.statusCode
+}
+
+func newImageStudioContentBlockedError(decision *ContentModerationDecision) error {
+	if decision == nil {
+		return ErrImageStudioContentBlocked
+	}
+	return &imageStudioContentBlockedError{
+		message:    strings.TrimSpace(decision.Message),
+		statusCode: decision.StatusCode,
+	}
+}
 
 const (
 	imageStudioInboundEndpoint = "image_studio"
@@ -206,9 +273,27 @@ const (
 	imageStudioPruneInterval   = time.Hour
 	imageStudioPruneTimeout    = 2 * time.Minute
 	imageStudioPruneBatchSize  = 200
+	// imageStudioStalePendingTimeout is how long a generation may stay "pending"
+	// before the stale-pending sweep marks it failed. It must exceed
+	// imageStudioBackgroundTTL so an in-flight background generation is never
+	// reclaimed out from under itself.
+	imageStudioStalePendingTimeout = imageStudioBackgroundTTL + 5*time.Minute
 	// imageStudioMaxN caps the number of images per request, matching the OpenAI
 	// images endpoints' published limit. N is clamped (not rejected) to this.
 	imageStudioMaxN = 10
+)
+
+// Stable, machine-readable failure classifiers persisted on a failed generation
+// (image_generations.error_code) and surfaced to the frontend, which maps each
+// to a localized message. The raw human-facing detail stays in `error`.
+const (
+	ImageStudioErrCodeNoAccount     = "no_account"
+	ImageStudioErrCodeNoImages      = "no_images"
+	ImageStudioErrCodeContentBlock  = "content_blocked"
+	ImageStudioErrCodeInterrupted   = "interrupted"
+	ImageStudioErrCodeUpstreamError = "upstream_error"
+	ImageStudioErrCodeBusy          = "busy"
+	ImageStudioErrCodeStorage       = "storage_error"
 )
 
 // ---------------------------------------------------------------------------
@@ -227,6 +312,16 @@ type ImageStudioServiceDeps struct {
 	Subscriptions studioSubscriptionResolver
 	Repo          ImageStudioRepository
 	Store         ImageStore
+
+	// Moderation is the optional content-moderation gate. When non-nil the studio
+	// path checks the prompt + reference images before creating any row or
+	// touching balance; a blocked decision aborts with ErrImageStudioContentBlocked.
+	Moderation studioModerator
+
+	// UserLimiter is the optional per-user in-flight concurrency gate. When
+	// non-nil, MaxConcurrentPerUser (from cfg) bounds a single user's concurrent
+	// generations.
+	UserLimiter StudioUserLimiter
 
 	// Limiter + Cfg are optional. When Limiter is non-nil the studio path
 	// acquires an image-generation concurrency slot using the same config knobs
@@ -252,6 +347,8 @@ type ImageStudioService struct {
 	subscriptions studioSubscriptionResolver
 	repo          ImageStudioRepository
 	store         ImageStore
+	moderation    studioModerator
+	userLimiter   StudioUserLimiter
 	limiter       *ImageConcurrencyLimiter
 	cfg           *config.Config
 	lastPruneUnix atomic.Int64
@@ -270,6 +367,21 @@ type preparedImageStudioGeneration struct {
 	n              int
 	inputImages    []StudioInputImage
 	inputKeys      []string
+	estimatedCost  float64
+	// releaseUserSlot frees the per-user in-flight slot. It is acquired in
+	// prepareGeneration and held until finishPreparedGeneration completes (sync or
+	// background), so a user's concurrent fan-out is bounded across the whole job.
+	// nil when no per-user limiter is wired.
+	releaseUserSlot func()
+}
+
+// release frees the per-user slot exactly once (the underlying release is itself
+// idempotent, but this guards a nil prepared/func).
+func (p *preparedImageStudioGeneration) release() {
+	if p != nil && p.releaseUserSlot != nil {
+		p.releaseUserSlot()
+		p.releaseUserSlot = nil
+	}
 }
 
 // Compile-time assertions: the existing concrete services satisfy the studio
@@ -299,6 +411,8 @@ func NewImageStudioService(deps ImageStudioServiceDeps) *ImageStudioService {
 		subscriptions: deps.Subscriptions,
 		repo:          deps.Repo,
 		store:         deps.Store,
+		moderation:    deps.Moderation,
+		userLimiter:   deps.UserLimiter,
 		limiter:       deps.Limiter,
 		cfg:           deps.Cfg,
 	}
@@ -311,11 +425,44 @@ func (s *ImageStudioService) startExpiredImagePruner() {
 		return
 	}
 	s.PruneExpiredImagesThrottled()
+	s.failStalePending()
 	go func() {
 		ticker := time.NewTicker(imageStudioPruneInterval)
 		defer ticker.Stop()
 		for range ticker.C {
 			s.PruneExpiredImagesThrottled()
+			s.failStalePending()
+		}
+	}()
+}
+
+// failStalePending marks generations stuck in "pending" past
+// imageStudioStalePendingTimeout as failed. These are rows orphaned when the
+// process restarted mid-generation: their background goroutine is gone, so they
+// would otherwise be polled forever by the client. Best-effort and bounded.
+func (s *ImageStudioService) failStalePending() {
+	if s == nil || s.repo == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), imageStudioPruneTimeout)
+		defer cancel()
+		cutoff := time.Now().Add(-imageStudioStalePendingTimeout)
+		total := 0
+		for {
+			n, err := s.repo.FailStaleGenerations(ctx, cutoff, imageStudioPruneBatchSize,
+				"generation interrupted", ImageStudioErrCodeInterrupted)
+			if err != nil {
+				logger.LegacyPrintf("service.image_studio", "image_studio_fail_stale_pending_failed err=%v", err)
+				return
+			}
+			total += n
+			if n < imageStudioPruneBatchSize {
+				break
+			}
+		}
+		if total > 0 {
+			logger.LegacyPrintf("service.image_studio", "image_studio_failed_stale_pending count=%d", total)
 		}
 	}()
 }
@@ -383,6 +530,9 @@ func (s *ImageStudioService) Generate(ctx context.Context, userID int64, in Imag
 	if err != nil {
 		return nil, err
 	}
+	// Synchronous path: the per-user slot acquired in prepareGeneration is held
+	// for the duration of this generation and released here.
+	defer prepared.release()
 	return s.finishPreparedGeneration(ctx, prepared)
 }
 
@@ -402,10 +552,15 @@ func (s *ImageStudioService) StartGenerate(ctx context.Context, userID int64, in
 		Mode:           prepared.input.Mode,
 		InputImages:    prepared.inputKeys,
 		Balance:        s.readBalance(ctx, userID, prepared.user.Balance),
+		EstimatedCost:  prepared.estimatedCost,
 	}, nil
 }
 
 func (s *ImageStudioService) finishPreparedGenerationInBackground(prepared *preparedImageStudioGeneration) {
+	// The per-user slot is held from prepareGeneration through the end of the
+	// background work, then released here exactly once.
+	defer prepared.release()
+
 	ctx, cancel := context.WithTimeout(context.Background(), imageStudioBackgroundTTL)
 	defer cancel()
 
@@ -450,6 +605,30 @@ func (s *ImageStudioService) prepareGeneration(ctx context.Context, userID int64
 		return nil, err
 	}
 	in.Model = model
+
+	// --- Step 1c: content moderation (fail fast: no row, no storage, no bill). ---
+	// Runs before EnsureStudioAPIKey/billing so a blocked prompt or reference image
+	// never creates a generation row or touches the account pool — mirroring the
+	// gateway path's pre-block, scoped to this user/group/model.
+	if err := s.moderateStudioRequest(ctx, user, group, in, inputImages, reqLog); err != nil {
+		return nil, err
+	}
+
+	// --- Step 1d: acquire the per-user in-flight slot. ---
+	// Held until the (sync or background) generation finishes, bounding a single
+	// user's concurrent fan-out and narrowing the billing pre-check window so
+	// concurrent requests cannot overdraw. Released here on any prepare failure;
+	// ownership transfers to the prepared struct on success (committed).
+	releaseUserSlot, err := s.acquireUserSlot(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	committed := false
+	defer func() {
+		if !committed && releaseUserSlot != nil {
+			releaseUserSlot()
+		}
+	}()
 
 	// --- Step 2: billing eligibility pre-flight (balance/quota). ---
 	// The synthetic key models the (user, group) identity the image path bills
@@ -535,19 +714,27 @@ func (s *ImageStudioService) prepareGeneration(ctx context.Context, userID int64
 		}
 	}
 
+	// Estimate the cost now (size/quality/N are known) so the pending card can
+	// show the charge before the background work finishes. Best-effort: a zero
+	// estimate (e.g. pricing unavailable) simply omits the figure.
+	estimatedCost := s.estimateCost(ctx, user, apiKey, in, n)
+
+	committed = true
 	return &preparedImageStudioGeneration{
-		user:           user,
-		group:          group,
-		apiKey:         apiKey,
-		subscription:   subscription,
-		reqLog:         reqLog.With(zap.Int64("generation_id", genID)),
-		userID:         userID,
-		conversationID: conversationID,
-		generationID:   genID,
-		input:          in,
-		n:              n,
-		inputImages:    inputImages,
-		inputKeys:      inputKeys,
+		user:            user,
+		group:           group,
+		apiKey:          apiKey,
+		subscription:    subscription,
+		reqLog:          reqLog.With(zap.Int64("generation_id", genID)),
+		userID:          userID,
+		conversationID:  conversationID,
+		generationID:    genID,
+		input:           in,
+		n:               n,
+		inputImages:     inputImages,
+		inputKeys:       inputKeys,
+		estimatedCost:   estimatedCost,
+		releaseUserSlot: releaseUserSlot,
 	}, nil
 }
 
@@ -679,7 +866,14 @@ func (s *ImageStudioService) finishPreparedGeneration(ctx context.Context, prepa
 	}
 
 	// --- Step 7: persist succeeded. ---
-	if err := s.repo.UpdateGenerationStatus(ctx, genID, imageStudioStatusSucceeded, keys, cost, len(images), width, height, ""); err != nil {
+	if err := s.repo.UpdateGenerationStatus(ctx, genID, GenerationStatusUpdate{
+		Status:      imageStudioStatusSucceeded,
+		StorageKeys: keys,
+		Cost:        cost,
+		ImageCount:  len(images),
+		Width:       width,
+		Height:      height,
+	}); err != nil {
 		reqLog.Error("image_studio.update_generation_succeeded_failed",
 			zap.Int64("generation_id", genID),
 			zap.Error(err),
@@ -717,6 +911,91 @@ func (s *ImageStudioService) resolveAllowedGroup(ctx context.Context, userID, gr
 		}
 	}
 	return nil, ErrImageStudioGroupNotAllowed
+}
+
+// moderateStudioRequest runs content moderation on the studio prompt + reference
+// images. It is a no-op when no moderator is wired. A blocked decision returns
+// ErrImageStudioContentBlocked (carrying the moderation message/status); a
+// moderation error is non-fatal (request proceeds), matching the gateway path
+// which fails open so a moderation outage never blocks all traffic.
+func (s *ImageStudioService) moderateStudioRequest(ctx context.Context, user *User, group *Group, in ImageStudioGenerateInput, inputImages []StudioInputImage, reqLog *zap.Logger) error {
+	if s.moderation == nil {
+		return nil
+	}
+	body, err := buildStudioModerationBody(in.Prompt, inputImages)
+	if err != nil || len(body) == 0 {
+		// Nothing to moderate (no prompt/images) or marshal failure → skip.
+		return nil
+	}
+
+	checkInput := ContentModerationCheckInput{
+		UserID:   user.ID,
+		Endpoint: imageStudioInboundEndpoint,
+		Provider: group.Platform,
+		Model:    in.Model,
+		Protocol: ContentModerationProtocolOpenAIImages,
+		Body:     body,
+	}
+	checkInput.UserEmail = user.Email
+	gid := group.ID
+	checkInput.GroupID = &gid
+	checkInput.GroupName = group.Name
+
+	decision, checkErr := s.moderation.Check(ctx, checkInput)
+	if checkErr != nil {
+		reqLog.Warn("image_studio.moderation_check_failed", zap.Error(checkErr))
+		return nil // fail open
+	}
+	if decision != nil && decision.Blocked {
+		reqLog.Info("image_studio.moderation_blocked",
+			zap.String("highest_category", decision.HighestCategory),
+			zap.Float64("highest_score", decision.HighestScore),
+			zap.Int("status_code", decision.StatusCode),
+		)
+		return newImageStudioContentBlockedError(decision)
+	}
+	return nil
+}
+
+// buildStudioModerationBody builds the {prompt, images} JSON body the
+// ContentModerationProtocolOpenAIImages extractor understands. Reference images
+// are encoded as data URLs (same shape the gateway moderation uses).
+func buildStudioModerationBody(prompt string, inputImages []StudioInputImage) ([]byte, error) {
+	payload := map[string]any{}
+	if p := strings.TrimSpace(prompt); p != "" {
+		payload["prompt"] = p
+	}
+	if len(inputImages) > 0 {
+		images := make([]string, 0, len(inputImages))
+		for _, img := range inputImages {
+			if dataURL := studioInputImageDataURL(img); dataURL != "" {
+				images = append(images, dataURL)
+			}
+		}
+		if len(images) > 0 {
+			payload["images"] = images
+		}
+	}
+	if len(payload) == 0 {
+		return nil, nil
+	}
+	return json.Marshal(payload)
+}
+
+// studioInputImageDataURL renders a reference image as a data: URL, inferring the
+// content type when absent. Returns "" for non-image payloads.
+func studioInputImageDataURL(img StudioInputImage) string {
+	if len(img.Data) == 0 {
+		return ""
+	}
+	contentType := strings.TrimSpace(img.ContentType)
+	if contentType == "" {
+		contentType = http.DetectContentType(img.Data)
+	}
+	if !strings.HasPrefix(strings.ToLower(contentType), "image/") {
+		return ""
+	}
+	return fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(img.Data))
 }
 
 // resolveConversation returns the existing conversation ID or creates a new one
@@ -986,7 +1265,8 @@ func (s *ImageStudioService) logGenerationNoLongerActive(reqLog *zap.Logger, gen
 
 // markFailed records a failed generation; storage/usage are intentionally not
 // touched. Errors from the status write are logged, not propagated (the caller
-// already has a terminal error to return).
+// already has a terminal error to return). The raw cause goes into `error`; a
+// stable classifier into `error_code` for the frontend to localize.
 func (s *ImageStudioService) markFailed(ctx context.Context, genID int64, cause error, reqLog *zap.Logger) {
 	if ctx == nil || ctx.Err() != nil {
 		fallbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -997,11 +1277,39 @@ func (s *ImageStudioService) markFailed(ctx context.Context, genID int64, cause 
 	if cause != nil {
 		msg = cause.Error()
 	}
-	if err := s.repo.UpdateGenerationStatus(ctx, genID, imageStudioStatusFailed, nil, 0, 0, 0, 0, msg); err != nil {
+	if err := s.repo.UpdateGenerationStatus(ctx, genID, GenerationStatusUpdate{
+		Status:  imageStudioStatusFailed,
+		ErrMsg:  msg,
+		ErrCode: classifyImageStudioError(cause),
+	}); err != nil {
 		reqLog.Error("image_studio.update_generation_failed_failed",
 			zap.Int64("generation_id", genID),
 			zap.Error(err),
 		)
+	}
+}
+
+// classifyImageStudioError maps a terminal error to a stable error_code the
+// frontend localizes. Unrecognized errors fall back to upstream_error.
+func classifyImageStudioError(cause error) string {
+	switch {
+	case cause == nil:
+		return ""
+	case errors.Is(cause, ErrImageStudioContentBlocked):
+		return ImageStudioErrCodeContentBlock
+	case errors.Is(cause, ErrImageStudioNoAccount):
+		return ImageStudioErrCodeNoAccount
+	case errors.Is(cause, ErrImageStudioNoImages):
+		return ImageStudioErrCodeNoImages
+	case errors.Is(cause, ErrImageStudioBusy):
+		return ImageStudioErrCodeBusy
+	default:
+		// Storage failures are wrapped with this prefix in finishPreparedGeneration.
+		if strings.Contains(cause.Error(), "image studio: store image") ||
+			strings.Contains(cause.Error(), "image studio: store input image") {
+			return ImageStudioErrCodeStorage
+		}
+		return ImageStudioErrCodeUpstreamError
 	}
 }
 
@@ -1049,6 +1357,50 @@ func (s *ImageStudioService) acquireSlot(ctx context.Context) (func(), bool) {
 		time.Duration(ic.WaitTimeoutSeconds)*time.Second,
 		ic.MaxWaitingRequests,
 	)
+}
+
+// acquireUserSlot reserves a per-user in-flight slot. It returns a release func
+// (nil when no per-user limit applies) and an error only when the user is over
+// their concurrency cap (ErrImageStudioBusy → 429). A nil limiter, missing cfg,
+// or non-positive cap disables the gate.
+func (s *ImageStudioService) acquireUserSlot(ctx context.Context, userID int64) (func(), error) {
+	if s.userLimiter == nil || s.cfg == nil {
+		return nil, nil
+	}
+	maxPerUser := s.cfg.Gateway.ImageStudio.MaxConcurrentPerUser
+	if maxPerUser <= 0 {
+		return nil, nil
+	}
+	release, ok, err := s.userLimiter.Acquire(ctx, userID, maxPerUser, imageStudioStalePendingTimeout)
+	if err != nil {
+		// A limiter backend error must not block generation (fail open), matching
+		// the moderation/concurrency philosophy.
+		logger.LegacyPrintf("service.image_studio", "image_studio_user_slot_acquire_failed user_id=%d err=%v", userID, err)
+		return nil, nil
+	}
+	if !ok {
+		return nil, ErrImageStudioBusy
+	}
+	return release, nil
+}
+
+// estimateCost prices a not-yet-run generation from its request params (size /
+// quality / N / model), using the same image-cost path as the post-generation
+// charge. Best-effort: returns 0 when no resolver is wired or pricing is
+// unavailable. The authoritative cost is still computed + persisted on success.
+func (s *ImageStudioService) estimateCost(ctx context.Context, user *User, apiKey *APIKey, in ImageStudioGenerateInput, n int) float64 {
+	if s.costResolver == nil || n <= 0 {
+		return 0
+	}
+	model, _ := normalizeStudioPipelineModel(in.Model)
+	size := strings.TrimSpace(in.Size)
+	result := &OpenAIForwardResult{
+		Model:          model,
+		ImageCount:     n,
+		ImageInputSize: size,
+		ImageSize:      normalizeOpenAIImageSizeTier(size),
+	}
+	return s.computeCost(ctx, result, user, apiKey)
 }
 
 // resolveActiveSubscription loads the active subscription for (userID, group)

@@ -55,7 +55,9 @@ type ImageGeneration struct {
 	// Height holds the value of the "height" field.
 	Height *int `json:"height,omitempty"`
 	// Error holds the value of the "error" field.
-	Error        *string `json:"error,omitempty"`
+	Error *string `json:"error,omitempty"`
+	// ErrorCode holds the value of the "error_code" field.
+	ErrorCode    *string `json:"error_code,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -70,7 +72,7 @@ func (*ImageGeneration) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case imagegeneration.FieldID, imagegeneration.FieldUserID, imagegeneration.FieldConversationID, imagegeneration.FieldGroupID, imagegeneration.FieldN, imagegeneration.FieldImageCount, imagegeneration.FieldWidth, imagegeneration.FieldHeight:
 			values[i] = new(sql.NullInt64)
-		case imagegeneration.FieldPrompt, imagegeneration.FieldModel, imagegeneration.FieldSize, imagegeneration.FieldQuality, imagegeneration.FieldStatus, imagegeneration.FieldError:
+		case imagegeneration.FieldPrompt, imagegeneration.FieldModel, imagegeneration.FieldSize, imagegeneration.FieldQuality, imagegeneration.FieldStatus, imagegeneration.FieldError, imagegeneration.FieldErrorCode:
 			values[i] = new(sql.NullString)
 		case imagegeneration.FieldCreatedAt, imagegeneration.FieldUpdatedAt, imagegeneration.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -217,6 +219,13 @@ func (_m *ImageGeneration) assignValues(columns []string, values []any) error {
 				_m.Error = new(string)
 				*_m.Error = value.String
 			}
+		case imagegeneration.FieldErrorCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field error_code", values[i])
+			} else if value.Valid {
+				_m.ErrorCode = new(string)
+				*_m.ErrorCode = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -315,6 +324,11 @@ func (_m *ImageGeneration) String() string {
 	builder.WriteString(", ")
 	if v := _m.Error; v != nil {
 		builder.WriteString("error=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ErrorCode; v != nil {
+		builder.WriteString("error_code=")
 		builder.WriteString(*v)
 	}
 	builder.WriteByte(')')

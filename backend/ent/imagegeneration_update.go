@@ -361,6 +361,26 @@ func (_u *ImageGenerationUpdate) ClearError() *ImageGenerationUpdate {
 	return _u
 }
 
+// SetErrorCode sets the "error_code" field.
+func (_u *ImageGenerationUpdate) SetErrorCode(v string) *ImageGenerationUpdate {
+	_u.mutation.SetErrorCode(v)
+	return _u
+}
+
+// SetNillableErrorCode sets the "error_code" field if the given value is not nil.
+func (_u *ImageGenerationUpdate) SetNillableErrorCode(v *string) *ImageGenerationUpdate {
+	if v != nil {
+		_u.SetErrorCode(*v)
+	}
+	return _u
+}
+
+// ClearErrorCode clears the value of the "error_code" field.
+func (_u *ImageGenerationUpdate) ClearErrorCode() *ImageGenerationUpdate {
+	_u.mutation.ClearErrorCode()
+	return _u
+}
+
 // Mutation returns the ImageGenerationMutation object of the builder.
 func (_u *ImageGenerationUpdate) Mutation() *ImageGenerationMutation {
 	return _u.mutation
@@ -428,6 +448,11 @@ func (_u *ImageGenerationUpdate) check() error {
 	if v, ok := _u.mutation.Status(); ok {
 		if err := imagegeneration.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "ImageGeneration.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ErrorCode(); ok {
+		if err := imagegeneration.ErrorCodeValidator(v); err != nil {
+			return &ValidationError{Name: "error_code", err: fmt.Errorf(`ent: validator failed for field "ImageGeneration.error_code": %w`, err)}
 		}
 	}
 	return nil
@@ -550,6 +575,12 @@ func (_u *ImageGenerationUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if _u.mutation.ErrorCleared() {
 		_spec.ClearField(imagegeneration.FieldError, field.TypeString)
+	}
+	if value, ok := _u.mutation.ErrorCode(); ok {
+		_spec.SetField(imagegeneration.FieldErrorCode, field.TypeString, value)
+	}
+	if _u.mutation.ErrorCodeCleared() {
+		_spec.ClearField(imagegeneration.FieldErrorCode, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -903,6 +934,26 @@ func (_u *ImageGenerationUpdateOne) ClearError() *ImageGenerationUpdateOne {
 	return _u
 }
 
+// SetErrorCode sets the "error_code" field.
+func (_u *ImageGenerationUpdateOne) SetErrorCode(v string) *ImageGenerationUpdateOne {
+	_u.mutation.SetErrorCode(v)
+	return _u
+}
+
+// SetNillableErrorCode sets the "error_code" field if the given value is not nil.
+func (_u *ImageGenerationUpdateOne) SetNillableErrorCode(v *string) *ImageGenerationUpdateOne {
+	if v != nil {
+		_u.SetErrorCode(*v)
+	}
+	return _u
+}
+
+// ClearErrorCode clears the value of the "error_code" field.
+func (_u *ImageGenerationUpdateOne) ClearErrorCode() *ImageGenerationUpdateOne {
+	_u.mutation.ClearErrorCode()
+	return _u
+}
+
 // Mutation returns the ImageGenerationMutation object of the builder.
 func (_u *ImageGenerationUpdateOne) Mutation() *ImageGenerationMutation {
 	return _u.mutation
@@ -983,6 +1034,11 @@ func (_u *ImageGenerationUpdateOne) check() error {
 	if v, ok := _u.mutation.Status(); ok {
 		if err := imagegeneration.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "ImageGeneration.status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ErrorCode(); ok {
+		if err := imagegeneration.ErrorCodeValidator(v); err != nil {
+			return &ValidationError{Name: "error_code", err: fmt.Errorf(`ent: validator failed for field "ImageGeneration.error_code": %w`, err)}
 		}
 	}
 	return nil
@@ -1122,6 +1178,12 @@ func (_u *ImageGenerationUpdateOne) sqlSave(ctx context.Context) (_node *ImageGe
 	}
 	if _u.mutation.ErrorCleared() {
 		_spec.ClearField(imagegeneration.FieldError, field.TypeString)
+	}
+	if value, ok := _u.mutation.ErrorCode(); ok {
+		_spec.SetField(imagegeneration.FieldErrorCode, field.TypeString, value)
+	}
+	if _u.mutation.ErrorCodeCleared() {
+		_spec.ClearField(imagegeneration.FieldErrorCode, field.TypeString)
 	}
 	_node = &ImageGeneration{config: _u.config}
 	_spec.Assign = _node.assignValues

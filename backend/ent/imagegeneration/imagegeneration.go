@@ -52,6 +52,8 @@ const (
 	FieldHeight = "height"
 	// FieldError holds the string denoting the error field in the database.
 	FieldError = "error"
+	// FieldErrorCode holds the string denoting the error_code field in the database.
+	FieldErrorCode = "error_code"
 	// Table holds the table name of the imagegeneration in the database.
 	Table = "image_generations"
 )
@@ -78,6 +80,7 @@ var Columns = []string{
 	FieldWidth,
 	FieldHeight,
 	FieldError,
+	FieldErrorCode,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -126,6 +129,8 @@ var (
 	StatusValidator func(string) error
 	// DefaultCost holds the default value on creation for the "cost" field.
 	DefaultCost float64
+	// ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
+	ErrorCodeValidator func(string) error
 )
 
 // OrderOption defines the ordering options for the ImageGeneration queries.
@@ -219,4 +224,9 @@ func ByHeight(opts ...sql.OrderTermOption) OrderOption {
 // ByError orders the results by the error field.
 func ByError(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldError, opts...).ToFunc()
+}
+
+// ByErrorCode orders the results by the error_code field.
+func ByErrorCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldErrorCode, opts...).ToFunc()
 }
