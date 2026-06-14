@@ -797,11 +797,11 @@
   }
 
   .dark {
-    --ui-bg: #14110d;
-    --ui-surface: #29241d;
-    --ui-surface-muted: #322c23;
-    --ui-border: #3d372f;
-    --ui-border-strong: #524b40;
+    --ui-bg: #120f0b;
+    --ui-surface: #1f1a14;
+    --ui-surface-muted: #272118;
+    --ui-border: #342e26;
+    --ui-border-strong: #473f34;
     --ui-text: #f5f2ea;
     --ui-muted: #b5ac9c;
     --ui-faint: #847a6b;
