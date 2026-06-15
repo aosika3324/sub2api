@@ -107,6 +107,7 @@ type Group struct {
 	SoraImagePrice540          *float64 `json:"sora_image_price_540"`
 	SoraVideoPricePerRequest   *float64 `json:"sora_video_price_per_request"`
 	SoraVideoPricePerRequestHD *float64 `json:"sora_video_price_per_request_hd"`
+	VeoVideoPricePerSecond     *float64 `json:"veo_video_price_per_second"`
 	SoraStorageQuotaBytes      int64    `json:"sora_storage_quota_bytes"`
 
 	// Claude Code 客户端限制

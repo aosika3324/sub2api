@@ -175,6 +175,11 @@ func SoraVideoPricePerRequestHd(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSoraVideoPricePerRequestHd, v))
 }
 
+// VeoVideoPricePerSecond applies equality check predicate on the "veo_video_price_per_second" field. It's identical to VeoVideoPricePerSecondEQ.
+func VeoVideoPricePerSecond(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldVeoVideoPricePerSecond, v))
+}
+
 // SoraStorageQuotaBytes applies equality check predicate on the "sora_storage_quota_bytes" field. It's identical to SoraStorageQuotaBytesEQ.
 func SoraStorageQuotaBytes(v int64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSoraStorageQuotaBytes, v))
@@ -1353,6 +1358,56 @@ func SoraVideoPricePerRequestHdIsNil() predicate.Group {
 // SoraVideoPricePerRequestHdNotNil applies the NotNil predicate on the "sora_video_price_per_request_hd" field.
 func SoraVideoPricePerRequestHdNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldSoraVideoPricePerRequestHd))
+}
+
+// VeoVideoPricePerSecondEQ applies the EQ predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldVeoVideoPricePerSecond, v))
+}
+
+// VeoVideoPricePerSecondNEQ applies the NEQ predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldVeoVideoPricePerSecond, v))
+}
+
+// VeoVideoPricePerSecondIn applies the In predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldVeoVideoPricePerSecond, vs...))
+}
+
+// VeoVideoPricePerSecondNotIn applies the NotIn predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldVeoVideoPricePerSecond, vs...))
+}
+
+// VeoVideoPricePerSecondGT applies the GT predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldVeoVideoPricePerSecond, v))
+}
+
+// VeoVideoPricePerSecondGTE applies the GTE predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldVeoVideoPricePerSecond, v))
+}
+
+// VeoVideoPricePerSecondLT applies the LT predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldVeoVideoPricePerSecond, v))
+}
+
+// VeoVideoPricePerSecondLTE applies the LTE predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldVeoVideoPricePerSecond, v))
+}
+
+// VeoVideoPricePerSecondIsNil applies the IsNil predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldVeoVideoPricePerSecond))
+}
+
+// VeoVideoPricePerSecondNotNil applies the NotNil predicate on the "veo_video_price_per_second" field.
+func VeoVideoPricePerSecondNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldVeoVideoPricePerSecond))
 }
 
 // SoraStorageQuotaBytesEQ applies the EQ predicate on the "sora_storage_quota_bytes" field.

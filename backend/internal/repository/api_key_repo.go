@@ -832,6 +832,7 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		SoraImagePrice540:               g.SoraImagePrice540,
 		SoraVideoPricePerRequest:        g.SoraVideoPricePerRequest,
 		SoraVideoPricePerRequestHD:      g.SoraVideoPricePerRequestHd,
+		VeoVideoPricePerSecond:          g.VeoVideoPricePerSecond,
 		SoraStorageQuotaBytes:           g.SoraStorageQuotaBytes,
 		DefaultValidityDays:             g.DefaultValidityDays,
 		ClaudeCodeOnly:                  g.ClaudeCodeOnly,

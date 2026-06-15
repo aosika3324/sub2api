@@ -59,6 +59,7 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetNillableSoraImagePrice540(groupIn.SoraImagePrice540).
 		SetNillableSoraVideoPricePerRequest(groupIn.SoraVideoPricePerRequest).
 		SetNillableSoraVideoPricePerRequestHd(groupIn.SoraVideoPricePerRequestHD).
+		SetNillableVeoVideoPricePerSecond(groupIn.VeoVideoPricePerSecond).
 		SetSoraStorageQuotaBytes(groupIn.SoraStorageQuotaBytes).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
@@ -143,6 +144,7 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetNillableSoraImagePrice540(groupIn.SoraImagePrice540).
 		SetNillableSoraVideoPricePerRequest(groupIn.SoraVideoPricePerRequest).
 		SetNillableSoraVideoPricePerRequestHd(groupIn.SoraVideoPricePerRequestHD).
+		SetNillableVeoVideoPricePerSecond(groupIn.VeoVideoPricePerSecond).
 		SetSoraStorageQuotaBytes(groupIn.SoraStorageQuotaBytes).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
@@ -207,6 +209,11 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		builder = builder.SetSoraVideoPricePerRequestHd(*groupIn.SoraVideoPricePerRequestHD)
 	} else {
 		builder = builder.ClearSoraVideoPricePerRequestHd()
+	}
+	if groupIn.VeoVideoPricePerSecond != nil {
+		builder = builder.SetVeoVideoPricePerSecond(*groupIn.VeoVideoPricePerSecond)
+	} else {
+		builder = builder.ClearVeoVideoPricePerSecond()
 	}
 
 	// 处理 FallbackGroupID：nil 时清除，否则设置

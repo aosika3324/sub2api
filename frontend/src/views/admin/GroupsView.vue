@@ -476,6 +476,27 @@
             </p>
           </div>
         </div>
+        <div v-if="createForm.platform === 'gemini'" class="border-t pt-4">
+          <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+            {{ t("admin.groups.veoPricing.title") }}
+          </label>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            {{ t("admin.groups.veoPricing.description") }}
+          </p>
+          <div>
+            <label class="input-label">{{
+              t("admin.groups.veoPricing.videoPerSecond")
+            }}</label>
+            <input
+              v-model.number="createForm.veo_video_price_per_second"
+              type="number"
+              step="0.001"
+              min="0"
+              class="input"
+              placeholder="0.4"
+            />
+          </div>
+        </div>
         <!-- 从分组复制账号 -->
         <div v-if="copyAccountsGroupOptions.length > 0">
           <div class="mb-1.5 flex items-center gap-1">
@@ -1906,6 +1927,27 @@
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {{ t("admin.groups.soraPricing.storageQuotaHint") }}
             </p>
+          </div>
+        </div>
+        <div v-if="editForm.platform === 'gemini'" class="border-t pt-4">
+          <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+            {{ t("admin.groups.veoPricing.title") }}
+          </label>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            {{ t("admin.groups.veoPricing.description") }}
+          </p>
+          <div>
+            <label class="input-label">{{
+              t("admin.groups.veoPricing.videoPerSecond")
+            }}</label>
+            <input
+              v-model.number="editForm.veo_video_price_per_second"
+              type="number"
+              step="0.001"
+              min="0"
+              class="input"
+              placeholder="0.5"
+            />
           </div>
         </div>
         <!-- 从分组复制账号（编辑时） -->
@@ -3640,6 +3682,7 @@ const createForm = reactive({
   sora_image_price_540: null as number | null,
   sora_video_price_per_request: null as number | null,
   sora_video_price_per_request_hd: null as number | null,
+  veo_video_price_per_second: null as number | null,
   sora_storage_quota_gb: null as number | null,
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
@@ -3977,6 +4020,7 @@ const editForm = reactive({
   sora_image_price_540: null as number | null,
   sora_video_price_per_request: null as number | null,
   sora_video_price_per_request_hd: null as number | null,
+  veo_video_price_per_second: null as number | null,
   sora_storage_quota_gb: null as number | null,
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
@@ -4234,6 +4278,7 @@ const closeCreateModal = () => {
   createForm.sora_image_price_540 = null;
   createForm.sora_video_price_per_request = null;
   createForm.sora_video_price_per_request_hd = null;
+  createForm.veo_video_price_per_second = null;
   createForm.sora_storage_quota_gb = null;
   createForm.claude_code_only = false;
   createForm.simulate_claude_max_enabled = false;
@@ -4388,6 +4433,7 @@ const handleEdit = async (group: AdminGroup) => {
     group.sora_video_price_per_request ?? null;
   editForm.sora_video_price_per_request_hd =
     group.sora_video_price_per_request_hd ?? null;
+  editForm.veo_video_price_per_second = group.veo_video_price_per_second ?? null;
   editForm.sora_storage_quota_gb = group.sora_storage_quota_bytes
     ? Number((group.sora_storage_quota_bytes / (1024 * 1024 * 1024)).toFixed(2))
     : null;
@@ -4440,6 +4486,7 @@ const closeEditModal = () => {
   editForm.sora_image_price_540 = null;
   editForm.sora_video_price_per_request = null;
   editForm.sora_video_price_per_request_hd = null;
+  editForm.veo_video_price_per_second = null;
   editForm.sora_storage_quota_gb = null;
   editForm.simulate_claude_max_enabled = false;
   editForm.copy_accounts_from_group_ids = [];

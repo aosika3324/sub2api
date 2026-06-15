@@ -528,6 +528,8 @@ export interface Group {
   sora_image_price_540: number | null
   sora_video_price_per_request: number | null
   sora_video_price_per_request_hd: number | null
+  // Veo 按秒计费
+  veo_video_price_per_second: number | null
   sora_storage_quota_bytes: number
   // Claude Code 客户端限制
   claude_code_only: boolean
@@ -653,6 +655,8 @@ export interface CreateGroupRequest {
   sora_image_price_540?: number | null
   sora_video_price_per_request?: number | null
   sora_video_price_per_request_hd?: number | null
+  // Veo 按秒计费
+  veo_video_price_per_second?: number | null
   sora_storage_quota_bytes?: number
   claude_code_only?: boolean
   fallback_group_id?: number | null
@@ -694,6 +698,8 @@ export interface UpdateGroupRequest {
   sora_image_price_540?: number | null
   sora_video_price_per_request?: number | null
   sora_video_price_per_request_hd?: number | null
+  // Veo 按秒计费
+  veo_video_price_per_second?: number | null
   sora_storage_quota_bytes?: number
   claude_code_only?: boolean
   fallback_group_id?: number | null

@@ -2495,6 +2495,11 @@ export default {
         storageQuota: '存储配额',
         storageQuotaHint: '单位 GB，设置该分组用户的 Sora 存储配额上限，0 表示使用系统默认'
       },
+      veoPricing: {
+        title: 'Veo 视频计费（按秒）',
+        description: '配置 Veo 视频生成的每秒单价，留空则默认不计费',
+        videoPerSecond: '视频单价（每秒 $）'
+      },
       claudeMaxSimulation: {
         title: 'Claude Max 用量模拟',
         tooltip:

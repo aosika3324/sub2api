@@ -357,6 +357,20 @@ func (_c *GroupCreate) SetNillableSoraVideoPricePerRequestHd(v *float64) *GroupC
 	return _c
 }
 
+// SetVeoVideoPricePerSecond sets the "veo_video_price_per_second" field.
+func (_c *GroupCreate) SetVeoVideoPricePerSecond(v float64) *GroupCreate {
+	_c.mutation.SetVeoVideoPricePerSecond(v)
+	return _c
+}
+
+// SetNillableVeoVideoPricePerSecond sets the "veo_video_price_per_second" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableVeoVideoPricePerSecond(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetVeoVideoPricePerSecond(*v)
+	}
+	return _c
+}
+
 // SetSoraStorageQuotaBytes sets the "sora_storage_quota_bytes" field.
 func (_c *GroupCreate) SetSoraStorageQuotaBytes(v int64) *GroupCreate {
 	_c.mutation.SetSoraStorageQuotaBytes(v)
@@ -1043,6 +1057,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldSoraVideoPricePerRequestHd, field.TypeFloat64, value)
 		_node.SoraVideoPricePerRequestHd = &value
 	}
+	if value, ok := _c.mutation.VeoVideoPricePerSecond(); ok {
+		_spec.SetField(group.FieldVeoVideoPricePerSecond, field.TypeFloat64, value)
+		_node.VeoVideoPricePerSecond = &value
+	}
 	if value, ok := _c.mutation.SoraStorageQuotaBytes(); ok {
 		_spec.SetField(group.FieldSoraStorageQuotaBytes, field.TypeInt64, value)
 		_node.SoraStorageQuotaBytes = value
@@ -1690,6 +1708,30 @@ func (u *GroupUpsert) AddSoraVideoPricePerRequestHd(v float64) *GroupUpsert {
 // ClearSoraVideoPricePerRequestHd clears the value of the "sora_video_price_per_request_hd" field.
 func (u *GroupUpsert) ClearSoraVideoPricePerRequestHd() *GroupUpsert {
 	u.SetNull(group.FieldSoraVideoPricePerRequestHd)
+	return u
+}
+
+// SetVeoVideoPricePerSecond sets the "veo_video_price_per_second" field.
+func (u *GroupUpsert) SetVeoVideoPricePerSecond(v float64) *GroupUpsert {
+	u.Set(group.FieldVeoVideoPricePerSecond, v)
+	return u
+}
+
+// UpdateVeoVideoPricePerSecond sets the "veo_video_price_per_second" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateVeoVideoPricePerSecond() *GroupUpsert {
+	u.SetExcluded(group.FieldVeoVideoPricePerSecond)
+	return u
+}
+
+// AddVeoVideoPricePerSecond adds v to the "veo_video_price_per_second" field.
+func (u *GroupUpsert) AddVeoVideoPricePerSecond(v float64) *GroupUpsert {
+	u.Add(group.FieldVeoVideoPricePerSecond, v)
+	return u
+}
+
+// ClearVeoVideoPricePerSecond clears the value of the "veo_video_price_per_second" field.
+func (u *GroupUpsert) ClearVeoVideoPricePerSecond() *GroupUpsert {
+	u.SetNull(group.FieldVeoVideoPricePerSecond)
 	return u
 }
 
@@ -2484,6 +2526,34 @@ func (u *GroupUpsertOne) UpdateSoraVideoPricePerRequestHd() *GroupUpsertOne {
 func (u *GroupUpsertOne) ClearSoraVideoPricePerRequestHd() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearSoraVideoPricePerRequestHd()
+	})
+}
+
+// SetVeoVideoPricePerSecond sets the "veo_video_price_per_second" field.
+func (u *GroupUpsertOne) SetVeoVideoPricePerSecond(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetVeoVideoPricePerSecond(v)
+	})
+}
+
+// AddVeoVideoPricePerSecond adds v to the "veo_video_price_per_second" field.
+func (u *GroupUpsertOne) AddVeoVideoPricePerSecond(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddVeoVideoPricePerSecond(v)
+	})
+}
+
+// UpdateVeoVideoPricePerSecond sets the "veo_video_price_per_second" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateVeoVideoPricePerSecond() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateVeoVideoPricePerSecond()
+	})
+}
+
+// ClearVeoVideoPricePerSecond clears the value of the "veo_video_price_per_second" field.
+func (u *GroupUpsertOne) ClearVeoVideoPricePerSecond() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearVeoVideoPricePerSecond()
 	})
 }
 
@@ -3486,6 +3556,34 @@ func (u *GroupUpsertBulk) UpdateSoraVideoPricePerRequestHd() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearSoraVideoPricePerRequestHd() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearSoraVideoPricePerRequestHd()
+	})
+}
+
+// SetVeoVideoPricePerSecond sets the "veo_video_price_per_second" field.
+func (u *GroupUpsertBulk) SetVeoVideoPricePerSecond(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetVeoVideoPricePerSecond(v)
+	})
+}
+
+// AddVeoVideoPricePerSecond adds v to the "veo_video_price_per_second" field.
+func (u *GroupUpsertBulk) AddVeoVideoPricePerSecond(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddVeoVideoPricePerSecond(v)
+	})
+}
+
+// UpdateVeoVideoPricePerSecond sets the "veo_video_price_per_second" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateVeoVideoPricePerSecond() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateVeoVideoPricePerSecond()
+	})
+}
+
+// ClearVeoVideoPricePerSecond clears the value of the "veo_video_price_per_second" field.
+func (u *GroupUpsertBulk) ClearVeoVideoPricePerSecond() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearVeoVideoPricePerSecond()
 	})
 }
 

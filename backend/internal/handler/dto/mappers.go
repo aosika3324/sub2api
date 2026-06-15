@@ -189,6 +189,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		SoraImagePrice540:               g.SoraImagePrice540,
 		SoraVideoPricePerRequest:        g.SoraVideoPricePerRequest,
 		SoraVideoPricePerRequestHD:      g.SoraVideoPricePerRequestHD,
+		VeoVideoPricePerSecond:          g.VeoVideoPricePerSecond,
 		SoraStorageQuotaBytes:           g.SoraStorageQuotaBytes,
 		ClaudeCodeOnly:                  g.ClaudeCodeOnly,
 		FallbackGroupID:                 g.FallbackGroupID,

@@ -513,6 +513,33 @@ func (_u *GroupUpdate) ClearSoraVideoPricePerRequestHd() *GroupUpdate {
 	return _u
 }
 
+// SetVeoVideoPricePerSecond sets the "veo_video_price_per_second" field.
+func (_u *GroupUpdate) SetVeoVideoPricePerSecond(v float64) *GroupUpdate {
+	_u.mutation.ResetVeoVideoPricePerSecond()
+	_u.mutation.SetVeoVideoPricePerSecond(v)
+	return _u
+}
+
+// SetNillableVeoVideoPricePerSecond sets the "veo_video_price_per_second" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableVeoVideoPricePerSecond(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetVeoVideoPricePerSecond(*v)
+	}
+	return _u
+}
+
+// AddVeoVideoPricePerSecond adds value to the "veo_video_price_per_second" field.
+func (_u *GroupUpdate) AddVeoVideoPricePerSecond(v float64) *GroupUpdate {
+	_u.mutation.AddVeoVideoPricePerSecond(v)
+	return _u
+}
+
+// ClearVeoVideoPricePerSecond clears the value of the "veo_video_price_per_second" field.
+func (_u *GroupUpdate) ClearVeoVideoPricePerSecond() *GroupUpdate {
+	_u.mutation.ClearVeoVideoPricePerSecond()
+	return _u
+}
+
 // SetSoraStorageQuotaBytes sets the "sora_storage_quota_bytes" field.
 func (_u *GroupUpdate) SetSoraStorageQuotaBytes(v int64) *GroupUpdate {
 	_u.mutation.ResetSoraStorageQuotaBytes()
@@ -1242,6 +1269,15 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.SoraVideoPricePerRequestHdCleared() {
 		_spec.ClearField(group.FieldSoraVideoPricePerRequestHd, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.VeoVideoPricePerSecond(); ok {
+		_spec.SetField(group.FieldVeoVideoPricePerSecond, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedVeoVideoPricePerSecond(); ok {
+		_spec.AddField(group.FieldVeoVideoPricePerSecond, field.TypeFloat64, value)
+	}
+	if _u.mutation.VeoVideoPricePerSecondCleared() {
+		_spec.ClearField(group.FieldVeoVideoPricePerSecond, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.SoraStorageQuotaBytes(); ok {
 		_spec.SetField(group.FieldSoraStorageQuotaBytes, field.TypeInt64, value)
@@ -2114,6 +2150,33 @@ func (_u *GroupUpdateOne) ClearSoraVideoPricePerRequestHd() *GroupUpdateOne {
 	return _u
 }
 
+// SetVeoVideoPricePerSecond sets the "veo_video_price_per_second" field.
+func (_u *GroupUpdateOne) SetVeoVideoPricePerSecond(v float64) *GroupUpdateOne {
+	_u.mutation.ResetVeoVideoPricePerSecond()
+	_u.mutation.SetVeoVideoPricePerSecond(v)
+	return _u
+}
+
+// SetNillableVeoVideoPricePerSecond sets the "veo_video_price_per_second" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableVeoVideoPricePerSecond(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetVeoVideoPricePerSecond(*v)
+	}
+	return _u
+}
+
+// AddVeoVideoPricePerSecond adds value to the "veo_video_price_per_second" field.
+func (_u *GroupUpdateOne) AddVeoVideoPricePerSecond(v float64) *GroupUpdateOne {
+	_u.mutation.AddVeoVideoPricePerSecond(v)
+	return _u
+}
+
+// ClearVeoVideoPricePerSecond clears the value of the "veo_video_price_per_second" field.
+func (_u *GroupUpdateOne) ClearVeoVideoPricePerSecond() *GroupUpdateOne {
+	_u.mutation.ClearVeoVideoPricePerSecond()
+	return _u
+}
+
 // SetSoraStorageQuotaBytes sets the "sora_storage_quota_bytes" field.
 func (_u *GroupUpdateOne) SetSoraStorageQuotaBytes(v int64) *GroupUpdateOne {
 	_u.mutation.ResetSoraStorageQuotaBytes()
@@ -2873,6 +2936,15 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.SoraVideoPricePerRequestHdCleared() {
 		_spec.ClearField(group.FieldSoraVideoPricePerRequestHd, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.VeoVideoPricePerSecond(); ok {
+		_spec.SetField(group.FieldVeoVideoPricePerSecond, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedVeoVideoPricePerSecond(); ok {
+		_spec.AddField(group.FieldVeoVideoPricePerSecond, field.TypeFloat64, value)
+	}
+	if _u.mutation.VeoVideoPricePerSecondCleared() {
+		_spec.ClearField(group.FieldVeoVideoPricePerSecond, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.SoraStorageQuotaBytes(); ok {
 		_spec.SetField(group.FieldSoraStorageQuotaBytes, field.TypeInt64, value)

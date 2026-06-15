@@ -574,6 +574,9 @@ type ForwardResult struct {
 	ImageOutputSizes   []string
 	ImageSizeSource    string
 	ImageSizeBreakdown map[string]int
+
+	// Veo 视频生成计费字段（按秒计费）
+	VideoDurationSeconds float64 // 完成时解析出的视频总时长（秒）
 }
 
 // UpstreamFailoverError indicates an upstream error that should trigger account failover.
@@ -9113,6 +9116,15 @@ func (s *GatewayService) calculateImageCost(
 }
 
 func (s *GatewayService) calculateSoraMediaCost(result *ForwardResult, apiKey *APIKey, multiplier float64) *CostBreakdown {
+	// Veo 视频按秒计费，独立于 Sora 按次计费。
+	if result.MediaType == "video" && IsVeoModel(result.Model) {
+		var pricePerSecond *float64
+		if apiKey != nil && apiKey.Group != nil {
+			pricePerSecond = apiKey.Group.VeoVideoPricePerSecond
+		}
+		return s.billingService.CalculateVeoVideoCost(pricePerSecond, result.VideoDurationSeconds, multiplier)
+	}
+
 	var soraConfig *SoraPriceConfig
 	if apiKey != nil && apiKey.Group != nil {
 		soraConfig = &SoraPriceConfig{

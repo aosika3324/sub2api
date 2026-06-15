@@ -212,6 +212,7 @@ type CreateGroupInput struct {
 	SoraImagePrice540          *float64
 	SoraVideoPricePerRequest   *float64
 	SoraVideoPricePerRequestHD *float64
+	VeoVideoPricePerSecond     *float64
 	SoraStorageQuotaBytes      int64
 	ClaudeCodeOnly             bool   // 仅允许 Claude Code 客户端
 	FallbackGroupID            *int64 // 降级分组 ID
@@ -259,6 +260,7 @@ type UpdateGroupInput struct {
 	SoraImagePrice540          *float64
 	SoraVideoPricePerRequest   *float64
 	SoraVideoPricePerRequestHD *float64
+	VeoVideoPricePerSecond     *float64
 	SoraStorageQuotaBytes      *int64
 	ClaudeCodeOnly             *bool  // 仅允许 Claude Code 客户端
 	FallbackGroupID            *int64 // 降级分组 ID
@@ -1819,6 +1821,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	soraImagePrice540 := normalizePrice(input.SoraImagePrice540)
 	soraVideoPrice := normalizePrice(input.SoraVideoPricePerRequest)
 	soraVideoPriceHD := normalizePrice(input.SoraVideoPricePerRequestHD)
+	veoVideoPrice := normalizePrice(input.VeoVideoPricePerSecond)
 	imageRateMultiplier := 1.0
 	if input.ImageRateMultiplier != nil {
 		if *input.ImageRateMultiplier < 0 {
@@ -1910,6 +1913,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		SoraImagePrice540:               soraImagePrice540,
 		SoraVideoPricePerRequest:        soraVideoPrice,
 		SoraVideoPricePerRequestHD:      soraVideoPriceHD,
+		VeoVideoPricePerSecond:          veoVideoPrice,
 		SoraStorageQuotaBytes:           input.SoraStorageQuotaBytes,
 		ClaudeCodeOnly:                  input.ClaudeCodeOnly,
 		FallbackGroupID:                 input.FallbackGroupID,
@@ -2118,6 +2122,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.SoraVideoPricePerRequestHD != nil {
 		group.SoraVideoPricePerRequestHD = normalizePrice(input.SoraVideoPricePerRequestHD)
+	}
+	if input.VeoVideoPricePerSecond != nil {
+		group.VeoVideoPricePerSecond = normalizePrice(input.VeoVideoPricePerSecond)
 	}
 	if input.SoraStorageQuotaBytes != nil {
 		group.SoraStorageQuotaBytes = *input.SoraStorageQuotaBytes

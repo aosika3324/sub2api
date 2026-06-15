@@ -78,6 +78,23 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 	writeUpstreamResponse(c, res)
 }
 
+// GeminiV1BetaModelsGET 是 GET /v1beta/models/* 的统一分发入口。
+//
+// Gin（httprouter）在同一前缀下不允许命名参数路由与 catch-all 共存，且会跨 HTTP 方法
+// 共享冲突检测树——已存在的 POST /models/*modelAction 会与 GET /models/:model 冲突。
+// 因此 GET 侧也统一用 catch-all，在此处按子路径解析分发：
+//   - /models/{model}                      -> GeminiV1BetaGetModel（模型详情）
+//   - /models/{model}/operations/{id}      -> GeminiV1BetaGetOperation（Veo 任务轮询）
+func (h *GatewayHandler) GeminiV1BetaModelsGET(c *gin.Context) {
+	rest := strings.TrimPrefix(strings.TrimSpace(c.Param("modelPath")), "/")
+	// Veo LRO 轮询：models/{model}/operations/{id}
+	if idx := strings.Index(rest, "/operations/"); idx > 0 {
+		h.GeminiV1BetaGetOperation(c)
+		return
+	}
+	h.GeminiV1BetaGetModel(c)
+}
+
 // GeminiV1BetaGetModel proxies:
 // GET /v1beta/models/{model}
 func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
@@ -93,7 +110,10 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		return
 	}
 
-	modelName := strings.TrimSpace(c.Param("model"))
+	modelName := strings.TrimPrefix(strings.TrimSpace(c.Param("modelPath")), "/")
+	if modelName == "" {
+		modelName = strings.TrimSpace(c.Param("model"))
+	}
 	if modelName == "" {
 		googleError(c, http.StatusBadRequest, "Missing model in URL")
 		return
@@ -189,6 +209,12 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 
 	if decision := h.checkContentModeration(c, reqLog, apiKey, authSubject, service.ContentModerationProtocolGemini, modelName, body); decision != nil && decision.Blocked {
 		googleError(c, contentModerationStatus(decision), decision.Message)
+		return
+	}
+
+	// Veo 视频生成（predictLongRunning）走独立的异步透传路径，不进入 generateContent 机制。
+	if service.IsVeoAction(action) {
+		h.handleVeoSubmit(c, reqLog, apiKey, authSubject, modelName, body)
 		return
 	}
 

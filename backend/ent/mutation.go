@@ -17762,6 +17762,8 @@ type GroupMutation struct {
 	addsora_video_price_per_request         *float64
 	sora_video_price_per_request_hd         *float64
 	addsora_video_price_per_request_hd      *float64
+	veo_video_price_per_second              *float64
+	addveo_video_price_per_second           *float64
 	sora_storage_quota_bytes                *int64
 	addsora_storage_quota_bytes             *int64
 	claude_code_only                        *bool
@@ -19197,6 +19199,76 @@ func (m *GroupMutation) ResetSoraVideoPricePerRequestHd() {
 	delete(m.clearedFields, group.FieldSoraVideoPricePerRequestHd)
 }
 
+// SetVeoVideoPricePerSecond sets the "veo_video_price_per_second" field.
+func (m *GroupMutation) SetVeoVideoPricePerSecond(f float64) {
+	m.veo_video_price_per_second = &f
+	m.addveo_video_price_per_second = nil
+}
+
+// VeoVideoPricePerSecond returns the value of the "veo_video_price_per_second" field in the mutation.
+func (m *GroupMutation) VeoVideoPricePerSecond() (r float64, exists bool) {
+	v := m.veo_video_price_per_second
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVeoVideoPricePerSecond returns the old "veo_video_price_per_second" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldVeoVideoPricePerSecond(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVeoVideoPricePerSecond is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVeoVideoPricePerSecond requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVeoVideoPricePerSecond: %w", err)
+	}
+	return oldValue.VeoVideoPricePerSecond, nil
+}
+
+// AddVeoVideoPricePerSecond adds f to the "veo_video_price_per_second" field.
+func (m *GroupMutation) AddVeoVideoPricePerSecond(f float64) {
+	if m.addveo_video_price_per_second != nil {
+		*m.addveo_video_price_per_second += f
+	} else {
+		m.addveo_video_price_per_second = &f
+	}
+}
+
+// AddedVeoVideoPricePerSecond returns the value that was added to the "veo_video_price_per_second" field in this mutation.
+func (m *GroupMutation) AddedVeoVideoPricePerSecond() (r float64, exists bool) {
+	v := m.addveo_video_price_per_second
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearVeoVideoPricePerSecond clears the value of the "veo_video_price_per_second" field.
+func (m *GroupMutation) ClearVeoVideoPricePerSecond() {
+	m.veo_video_price_per_second = nil
+	m.addveo_video_price_per_second = nil
+	m.clearedFields[group.FieldVeoVideoPricePerSecond] = struct{}{}
+}
+
+// VeoVideoPricePerSecondCleared returns if the "veo_video_price_per_second" field was cleared in this mutation.
+func (m *GroupMutation) VeoVideoPricePerSecondCleared() bool {
+	_, ok := m.clearedFields[group.FieldVeoVideoPricePerSecond]
+	return ok
+}
+
+// ResetVeoVideoPricePerSecond resets all changes to the "veo_video_price_per_second" field.
+func (m *GroupMutation) ResetVeoVideoPricePerSecond() {
+	m.veo_video_price_per_second = nil
+	m.addveo_video_price_per_second = nil
+	delete(m.clearedFields, group.FieldVeoVideoPricePerSecond)
+}
+
 // SetSoraStorageQuotaBytes sets the "sora_storage_quota_bytes" field.
 func (m *GroupMutation) SetSoraStorageQuotaBytes(i int64) {
 	m.sora_storage_quota_bytes = &i
@@ -20323,7 +20395,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 41)
+	fields := make([]string, 0, 42)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -20395,6 +20467,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.sora_video_price_per_request_hd != nil {
 		fields = append(fields, group.FieldSoraVideoPricePerRequestHd)
+	}
+	if m.veo_video_price_per_second != nil {
+		fields = append(fields, group.FieldVeoVideoPricePerSecond)
 	}
 	if m.sora_storage_quota_bytes != nil {
 		fields = append(fields, group.FieldSoraStorageQuotaBytes)
@@ -20503,6 +20578,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.SoraVideoPricePerRequest()
 	case group.FieldSoraVideoPricePerRequestHd:
 		return m.SoraVideoPricePerRequestHd()
+	case group.FieldVeoVideoPricePerSecond:
+		return m.VeoVideoPricePerSecond()
 	case group.FieldSoraStorageQuotaBytes:
 		return m.SoraStorageQuotaBytes()
 	case group.FieldClaudeCodeOnly:
@@ -20594,6 +20671,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldSoraVideoPricePerRequest(ctx)
 	case group.FieldSoraVideoPricePerRequestHd:
 		return m.OldSoraVideoPricePerRequestHd(ctx)
+	case group.FieldVeoVideoPricePerSecond:
+		return m.OldVeoVideoPricePerSecond(ctx)
 	case group.FieldSoraStorageQuotaBytes:
 		return m.OldSoraStorageQuotaBytes(ctx)
 	case group.FieldClaudeCodeOnly:
@@ -20805,6 +20884,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSoraVideoPricePerRequestHd(v)
 		return nil
+	case group.FieldVeoVideoPricePerSecond:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVeoVideoPricePerSecond(v)
+		return nil
 	case group.FieldSoraStorageQuotaBytes:
 		v, ok := value.(int64)
 		if !ok {
@@ -20971,6 +21057,9 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addsora_video_price_per_request_hd != nil {
 		fields = append(fields, group.FieldSoraVideoPricePerRequestHd)
 	}
+	if m.addveo_video_price_per_second != nil {
+		fields = append(fields, group.FieldVeoVideoPricePerSecond)
+	}
 	if m.addsora_storage_quota_bytes != nil {
 		fields = append(fields, group.FieldSoraStorageQuotaBytes)
 	}
@@ -21020,6 +21109,8 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedSoraVideoPricePerRequest()
 	case group.FieldSoraVideoPricePerRequestHd:
 		return m.AddedSoraVideoPricePerRequestHd()
+	case group.FieldVeoVideoPricePerSecond:
+		return m.AddedVeoVideoPricePerSecond()
 	case group.FieldSoraStorageQuotaBytes:
 		return m.AddedSoraStorageQuotaBytes()
 	case group.FieldFallbackGroupID:
@@ -21130,6 +21221,13 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddSoraVideoPricePerRequestHd(v)
 		return nil
+	case group.FieldVeoVideoPricePerSecond:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVeoVideoPricePerSecond(v)
+		return nil
 	case group.FieldSoraStorageQuotaBytes:
 		v, ok := value.(int64)
 		if !ok {
@@ -21209,6 +21307,9 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldSoraVideoPricePerRequestHd) {
 		fields = append(fields, group.FieldSoraVideoPricePerRequestHd)
 	}
+	if m.FieldCleared(group.FieldVeoVideoPricePerSecond) {
+		fields = append(fields, group.FieldVeoVideoPricePerSecond)
+	}
 	if m.FieldCleared(group.FieldFallbackGroupID) {
 		fields = append(fields, group.FieldFallbackGroupID)
 	}
@@ -21267,6 +21368,9 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldSoraVideoPricePerRequestHd:
 		m.ClearSoraVideoPricePerRequestHd()
+		return nil
+	case group.FieldVeoVideoPricePerSecond:
+		m.ClearVeoVideoPricePerSecond()
 		return nil
 	case group.FieldFallbackGroupID:
 		m.ClearFallbackGroupID()
@@ -21356,6 +21460,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldSoraVideoPricePerRequestHd:
 		m.ResetSoraVideoPricePerRequestHd()
+		return nil
+	case group.FieldVeoVideoPricePerSecond:
+		m.ResetVeoVideoPricePerSecond()
 		return nil
 	case group.FieldSoraStorageQuotaBytes:
 		m.ResetSoraStorageQuotaBytes()

@@ -64,6 +64,8 @@ const (
 	FieldSoraVideoPricePerRequest = "sora_video_price_per_request"
 	// FieldSoraVideoPricePerRequestHd holds the string denoting the sora_video_price_per_request_hd field in the database.
 	FieldSoraVideoPricePerRequestHd = "sora_video_price_per_request_hd"
+	// FieldVeoVideoPricePerSecond holds the string denoting the veo_video_price_per_second field in the database.
+	FieldVeoVideoPricePerSecond = "veo_video_price_per_second"
 	// FieldSoraStorageQuotaBytes holds the string denoting the sora_storage_quota_bytes field in the database.
 	FieldSoraStorageQuotaBytes = "sora_storage_quota_bytes"
 	// FieldClaudeCodeOnly holds the string denoting the claude_code_only field in the database.
@@ -197,6 +199,7 @@ var Columns = []string{
 	FieldSoraImagePrice540,
 	FieldSoraVideoPricePerRequest,
 	FieldSoraVideoPricePerRequestHd,
+	FieldVeoVideoPricePerSecond,
 	FieldSoraStorageQuotaBytes,
 	FieldClaudeCodeOnly,
 	FieldFallbackGroupID,
@@ -433,6 +436,11 @@ func BySoraVideoPricePerRequest(opts ...sql.OrderTermOption) OrderOption {
 // BySoraVideoPricePerRequestHd orders the results by the sora_video_price_per_request_hd field.
 func BySoraVideoPricePerRequestHd(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSoraVideoPricePerRequestHd, opts...).ToFunc()
+}
+
+// ByVeoVideoPricePerSecond orders the results by the veo_video_price_per_second field.
+func ByVeoVideoPricePerSecond(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVeoVideoPricePerSecond, opts...).ToFunc()
 }
 
 // BySoraStorageQuotaBytes orders the results by the sora_storage_quota_bytes field.

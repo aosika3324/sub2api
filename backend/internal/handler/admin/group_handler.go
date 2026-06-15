@@ -102,6 +102,7 @@ type CreateGroupRequest struct {
 	SoraImagePrice540               *float64 `json:"sora_image_price_540"`
 	SoraVideoPricePerRequest        *float64 `json:"sora_video_price_per_request"`
 	SoraVideoPricePerRequestHD      *float64 `json:"sora_video_price_per_request_hd"`
+	VeoVideoPricePerSecond          *float64 `json:"veo_video_price_per_second"`
 	SoraStorageQuotaBytes           int64    `json:"sora_storage_quota_bytes"`
 	ClaudeCodeOnly                  bool     `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id"`
@@ -149,6 +150,7 @@ type UpdateGroupRequest struct {
 	SoraImagePrice540               *float64 `json:"sora_image_price_540"`
 	SoraVideoPricePerRequest        *float64 `json:"sora_video_price_per_request"`
 	SoraVideoPricePerRequestHD      *float64 `json:"sora_video_price_per_request_hd"`
+	VeoVideoPricePerSecond          *float64 `json:"veo_video_price_per_second"`
 	SoraStorageQuotaBytes           *int64   `json:"sora_storage_quota_bytes"`
 	ClaudeCodeOnly                  *bool    `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id"`
@@ -303,6 +305,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		SoraImagePrice540:               req.SoraImagePrice540,
 		SoraVideoPricePerRequest:        req.SoraVideoPricePerRequest,
 		SoraVideoPricePerRequestHD:      req.SoraVideoPricePerRequestHD,
+		VeoVideoPricePerSecond:          req.VeoVideoPricePerSecond,
 		SoraStorageQuotaBytes:           req.SoraStorageQuotaBytes,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
 		FallbackGroupID:                 req.FallbackGroupID,
@@ -365,6 +368,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		SoraImagePrice540:               req.SoraImagePrice540,
 		SoraVideoPricePerRequest:        req.SoraVideoPricePerRequest,
 		SoraVideoPricePerRequestHD:      req.SoraVideoPricePerRequestHD,
+		VeoVideoPricePerSecond:          req.VeoVideoPricePerSecond,
 		SoraStorageQuotaBytes:           req.SoraStorageQuotaBytes,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
 		FallbackGroupID:                 req.FallbackGroupID,

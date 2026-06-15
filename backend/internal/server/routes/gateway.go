@@ -140,9 +140,16 @@ func RegisterGatewayRoutes(
 	gemini.Use(requireGroupGoogle)
 	{
 		gemini.GET("/models", h.Gateway.GeminiV1BetaListModels)
-		gemini.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
+		// GET /models/* 统一走 catch-all 分发：httprouter 不允许命名参数与 catch-all 在
+		// 同一前缀共存（且跨方法共享冲突检测树，POST /models/*modelAction 已占用），因此
+		// GET 侧用单一 catch-all，在 handler 内按子路径分发到模型详情 / Veo 任务轮询。
+		gemini.GET("/models/*modelPath", h.Gateway.GeminiV1BetaModelsGET)
 		// Gin treats ":" as a param marker, but Gemini uses "{model}:{action}" in the same segment.
 		gemini.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
+		// Veo 任务轮询的裸 operation 形态：GET /v1beta/operations/{id}。
+		gemini.GET("/operations/*operationId", h.Gateway.GeminiV1BetaGetOperation)
+		// Veo 视频文件代理下载（opToken 为 operation name 的 base64url 编码，index 为样本下标）。
+		gemini.GET("/veo-files/:opToken/:index", h.Gateway.GeminiV1BetaProxyVeoFile)
 	}
 
 	// OpenAI Responses API（不带v1前缀的别名）— auto-route based on group platform

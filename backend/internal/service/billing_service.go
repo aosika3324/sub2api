@@ -953,6 +953,28 @@ func (s *BillingService) CalculateSoraVideoCost(model string, groupConfig *SoraP
 	}
 }
 
+// CalculateVeoVideoCost 计算 Veo 视频按秒费用。
+// pricePerSecond 为分组配置的每秒单价（nil 表示未配置，按 0 计费）；
+// durationSeconds 为视频总时长（秒）。总价 = 单价 × 秒数 × 倍率。
+func (s *BillingService) CalculateVeoVideoCost(pricePerSecond *float64, durationSeconds float64, rateMultiplier float64) *CostBreakdown {
+	unitPrice := 0.0
+	if pricePerSecond != nil {
+		unitPrice = *pricePerSecond
+	}
+	if durationSeconds < 0 {
+		durationSeconds = 0
+	}
+	totalCost := unitPrice * durationSeconds
+	if rateMultiplier < 0 {
+		rateMultiplier = 0
+	}
+	return &CostBreakdown{
+		TotalCost:   totalCost,
+		ActualCost:  totalCost * rateMultiplier,
+		BillingMode: string(BillingModePerRequest),
+	}
+}
+
 // getImageUnitPrice 获取图片单价
 func (s *BillingService) getImageUnitPrice(model string, imageSize string, groupConfig *ImagePriceConfig) float64 {
 	// 优先使用分组配置的价格

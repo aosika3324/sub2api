@@ -38,6 +38,8 @@ type Group struct {
 	SoraVideoPricePerRequest   *float64
 	SoraVideoPricePerRequestHD *float64
 	SoraStorageQuotaBytes      int64
+	// VeoVideoPricePerSecond 是 Veo 视频生成的每秒单价（nil 表示未配置，按 0 计费）。
+	VeoVideoPricePerSecond *float64
 
 	// Claude Code 客户端限制
 	ClaudeCodeOnly  bool
