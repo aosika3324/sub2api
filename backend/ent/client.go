@@ -54,6 +54,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/ent/videogeneration"
 
 	stdsql "database/sql"
 )
@@ -141,6 +142,8 @@ type Client struct {
 	UserPlatformQuota *UserPlatformQuotaClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
 	UserSubscription *UserSubscriptionClient
+	// VideoGeneration is the client for interacting with the VideoGeneration builders.
+	VideoGeneration *VideoGenerationClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -191,6 +194,7 @@ func (c *Client) init() {
 	c.UserAttributeValue = NewUserAttributeValueClient(c.config)
 	c.UserPlatformQuota = NewUserPlatformQuotaClient(c.config)
 	c.UserSubscription = NewUserSubscriptionClient(c.config)
+	c.VideoGeneration = NewVideoGenerationClient(c.config)
 }
 
 type (
@@ -322,6 +326,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
+		VideoGeneration:               NewVideoGenerationClient(cfg),
 	}, nil
 }
 
@@ -380,6 +385,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
+		VideoGeneration:               NewVideoGenerationClient(cfg),
 	}, nil
 }
 
@@ -420,7 +426,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
 		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
 		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.UserSubscription, c.VideoGeneration,
 	} {
 		n.Use(hooks...)
 	}
@@ -441,7 +447,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
 		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
 		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.UserSubscription, c.VideoGeneration,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -528,6 +534,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserPlatformQuota.mutate(ctx, m)
 	case *UserSubscriptionMutation:
 		return c.UserSubscription.mutate(ctx, m)
+	case *VideoGenerationMutation:
+		return c.VideoGeneration.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -6782,6 +6790,141 @@ func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscription
 	}
 }
 
+// VideoGenerationClient is a client for the VideoGeneration schema.
+type VideoGenerationClient struct {
+	config
+}
+
+// NewVideoGenerationClient returns a client for the VideoGeneration from the given config.
+func NewVideoGenerationClient(c config) *VideoGenerationClient {
+	return &VideoGenerationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `videogeneration.Hooks(f(g(h())))`.
+func (c *VideoGenerationClient) Use(hooks ...Hook) {
+	c.hooks.VideoGeneration = append(c.hooks.VideoGeneration, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `videogeneration.Intercept(f(g(h())))`.
+func (c *VideoGenerationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.VideoGeneration = append(c.inters.VideoGeneration, interceptors...)
+}
+
+// Create returns a builder for creating a VideoGeneration entity.
+func (c *VideoGenerationClient) Create() *VideoGenerationCreate {
+	mutation := newVideoGenerationMutation(c.config, OpCreate)
+	return &VideoGenerationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of VideoGeneration entities.
+func (c *VideoGenerationClient) CreateBulk(builders ...*VideoGenerationCreate) *VideoGenerationCreateBulk {
+	return &VideoGenerationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *VideoGenerationClient) MapCreateBulk(slice any, setFunc func(*VideoGenerationCreate, int)) *VideoGenerationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &VideoGenerationCreateBulk{err: fmt.Errorf("calling to VideoGenerationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*VideoGenerationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &VideoGenerationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for VideoGeneration.
+func (c *VideoGenerationClient) Update() *VideoGenerationUpdate {
+	mutation := newVideoGenerationMutation(c.config, OpUpdate)
+	return &VideoGenerationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *VideoGenerationClient) UpdateOne(_m *VideoGeneration) *VideoGenerationUpdateOne {
+	mutation := newVideoGenerationMutation(c.config, OpUpdateOne, withVideoGeneration(_m))
+	return &VideoGenerationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *VideoGenerationClient) UpdateOneID(id int64) *VideoGenerationUpdateOne {
+	mutation := newVideoGenerationMutation(c.config, OpUpdateOne, withVideoGenerationID(id))
+	return &VideoGenerationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for VideoGeneration.
+func (c *VideoGenerationClient) Delete() *VideoGenerationDelete {
+	mutation := newVideoGenerationMutation(c.config, OpDelete)
+	return &VideoGenerationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *VideoGenerationClient) DeleteOne(_m *VideoGeneration) *VideoGenerationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *VideoGenerationClient) DeleteOneID(id int64) *VideoGenerationDeleteOne {
+	builder := c.Delete().Where(videogeneration.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &VideoGenerationDeleteOne{builder}
+}
+
+// Query returns a query builder for VideoGeneration.
+func (c *VideoGenerationClient) Query() *VideoGenerationQuery {
+	return &VideoGenerationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeVideoGeneration},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a VideoGeneration entity by its id.
+func (c *VideoGenerationClient) Get(ctx context.Context, id int64) (*VideoGeneration, error) {
+	return c.Query().Where(videogeneration.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *VideoGenerationClient) GetX(ctx context.Context, id int64) *VideoGeneration {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *VideoGenerationClient) Hooks() []Hook {
+	hooks := c.hooks.VideoGeneration
+	return append(hooks[:len(hooks):len(hooks)], videogeneration.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *VideoGenerationClient) Interceptors() []Interceptor {
+	inters := c.inters.VideoGeneration
+	return append(inters[:len(inters):len(inters)], videogeneration.Interceptors[:]...)
+}
+
+func (c *VideoGenerationClient) mutate(ctx context.Context, m *VideoGenerationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&VideoGenerationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&VideoGenerationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&VideoGenerationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&VideoGenerationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown VideoGeneration mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
@@ -6794,7 +6937,7 @@ type (
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Hook
+		UserSubscription, VideoGeneration []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
@@ -6806,7 +6949,7 @@ type (
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
 		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Interceptor
+		UserSubscription, VideoGeneration []ent.Interceptor
 	}
 )
 

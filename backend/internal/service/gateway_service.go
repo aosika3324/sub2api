@@ -8323,6 +8323,32 @@ func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID,
 	return resolver.Resolve(ctx, userID, groupID, groupDefaultMultiplier)
 }
 
+// ComputeVeoVideoCostBreakdown prices a completed Veo video generation using the
+// exact same per-second pricing + multiplier resolution path recordUsageCore
+// uses, so the in-app video studio can persist/display a cost equal to the
+// amount RecordUsage later charges. Returns nil when inputs are unusable.
+//
+// It mirrors recordUsageCore's multiplier precedence (user-specific > group
+// default > system default) and delegates to BillingService.CalculateVeoVideoCost
+// just like calculateSoraMediaCost does on the gateway billing path.
+func (s *GatewayService) ComputeVeoVideoCostBreakdown(ctx context.Context, user *User, apiKey *APIKey, durationSeconds float64) *CostBreakdown {
+	if s == nil || apiKey == nil {
+		return nil
+	}
+	multiplier := 1.0
+	if s.cfg != nil {
+		multiplier = s.cfg.Default.RateMultiplier
+	}
+	if user != nil && apiKey.GroupID != nil && apiKey.Group != nil {
+		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
+	}
+	var pricePerSecond *float64
+	if apiKey.Group != nil {
+		pricePerSecond = apiKey.Group.VeoVideoPricePerSecond
+	}
+	return s.billingService.CalculateVeoVideoCost(pricePerSecond, durationSeconds, multiplier)
+}
+
 // RecordUsageInput 记录使用量的输入参数。
 // 异步 worker 只接收计费所需快照，不能持有 ParsedRequest/RequestBodyRef 这类大请求体引用。
 type RecordUsageInput struct {

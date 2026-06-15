@@ -2030,6 +2030,47 @@ export interface ImageStudioBatchResponse {
   items: ImageStudioGeneration[]
 }
 
+// ==================== Video Studio (in-app Veo video generation) ====================
+
+/**
+ * One in-app video generation row. Veo is an async long task, so the status
+ * transitions pending -> processing -> succeeded/failed and the client polls
+ * until it settles.
+ */
+export interface VideoStudioGeneration {
+  id: number
+  prompt: string
+  model: string
+  status: string
+  sample_count: number
+  duration_seconds: number
+  cost: number
+  /** Ready-to-use proxy-stream URLs for each produced sample (succeeded only). */
+  videos: string[]
+  /** Stable machine-readable failure classifier, mapped to a localized message. */
+  error_code?: string
+  created_at: string
+}
+
+export interface GenerateVideoStudioRequest {
+  group_id: number
+  prompt: string
+  model?: string
+}
+
+export interface GenerateVideoStudioResponse {
+  generation_id: number
+  status: string
+  model: string
+  estimated_cost: number
+  balance: number
+}
+
+/** Batch poll response for video generation statuses. */
+export interface VideoStudioBatchResponse {
+  items: VideoStudioGeneration[]
+}
+
 // Payment types
 export type { SubscriptionPlan, PaymentOrder, CheckoutInfoResponse } from './payment'
 

@@ -477,6 +477,18 @@ func (f UserSubscriptionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserSubscriptionMutation", m)
 }
 
+// The VideoGenerationFunc type is an adapter to allow the use of ordinary
+// function as VideoGeneration mutator.
+type VideoGenerationFunc func(context.Context, *ent.VideoGenerationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VideoGenerationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VideoGenerationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VideoGenerationMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 

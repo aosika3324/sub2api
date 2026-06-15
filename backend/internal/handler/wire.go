@@ -112,6 +112,7 @@ func ProvideHandlers(
 	paymentWebhookHandler *PaymentWebhookHandler,
 	availableChannelHandler *AvailableChannelHandler,
 	imageStudioHandler *ImageStudioHandler,
+	videoStudioHandler *VideoStudioHandler,
 	editableFileHandler *EditableFileHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
@@ -134,6 +135,7 @@ func ProvideHandlers(
 		PaymentWebhook:   paymentWebhookHandler,
 		AvailableChannel: availableChannelHandler,
 		ImageStudio:      imageStudioHandler,
+		VideoStudio:      videoStudioHandler,
 		EditableFile:     editableFileHandler,
 	}
 }
@@ -157,6 +159,7 @@ var ProviderSet = wire.NewSet(
 	NewPaymentWebhookHandler,
 	NewAvailableChannelHandler,
 	NewImageStudioHandler,
+	NewVideoStudioHandler,
 	NewEditableFileHandler,
 
 	// Admin handlers

@@ -45,6 +45,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/ent/videogeneration"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
@@ -2297,6 +2298,67 @@ func init() {
 	usersubscriptionDescAssignedAt := usersubscriptionFields[12].Descriptor()
 	// usersubscription.DefaultAssignedAt holds the default value on creation for the assigned_at field.
 	usersubscription.DefaultAssignedAt = usersubscriptionDescAssignedAt.Default.(func() time.Time)
+	videogenerationMixin := schema.VideoGeneration{}.Mixin()
+	videogenerationMixinHooks1 := videogenerationMixin[1].Hooks()
+	videogeneration.Hooks[0] = videogenerationMixinHooks1[0]
+	videogenerationMixinInters1 := videogenerationMixin[1].Interceptors()
+	videogeneration.Interceptors[0] = videogenerationMixinInters1[0]
+	videogenerationMixinFields0 := videogenerationMixin[0].Fields()
+	_ = videogenerationMixinFields0
+	videogenerationFields := schema.VideoGeneration{}.Fields()
+	_ = videogenerationFields
+	// videogenerationDescCreatedAt is the schema descriptor for created_at field.
+	videogenerationDescCreatedAt := videogenerationMixinFields0[0].Descriptor()
+	// videogeneration.DefaultCreatedAt holds the default value on creation for the created_at field.
+	videogeneration.DefaultCreatedAt = videogenerationDescCreatedAt.Default.(func() time.Time)
+	// videogenerationDescUpdatedAt is the schema descriptor for updated_at field.
+	videogenerationDescUpdatedAt := videogenerationMixinFields0[1].Descriptor()
+	// videogeneration.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	videogeneration.DefaultUpdatedAt = videogenerationDescUpdatedAt.Default.(func() time.Time)
+	// videogeneration.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	videogeneration.UpdateDefaultUpdatedAt = videogenerationDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// videogenerationDescModel is the schema descriptor for model field.
+	videogenerationDescModel := videogenerationFields[3].Descriptor()
+	// videogeneration.DefaultModel holds the default value on creation for the model field.
+	videogeneration.DefaultModel = videogenerationDescModel.Default.(string)
+	// videogeneration.ModelValidator is a validator for the "model" field. It is called by the builders before save.
+	videogeneration.ModelValidator = videogenerationDescModel.Validators[0].(func(string) error)
+	// videogenerationDescOperationName is the schema descriptor for operation_name field.
+	videogenerationDescOperationName := videogenerationFields[4].Descriptor()
+	// videogeneration.DefaultOperationName holds the default value on creation for the operation_name field.
+	videogeneration.DefaultOperationName = videogenerationDescOperationName.Default.(string)
+	// videogeneration.OperationNameValidator is a validator for the "operation_name" field. It is called by the builders before save.
+	videogeneration.OperationNameValidator = videogenerationDescOperationName.Validators[0].(func(string) error)
+	// videogenerationDescAccountID is the schema descriptor for account_id field.
+	videogenerationDescAccountID := videogenerationFields[5].Descriptor()
+	// videogeneration.DefaultAccountID holds the default value on creation for the account_id field.
+	videogeneration.DefaultAccountID = videogenerationDescAccountID.Default.(int64)
+	// videogenerationDescStatus is the schema descriptor for status field.
+	videogenerationDescStatus := videogenerationFields[6].Descriptor()
+	// videogeneration.DefaultStatus holds the default value on creation for the status field.
+	videogeneration.DefaultStatus = videogenerationDescStatus.Default.(string)
+	// videogeneration.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	videogeneration.StatusValidator = videogenerationDescStatus.Validators[0].(func(string) error)
+	// videogenerationDescSampleCount is the schema descriptor for sample_count field.
+	videogenerationDescSampleCount := videogenerationFields[7].Descriptor()
+	// videogeneration.DefaultSampleCount holds the default value on creation for the sample_count field.
+	videogeneration.DefaultSampleCount = videogenerationDescSampleCount.Default.(int)
+	// videogenerationDescDurationSeconds is the schema descriptor for duration_seconds field.
+	videogenerationDescDurationSeconds := videogenerationFields[8].Descriptor()
+	// videogeneration.DefaultDurationSeconds holds the default value on creation for the duration_seconds field.
+	videogeneration.DefaultDurationSeconds = videogenerationDescDurationSeconds.Default.(float64)
+	// videogenerationDescCost is the schema descriptor for cost field.
+	videogenerationDescCost := videogenerationFields[9].Descriptor()
+	// videogeneration.DefaultCost holds the default value on creation for the cost field.
+	videogeneration.DefaultCost = videogenerationDescCost.Default.(float64)
+	// videogenerationDescBilled is the schema descriptor for billed field.
+	videogenerationDescBilled := videogenerationFields[10].Descriptor()
+	// videogeneration.DefaultBilled holds the default value on creation for the billed field.
+	videogeneration.DefaultBilled = videogenerationDescBilled.Default.(bool)
+	// videogenerationDescErrorCode is the schema descriptor for error_code field.
+	videogenerationDescErrorCode := videogenerationFields[12].Descriptor()
+	// videogeneration.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
+	videogeneration.ErrorCodeValidator = videogenerationDescErrorCode.Validators[0].(func(string) error)
 }
 
 const (

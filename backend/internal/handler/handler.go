@@ -57,6 +57,7 @@ type Handlers struct {
 	PaymentWebhook   *PaymentWebhookHandler
 	AvailableChannel *AvailableChannelHandler
 	ImageStudio      *ImageStudioHandler
+	VideoStudio      *VideoStudioHandler
 	EditableFile     *EditableFileHandler
 }
 

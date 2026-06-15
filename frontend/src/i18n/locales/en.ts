@@ -1399,6 +1399,44 @@ export default {
     }
   },
 
+  // Video Studio (Veo)
+  videoStudio: {
+    title: 'Video Studio',
+    workbenchTitle: 'Video generation workbench',
+    workbenchSubtitle: 'Describe a scene and get an AI-generated video in a few minutes.',
+    group: 'Group',
+    model: 'Model',
+    prompt: 'Prompt',
+    promptPlaceholder: 'Describe the scene, action, and style you want to generate…',
+    estimatedCost: 'Estimated cost',
+    balance: 'Balance',
+    generate: 'Generate video',
+    retentionNotice: 'Videos are available for a limited time — download them promptly after generation.',
+    myVideos: 'My videos',
+    refresh: 'Refresh status',
+    clearHistory: 'Clear history',
+    emptyTitle: 'No videos yet',
+    emptySubtitle: 'Enter a prompt on the left to generate your first video.',
+    deleteTitle: 'Delete video',
+    deleteMessage: 'Delete this video generation? This cannot be undone.',
+    clearHistoryTitle: 'Clear video history',
+    clearHistoryMessage: 'Clear all video generations? This cannot be undone.',
+    play: 'Play',
+    download: 'Download',
+    retry: 'Retry',
+    loadingVideo: 'Loading video…',
+    videoExpired: 'The video link has expired and can no longer be played or downloaded.',
+    statusProcessing: 'Generating…',
+    processingHint: 'Veo video generation usually takes a few minutes. Please wait.',
+    error: {
+      no_account: 'No video account is available for this group.',
+      submit_failed: 'Failed to submit the generation request. Please try again later.',
+      upstream_error: 'Upstream generation failed. Please retry or adjust your prompt.',
+      interrupted: 'Generation was interrupted. Please retry.',
+      generic: 'Generation failed. Please try again.',
+    },
+  },
+
   // Image Studio
   imageStudio: {
     title: 'Image Studio',

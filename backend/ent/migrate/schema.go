@@ -1956,6 +1956,49 @@ var (
 			},
 		},
 	}
+	// VideoGenerationsColumns holds the columns for the "video_generations" table.
+	VideoGenerationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "group_id", Type: field.TypeInt64},
+		{Name: "prompt", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "model", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "operation_name", Type: field.TypeString, Size: 512, Default: ""},
+		{Name: "account_id", Type: field.TypeInt64, Default: 0},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "pending"},
+		{Name: "sample_count", Type: field.TypeInt, Default: 0},
+		{Name: "duration_seconds", Type: field.TypeFloat64, Default: 0},
+		{Name: "cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "billed", Type: field.TypeBool, Default: false},
+		{Name: "error", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "error_code", Type: field.TypeString, Nullable: true, Size: 40},
+	}
+	// VideoGenerationsTable holds the schema information for the "video_generations" table.
+	VideoGenerationsTable = &schema.Table{
+		Name:       "video_generations",
+		Columns:    VideoGenerationsColumns,
+		PrimaryKey: []*schema.Column{VideoGenerationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "videogeneration_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{VideoGenerationsColumns[4]},
+			},
+			{
+				Name:    "videogeneration_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{VideoGenerationsColumns[3]},
+			},
+			{
+				Name:    "videogeneration_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{VideoGenerationsColumns[10], VideoGenerationsColumns[1]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
@@ -1997,6 +2040,7 @@ var (
 		UserAttributeValuesTable,
 		UserPlatformQuotasTable,
 		UserSubscriptionsTable,
+		VideoGenerationsTable,
 	}
 )
 
@@ -2151,5 +2195,8 @@ func init() {
 	UserSubscriptionsTable.ForeignKeys[2].RefTable = UsersTable
 	UserSubscriptionsTable.Annotation = &entsql.Annotation{
 		Table: "user_subscriptions",
+	}
+	VideoGenerationsTable.Annotation = &entsql.Annotation{
+		Table: "video_generations",
 	}
 }

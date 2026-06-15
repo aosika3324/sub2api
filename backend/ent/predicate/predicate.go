@@ -122,3 +122,6 @@ type UserPlatformQuota func(*sql.Selector)
 
 // UserSubscription is the predicate function for usersubscription builders.
 type UserSubscription func(*sql.Selector)
+
+// VideoGeneration is the predicate function for videogeneration builders.
+type VideoGeneration func(*sql.Selector)

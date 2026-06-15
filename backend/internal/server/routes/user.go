@@ -75,6 +75,23 @@ func RegisterUserRoutes(
 				imageStudio.GET("/input-assets/:genID/:idx", h.ImageStudio.GetInputAsset)
 			}
 
+			// 站内视频生成工作台（JWT，所有端点强制当前登录用户）
+			// 与作图不同，Veo 是异步长任务：提交后通过读时轮询推进状态，
+			// 完成时按视频秒数计费，视频按需经网关代理流式拉取（不落地存储）。
+			videoStudio := user.Group("/video-studio")
+			{
+				videoStudio.POST("/generate", h.VideoStudio.Generate)
+				videoStudio.GET("/generations", h.VideoStudio.ListGenerations)
+				// Distinct top-level segment (not /generations/batch) so a static
+				// segment never collides with the /generations/:id param route under
+				// gin's httprouter.
+				videoStudio.GET("/generations-batch", h.VideoStudio.BatchGetGenerations)
+				videoStudio.GET("/generations/:id", h.VideoStudio.GetGeneration)
+				videoStudio.GET("/generations/:id/video/:idx", h.VideoStudio.StreamVideo)
+				videoStudio.DELETE("/generations/:id", h.VideoStudio.DeleteGeneration)
+				videoStudio.DELETE("/history", h.VideoStudio.ClearHistory)
+			}
+
 			editableFiles := user.Group("/editable-files")
 			{
 				editableFiles.POST("/tasks", h.EditableFile.CreateTask)

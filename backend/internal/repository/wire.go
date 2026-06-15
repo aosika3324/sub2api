@@ -96,6 +96,7 @@ var ProviderSet = wire.NewSet(
 	NewUserPlatformQuotaRepository,     // T14: user × platform quota
 	NewUserPlatformQuotaServiceAdapter, // T14: adapter → service.UserPlatformQuotaRepository
 	NewImageStudioRepository,           // 站内作图：会话 / 生成记录仓储
+	NewVideoStudioRepository,           // 站内视频：Veo 生成记录仓储
 	NewStudioUserLimiter,               // 站内作图：每用户并发限流（Redis）
 	NewEditableFileRepository,          // 可编辑 PPT/PSD 文件任务仓储
 

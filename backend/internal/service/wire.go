@@ -587,6 +587,36 @@ func studioModeratorOrNil(m *ContentModerationService) studioModerator {
 	return m
 }
 
+// ProvideVideoStudioService wires VideoStudioService from its concrete
+// dependencies. Like ProvideImageStudioService it lives in package service
+// because VideoStudioServiceDeps references unexported port types (e.g. veoClient)
+// that Wire cannot bind across package boundaries.
+//
+// Billing reuses *GatewayService (not the OpenAI one): Veo per-second cost +
+// RecordUsage with MediaType="video" go through the same path the API-gateway
+// Veo passthrough bills on.
+func ProvideVideoStudioService(
+	userService *UserService,
+	apiKeyService *APIKeyService,
+	billingCacheService *BillingCacheService,
+	subscriptionService *SubscriptionService,
+	geminiCompatService *GeminiMessagesCompatService,
+	gatewayService *GatewayService,
+	repo VideoStudioRepository,
+) *VideoStudioService {
+	return NewVideoStudioService(VideoStudioServiceDeps{
+		Users:         userService,
+		Groups:        apiKeyService,
+		KeyEnsurer:    apiKeyService,
+		Eligibility:   billingCacheService,
+		Subscriptions: subscriptionService,
+		Veo:           geminiCompatService,
+		CostResolver:  gatewayService,
+		UsageRecord:   gatewayService,
+		Repo:          repo,
+	})
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -599,6 +629,8 @@ var ProviderSet = wire.NewSet(
 	ProvideImageConcurrencyLimiter,
 	ProvideStudioImageGenerator,
 	ProvideImageStudioService,
+	// Video studio (in-app JWT Veo video generation)
+	ProvideVideoStudioService,
 	NewEditableFileService,
 	NewGroupService,
 	NewAccountService,

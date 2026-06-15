@@ -214,6 +214,7 @@ import VersionBadge from '@/components/common/VersionBadge.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { useRecharge } from '@/composables/useRecharge'
+import { userGroupsAPI } from '@/api'
 
 interface NavItem {
   path: string
@@ -622,6 +623,21 @@ const PhotoIcon = {
     )
 }
 
+const FilmIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m-1.125 1.125v-1.5m1.125 0c.621 0 1.125.504 1.125 1.125M3.375 5.625v1.5c0 .621.504 1.125 1.125 1.125M3.375 5.625c0-.621.504-1.125 1.125-1.125m0 0h.375m-.375 0a1.125 1.125 0 00-1.125 1.125M20.625 5.625v12.75m0-12.75c0-.621-.504-1.125-1.125-1.125m1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M19.5 4.5h-15M19.5 4.5c.621 0 1.125.504 1.125 1.125M19.5 4.5v1.5c0 .621-.504 1.125-1.125 1.125m0 0h-1.5m1.5 0c-.621 0-1.125.504-1.125 1.125M12 10.5h8.625m-8.625 0c.621 0 1.125.504 1.125 1.125M12 10.5c-.621 0-1.125.504-1.125 1.125m0 0v6.75m0-6.75c0-.621-.504-1.125-1.125-1.125M3.375 15h7.5'
+        })
+      ]
+    )
+}
+
 const SignalIcon = {
   render: () =>
     h(
@@ -699,6 +715,24 @@ const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const { rechargeVisible, openRecharge } = useRecharge()
 
+// Video studio (Veo) entry visibility: the feature has no global setting flag —
+// per the product decision, a group with a configured Veo per-second price is
+// what both enables generation and gates this menu entry. We fetch the user's
+// available groups once and show the entry only when at least one qualifies.
+const hasVeoGroup = ref(false)
+const flagVideoStudio = () => hasVeoGroup.value
+async function refreshVeoGroupVisibility() {
+  try {
+    const groups = await userGroupsAPI.getAvailable()
+    hasVeoGroup.value = groups.some(
+      (g) => g.veo_video_price_per_second != null && g.veo_video_price_per_second > 0
+    )
+  } catch {
+    // Non-fatal: leave the entry hidden if the lookup fails.
+    hasVeoGroup.value = false
+  }
+}
+
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
 //
@@ -713,6 +747,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/image-studio', label: t('nav.imageStudio'), icon: PhotoIcon, hideInSimpleMode: true },
+    { path: '/video-studio', label: t('nav.videoStudio'), icon: FilmIcon, hideInSimpleMode: true, featureFlag: flagVideoStudio },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
@@ -941,6 +976,7 @@ onMounted(() => {
   if (isAdmin.value) {
     adminSettingsStore.fetch()
   }
+  refreshVeoGroupVisibility()
 })
 </script>
 
