@@ -84,7 +84,7 @@ func NewGroupHandler(adminService service.AdminService, dashboardService *servic
 type CreateGroupRequest struct {
 	Name             string             `json:"name" binding:"required"`
 	Description      string             `json:"description"`
-	Platform         string             `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity sora"`
+	Platform         string             `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity sora grok"`
 	RateMultiplier   float64            `json:"rate_multiplier"`
 	IsExclusive      bool               `json:"is_exclusive"`
 	SubscriptionType string             `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
@@ -93,8 +93,17 @@ type CreateGroupRequest struct {
 	MonthlyLimitUSD  optionalLimitField `json:"monthly_limit_usd"`
 	// 图片生成计费配置（antigravity 和 gemini 平台使用，负数表示清除配置）
 	AllowImageGeneration            bool     `json:"allow_image_generation"`
+	AllowBatchImageGeneration       bool     `json:"allow_batch_image_generation"`
 	ImageRateIndependent            bool     `json:"image_rate_independent"`
 	ImageRateMultiplier             *float64 `json:"image_rate_multiplier"`
+	BatchImageDiscountMultiplier    *float64 `json:"batch_image_discount_multiplier"`
+	BatchImageHoldMultiplier        *float64 `json:"batch_image_hold_multiplier"`
+	VideoRateIndependent            bool     `json:"video_rate_independent"`
+	VideoRateMultiplier             *float64 `json:"video_rate_multiplier"`
+	PeakRateEnabled                 bool     `json:"peak_rate_enabled"`
+	PeakStart                       string   `json:"peak_start"`
+	PeakEnd                         string   `json:"peak_end"`
+	PeakRateMultiplier              *float64 `json:"peak_rate_multiplier"`
 	ImagePrice1K                    *float64 `json:"image_price_1k"`
 	ImagePrice2K                    *float64 `json:"image_price_2k"`
 	ImagePrice4K                    *float64 `json:"image_price_4k"`
@@ -104,6 +113,9 @@ type CreateGroupRequest struct {
 	SoraVideoPricePerRequestHD      *float64 `json:"sora_video_price_per_request_hd"`
 	VeoVideoPricePerSecond          *float64 `json:"veo_video_price_per_second"`
 	SoraStorageQuotaBytes           int64    `json:"sora_storage_quota_bytes"`
+	VideoPrice480P                  *float64 `json:"video_price_480p"`
+	VideoPrice720P                  *float64 `json:"video_price_720p"`
+	VideoPrice1080P                 *float64 `json:"video_price_1080p"`
 	ClaudeCodeOnly                  bool     `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id"`
 	FallbackGroupIDOnInvalidRequest *int64   `json:"fallback_group_id_on_invalid_request"`
@@ -131,7 +143,7 @@ type CreateGroupRequest struct {
 type UpdateGroupRequest struct {
 	Name             string             `json:"name"`
 	Description      *string            `json:"description"`
-	Platform         string             `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity sora"`
+	Platform         string             `json:"platform" binding:"omitempty,oneof=anthropic openai gemini antigravity sora grok"`
 	RateMultiplier   *float64           `json:"rate_multiplier"`
 	IsExclusive      *bool              `json:"is_exclusive"`
 	Status           string             `json:"status" binding:"omitempty,oneof=active inactive"`
@@ -141,8 +153,17 @@ type UpdateGroupRequest struct {
 	MonthlyLimitUSD  optionalLimitField `json:"monthly_limit_usd"`
 	// 图片生成计费配置（antigravity 和 gemini 平台使用，负数表示清除配置）
 	AllowImageGeneration            *bool    `json:"allow_image_generation"`
+	AllowBatchImageGeneration       *bool    `json:"allow_batch_image_generation"`
 	ImageRateIndependent            *bool    `json:"image_rate_independent"`
 	ImageRateMultiplier             *float64 `json:"image_rate_multiplier"`
+	BatchImageDiscountMultiplier    *float64 `json:"batch_image_discount_multiplier"`
+	BatchImageHoldMultiplier        *float64 `json:"batch_image_hold_multiplier"`
+	VideoRateIndependent            *bool    `json:"video_rate_independent"`
+	VideoRateMultiplier             *float64 `json:"video_rate_multiplier"`
+	PeakRateEnabled                 *bool    `json:"peak_rate_enabled"`
+	PeakStart                       *string  `json:"peak_start"`
+	PeakEnd                         *string  `json:"peak_end"`
+	PeakRateMultiplier              *float64 `json:"peak_rate_multiplier"`
 	ImagePrice1K                    *float64 `json:"image_price_1k"`
 	ImagePrice2K                    *float64 `json:"image_price_2k"`
 	ImagePrice4K                    *float64 `json:"image_price_4k"`
@@ -152,6 +173,9 @@ type UpdateGroupRequest struct {
 	SoraVideoPricePerRequestHD      *float64 `json:"sora_video_price_per_request_hd"`
 	VeoVideoPricePerSecond          *float64 `json:"veo_video_price_per_second"`
 	SoraStorageQuotaBytes           *int64   `json:"sora_storage_quota_bytes"`
+	VideoPrice480P                  *float64 `json:"video_price_480p"`
+	VideoPrice720P                  *float64 `json:"video_price_720p"`
+	VideoPrice1080P                 *float64 `json:"video_price_1080p"`
 	ClaudeCodeOnly                  *bool    `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id"`
 	FallbackGroupIDOnInvalidRequest *int64   `json:"fallback_group_id_on_invalid_request"`
@@ -210,15 +234,21 @@ func (h *GroupHandler) List(c *gin.Context) {
 	response.Paginated(c, outGroups, total, page, pageSize)
 }
 
-// GetAll handles getting all active groups without pagination
+// GetAll handles getting all active groups without pagination.
+// Pass ?include_inactive=true to also include disabled groups (used by the
+// API Key group filter, which needs to surface groups that still have API keys
+// bound to them even after the group is disabled).
 // GET /api/v1/admin/groups/all
 func (h *GroupHandler) GetAll(c *gin.Context) {
 	platform := c.Query("platform")
+	includeInactive := c.Query("include_inactive") == "true"
 
 	var groups []service.Group
 	var err error
 
-	if platform != "" {
+	if includeInactive {
+		groups, err = h.adminService.GetAllGroupsIncludingInactive(c.Request.Context())
+	} else if platform != "" {
 		groups, err = h.adminService.GetAllGroupsByPlatform(c.Request.Context(), platform)
 	} else {
 		groups, err = h.adminService.GetAllGroups(c.Request.Context())
@@ -285,6 +315,11 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if err := service.ValidatePeakRateConfig(req.SubscriptionType, req.PeakRateEnabled, req.PeakStart, req.PeakEnd, float64ValueOrDefault(req.PeakRateMultiplier, 1.0)); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
 	group, err := h.adminService.CreateGroup(c.Request.Context(), &service.CreateGroupInput{
 		Name:                            req.Name,
 		Description:                     req.Description,
@@ -296,8 +331,17 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		WeeklyLimitUSD:                  req.WeeklyLimitUSD.ToServiceInput(),
 		MonthlyLimitUSD:                 req.MonthlyLimitUSD.ToServiceInput(),
 		AllowImageGeneration:            req.AllowImageGeneration,
+		AllowBatchImageGeneration:       req.AllowBatchImageGeneration,
 		ImageRateIndependent:            req.ImageRateIndependent,
 		ImageRateMultiplier:             req.ImageRateMultiplier,
+		BatchImageDiscountMultiplier:    req.BatchImageDiscountMultiplier,
+		BatchImageHoldMultiplier:        req.BatchImageHoldMultiplier,
+		VideoRateIndependent:            req.VideoRateIndependent,
+		VideoRateMultiplier:             req.VideoRateMultiplier,
+		PeakRateEnabled:                 req.PeakRateEnabled,
+		PeakStart:                       req.PeakStart,
+		PeakEnd:                         req.PeakEnd,
+		PeakRateMultiplier:              req.PeakRateMultiplier,
 		ImagePrice1K:                    req.ImagePrice1K,
 		ImagePrice2K:                    req.ImagePrice2K,
 		ImagePrice4K:                    req.ImagePrice4K,
@@ -307,6 +351,9 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		SoraVideoPricePerRequestHD:      req.SoraVideoPricePerRequestHD,
 		VeoVideoPricePerSecond:          req.VeoVideoPricePerSecond,
 		SoraStorageQuotaBytes:           req.SoraStorageQuotaBytes,
+		VideoPrice480P:                  req.VideoPrice480P,
+		VideoPrice720P:                  req.VideoPrice720P,
+		VideoPrice1080P:                 req.VideoPrice1080P,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
 		FallbackGroupID:                 req.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: req.FallbackGroupIDOnInvalidRequest,
@@ -359,8 +406,17 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		WeeklyLimitUSD:                  req.WeeklyLimitUSD.ToServiceInput(),
 		MonthlyLimitUSD:                 req.MonthlyLimitUSD.ToServiceInput(),
 		AllowImageGeneration:            req.AllowImageGeneration,
+		AllowBatchImageGeneration:       req.AllowBatchImageGeneration,
 		ImageRateIndependent:            req.ImageRateIndependent,
 		ImageRateMultiplier:             req.ImageRateMultiplier,
+		BatchImageDiscountMultiplier:    req.BatchImageDiscountMultiplier,
+		BatchImageHoldMultiplier:        req.BatchImageHoldMultiplier,
+		VideoRateIndependent:            req.VideoRateIndependent,
+		VideoRateMultiplier:             req.VideoRateMultiplier,
+		PeakRateEnabled:                 req.PeakRateEnabled,
+		PeakStart:                       req.PeakStart,
+		PeakEnd:                         req.PeakEnd,
+		PeakRateMultiplier:              req.PeakRateMultiplier,
 		ImagePrice1K:                    req.ImagePrice1K,
 		ImagePrice2K:                    req.ImagePrice2K,
 		ImagePrice4K:                    req.ImagePrice4K,
@@ -370,6 +426,9 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		SoraVideoPricePerRequestHD:      req.SoraVideoPricePerRequestHD,
 		VeoVideoPricePerSecond:          req.VeoVideoPricePerSecond,
 		SoraStorageQuotaBytes:           req.SoraStorageQuotaBytes,
+		VideoPrice480P:                  req.VideoPrice480P,
+		VideoPrice720P:                  req.VideoPrice720P,
+		VideoPrice1080P:                 req.VideoPrice1080P,
 		ClaudeCodeOnly:                  req.ClaudeCodeOnly,
 		FallbackGroupID:                 req.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: req.FallbackGroupIDOnInvalidRequest,

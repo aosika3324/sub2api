@@ -37,6 +37,8 @@
         :key="resolveRowKey(row, index)"
         class="rounded-lg border p-4"
         style="border-color: var(--ui-border); background: var(--ui-surface)"
+        :class="{ 'cursor-pointer': clickableRows }"
+        @click="clickableRows && emit('rowClick', row)"
       >
         <div class="space-y-3">
           <div
@@ -77,6 +79,7 @@
             v-for="(column, index) in columns"
             :key="column.key"
             scope="col"
+            :aria-sort="column.sortable ? getColumnAriaSort(column.key) : undefined"
             :class="[
               'sticky-header-cell py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400',
               getAdaptivePaddingClass(),
@@ -92,26 +95,28 @@
               :sort-key="sortKey"
               :sort-order="sortOrder"
             >
-              <div class="flex items-center space-x-1">
+              <div :class="['flex items-center space-x-1', getHeaderContentAlignmentClass(column)]">
                 <span>{{ column.label }}</span>
-                <span v-if="column.sortable" class="text-gray-400 dark:text-dark-500">
+                <span
+                  v-if="column.sortable"
+                  class="inline-flex h-5 w-4 flex-col items-center justify-center"
+                  aria-hidden="true"
+                >
                   <svg
-                    v-if="sortKey === column.key"
-                    class="h-4 w-4"
-                    :class="{ 'rotate-180 transform': sortOrder === 'desc' }"
+                    class="h-2.5 w-2.5"
+                    :class="getSortIndicatorClass(column.key, 'asc')"
                     fill="currentColor"
-                    viewBox="0 0 20 20"
+                    viewBox="0 0 10 10"
                   >
-                    <path
-                      fill-rule="evenodd"
-                      d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                      clip-rule="evenodd"
-                    />
+                    <path d="M5 2L1.5 6.5h7L5 2z" />
                   </svg>
-                  <svg v-else class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                    />
+                  <svg
+                    class="-mt-0.5 h-2.5 w-2.5"
+                    :class="getSortIndicatorClass(column.key, 'desc')"
+                    fill="currentColor"
+                    viewBox="0 0 10 10"
+                  >
+                    <path d="M5 8L1.5 3.5h7L5 8z" />
                   </svg>
                 </span>
               </div>
@@ -164,6 +169,8 @@
             :data-index="virtualRow.index"
             :ref="measureElement"
             class="datatable-row"
+            :class="{ 'cursor-pointer': clickableRows }"
+            @click="clickableRows && emit('rowClick', sortedData[virtualRow.index])"
           >
             <td
               v-for="(column, colIndex) in columns"
@@ -212,6 +219,7 @@ const isDesktopViewport = ref(
 
 const emit = defineEmits<{
   sort: [key: string, order: 'asc' | 'desc']
+  rowClick: [row: any]
 }>()
 
 // 表格容器引用
@@ -249,6 +257,11 @@ const checkScrollable = () => {
 
 // 检查操作列是否需要展开
 const checkActionsColumnWidth = () => {
+  if (!props.expandableActions) {
+    actionsColumnNeedsExpanding.value = false
+    actionsExpanded.value = false
+    return
+  }
   if (!tableWrapperRef.value) return
 
   // 查找第一行的操作列单元格
@@ -379,6 +392,8 @@ interface Props {
    * will emit 'sort' events instead of performing client-side sorting.
    */
   serverSideSort?: boolean
+  /** Emit 'rowClick' on row/card click and show pointer cursor (interactive cells should @click.stop) */
+  clickableRows?: boolean
   /** Estimated row height in px for the virtualizer (default 56) */
   estimateRowHeight?: number
   /** Number of rows to render beyond the visible area (default 5) */
@@ -463,6 +478,24 @@ const applySortState = (state: PersistedSortState | null) => {
   if (!state) return
   sortKey.value = state.key
   sortOrder.value = state.order
+}
+
+const getSortIndicatorClass = (key: string, order: 'asc' | 'desc') => {
+  return sortKey.value === key && sortOrder.value === order
+    ? 'text-primary-600 dark:text-primary-400'
+    : 'text-gray-300 transition-colors dark:text-dark-500'
+}
+
+const getColumnAriaSort = (key: string) => {
+  if (sortKey.value !== key) return 'none'
+  return sortOrder.value === 'asc' ? 'ascending' : 'descending'
+}
+
+const getHeaderContentAlignmentClass = (column: Column) => {
+  const className = column.class || ''
+  if (className.includes('text-center')) return 'justify-center'
+  if (className.includes('text-right')) return 'justify-end'
+  return 'justify-start'
 }
 
 const isNullishOrEmpty = (value: any) => value === null || value === undefined || value === ''

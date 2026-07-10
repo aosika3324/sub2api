@@ -40,10 +40,12 @@ type APIKey struct {
 	CompiledIPWhitelist *ip.CompiledIPRules `json:"-"`
 	CompiledIPBlacklist *ip.CompiledIPRules `json:"-"`
 	LastUsedAt          *time.Time
+	LastUsedIP          *string
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	User                *User
 	Group               *Group
+	CurrentConcurrency  int
 
 	// Internal marks a system-managed key that is hidden from user-facing listings.
 	// Example: the synthetic "image studio" key created per (user, group) pair.
