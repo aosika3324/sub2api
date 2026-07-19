@@ -70,6 +70,13 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	h.handleParsedOpenAIImages(c, &streamStarted, requestStart, apiKey, subject, reqLog, body, parsed, "handler.openai_gateway.images", false)
 }
 
+func (h *OpenAIGatewayHandler) openAIImagesJSONKeepaliveInterval() time.Duration {
+	if h.cfg == nil || h.cfg.Gateway.ImageNonstreamKeepaliveInterval <= 0 {
+		return 0
+	}
+	return time.Duration(h.cfg.Gateway.ImageNonstreamKeepaliveInterval) * time.Second
+}
+
 func isMultipartImagesContentType(contentType string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(contentType)), "multipart/form-data")
 }

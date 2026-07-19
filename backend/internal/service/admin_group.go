@@ -166,6 +166,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	soraVideoPrice := normalizePrice(input.SoraVideoPricePerRequest)
 	soraVideoPriceHD := normalizePrice(input.SoraVideoPricePerRequestHD)
 	veoVideoPrice := normalizePrice(input.VeoVideoPricePerSecond)
+	webSearchPricePerCall := normalizePrice(input.WebSearchPricePerCall)
 	imageRateMultiplier := 1.0
 	if input.ImageRateMultiplier != nil {
 		if *input.ImageRateMultiplier < 0 {
@@ -310,6 +311,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		SoraVideoPricePerRequestHD:      soraVideoPriceHD,
 		VeoVideoPricePerSecond:          veoVideoPrice,
 		SoraStorageQuotaBytes:           input.SoraStorageQuotaBytes,
+		WebSearchPricePerCall:           webSearchPricePerCall,
 		ClaudeCodeOnly:                  input.ClaudeCodeOnly,
 		FallbackGroupID:                 input.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest,
@@ -584,6 +586,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.SoraStorageQuotaBytes != nil {
 		group.SoraStorageQuotaBytes = *input.SoraStorageQuotaBytes
+	}
+	if input.WebSearchPricePerCall != nil {
+		group.WebSearchPricePerCall = normalizePrice(input.WebSearchPricePerCall)
 	}
 
 	// Claude Code 客户端限制

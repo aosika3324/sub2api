@@ -208,6 +208,7 @@ func (s *OpenAIGatewayService) GenerateImages(ctx context.Context, in ImageGenIn
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *UpstreamFailoverError
+	var oauth429FailoverState OpenAIOAuth429FailoverState
 
 	var groupID *int64
 	if apiKey != nil {
@@ -318,7 +319,7 @@ func (s *OpenAIGatewayService) GenerateImages(ctx context.Context, in ImageGenIn
 			} else {
 				var imageUpstreamErr *OpenAIImagesUpstreamError
 				if errors.As(err, &imageUpstreamErr) {
-					s.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
+					s.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestModel), true, nil)
 					reqLog.Warn("openai.images.upstream_user_error",
 						zap.Int64("account_id", account.ID),
 						zap.Int("status_code", imageUpstreamErr.StatusCode),
@@ -333,7 +334,7 @@ func (s *OpenAIGatewayService) GenerateImages(ctx context.Context, in ImageGenIn
 				}
 				var failoverErr *UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
-					s.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+					s.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestModel), false, nil)
 					if failoverErr.RetryableOnSameAccount {
 						retryLimit := account.GetPoolModeRetryCount()
 						if sameAccountRetryCount[account.ID] < retryLimit {
@@ -362,7 +363,7 @@ func (s *OpenAIGatewayService) GenerateImages(ctx context.Context, in ImageGenIn
 						return nil, &imageGenTerminalError{Kind: imageGenKindFailoverExhausted, FailoverErr: failoverErr, Err: err}
 					}
 					switchCount++
-					if s.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount) {
+					if s.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
 						if in.Hooks.OnFailoverExhausted != nil {
 							in.Hooks.OnFailoverExhausted(failoverErr)
 						}
@@ -376,7 +377,7 @@ func (s *OpenAIGatewayService) GenerateImages(ctx context.Context, in ImageGenIn
 					)
 					continue
 				}
-				s.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+				s.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestModel), false, nil)
 				if in.Hooks.OnForwardError != nil {
 					in.Hooks.OnForwardError(account, writerSizeBeforeForward, err)
 				} else {
@@ -392,9 +393,9 @@ func (s *OpenAIGatewayService) GenerateImages(ctx context.Context, in ImageGenIn
 			if account.Type == AccountTypeOAuth {
 				s.UpdateCodexUsageSnapshotFromHeaders(imageGenRequestContext(c, ctx), account.ID, result.ResponseHeaders)
 			}
-			s.ReportOpenAIAccountScheduleResult(account.ID, true, result.FirstTokenMs)
+			s.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestModel), true, result.FirstTokenMs)
 		} else {
-			s.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
+			s.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestModel), true, nil)
 		}
 
 		reqLog.Debug("openai.images.request_completed",
