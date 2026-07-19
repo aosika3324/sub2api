@@ -44,4 +44,25 @@ func TestSettingsPUT_ExternalRecharge_Persists(t *testing.T) {
 		"external_recharge_enabled must be persisted from the request")
 	require.Equal(t, "https://recharge.example.com", repo.lastUpdates[service.SettingKeyExternalRechargeURL],
 		"external_recharge_url must be persisted from the request")
+
+	// Read-back path: the admin GET must reflect the saved value, otherwise the
+	// toggle reloads as OFF even though the DB holds true (parseSettings must read
+	// the external_recharge keys, not just write them).
+	getRec := httptest.NewRecorder()
+	gc, _ := gin.CreateTestContext(getRec)
+	gc.Request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/settings", nil)
+	handler.GetSettings(gc)
+
+	require.Equal(t, http.StatusOK, getRec.Code, "get should succeed")
+	var envelope struct {
+		Data struct {
+			ExternalRechargeEnabled bool   `json:"external_recharge_enabled"`
+			ExternalRechargeURL     string `json:"external_recharge_url"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(getRec.Body.Bytes(), &envelope))
+	require.True(t, envelope.Data.ExternalRechargeEnabled,
+		"admin GET must return external_recharge_enabled=true after save (read-back)")
+	require.Equal(t, "https://recharge.example.com", envelope.Data.ExternalRechargeURL,
+		"admin GET must return the saved external_recharge_url (read-back)")
 }
